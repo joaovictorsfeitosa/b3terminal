@@ -1913,7 +1913,109 @@ async function toggleDevice(devId, block, btn) {
   // Não bloqueia acesso — mostra tela mas permite usar o site
   document.getElementById('auth-overlay').classList.add('hidden');
 })();
-</script>
+</script>let usuarioAtual = null;
+
+// REGISTRAR
+async function register() {
+    const user = document.getElementById("regUser").value;
+    const password = document.getElementById("regPass").value;
+
+    const res = await fetch("/register", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ user, password })
+    });
+
+    const data = await res.json();
+    alert(data.message || data.error);
+}
+
+// LOGIN
+async function login() {
+    const user = document.getElementById("loginUser").value;
+    const password = document.getElementById("loginPass").value;
+
+    const res = await fetch("/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ user, password })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+        usuarioAtual = user;
+        abrirDashboard();
+    } else {
+        alert(data.error);
+    }
+}
+
+// ABRIR DASHBOARD
+function abrirDashboard() {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+
+    document.getElementById("welcome").innerText = "Bem-vindo, " + usuarioAtual;
+    carregarCarteira();
+}
+
+// ADICIONAR ATIVO
+async function addAtivo() {
+    const nome = document.getElementById("ativo").value;
+    const valor = document.getElementById("valor").value;
+
+    const res = await fetch("/add", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            user: usuarioAtual,
+            nome,
+            valor
+        })
+    });
+
+    const data = await res.json();
+    alert(data.message);
+
+    carregarCarteira();
+}
+
+// CARREGAR CARTEIRA
+async function carregarCarteira() {
+    const res = await fetch("/carteira/" + usuarioAtual);
+    const carteira = await res.json();
+
+    const lista = document.getElementById("lista");
+    lista.innerHTML = "";
+
+    carteira.forEach(item => {
+        const li = document.createElement("li");
+        li.innerText = item.nome + " - R$ " + item.valor;
+        lista.appendChild(li);
+    });
+}
+
+// LOGOUT
+function logout() {
+    usuarioAtual = null;
+    document.getElementById("dashboard").style.display = "none";
+    document.getElementById("loginBox").style.display = "block";
+}
 
 </body>
-</html>
+</html><input id="loginUser">
+<input id="loginPass">
+
+<input id="regUser">
+<input id="regPass">
+
+<div id="loginBox"></div>
+<div id="dashboard"></div>
+
+<input id="ativo">
+<input id="valor">
+
+<ul id="lista"></ul>
+
+<p id="welcome"></p>
