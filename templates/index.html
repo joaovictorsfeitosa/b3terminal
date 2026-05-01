@@ -38,7 +38,6 @@ button {
 
 <body>
 
-<!-- LOGIN -->
 <div class="container" id="loginBox">
     <h2>Login</h2>
     <input id="loginUser" placeholder="Usuário">
@@ -51,13 +50,12 @@ button {
     <button onclick="register()">Cadastrar</button>
 </div>
 
-<!-- DASHBOARD -->
 <div class="container" id="dashboard" style="display:none;">
     <h2>Minha Carteira</h2>
     <p id="welcome"></p>
 
     <input id="ativo" placeholder="Nome do ativo">
-    <input id="valor" type="number" placeholder="Valor investido">
+    <input id="valor" type="number" placeholder="Valor">
     <button onclick="addAtivo()">Adicionar</button>
 
     <ul id="lista"></ul>
@@ -68,72 +66,57 @@ button {
 <script>
 let usuarioAtual = null;
 
-// REGISTRAR
 async function register() {
-    const user = regUser.value;
-    const password = regPass.value;
-
     const res = await fetch("/register", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ user, password })
+        body: JSON.stringify({
+            user: regUser.value,
+            password: regPass.value
+        })
     });
 
     const data = await res.json();
     alert(data.message || data.error);
 }
 
-// LOGIN
 async function login() {
-    const user = loginUser.value;
-    const password = loginPass.value;
-
     const res = await fetch("/login", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ user, password })
+        body: JSON.stringify({
+            user: loginUser.value,
+            password: loginPass.value
+        })
     });
 
     const data = await res.json();
 
     if (res.ok) {
-        usuarioAtual = user;
-        abrirDashboard();
+        usuarioAtual = loginUser.value;
+        loginBox.style.display = "none";
+        dashboard.style.display = "block";
+        welcome.innerText = "Bem-vindo, " + usuarioAtual;
+        carregarCarteira();
     } else {
         alert(data.error);
     }
 }
 
-// ABRIR DASHBOARD
-function abrirDashboard() {
-    loginBox.style.display = "none";
-    dashboard.style.display = "block";
-    welcome.innerText = "Bem-vindo, " + usuarioAtual;
-    carregarCarteira();
-}
-
-// ADICIONAR ATIVO
 async function addAtivo() {
-    const nome = ativo.value;
-    const valorNum = valor.value;
-
-    const res = await fetch("/add", {
+    await fetch("/add", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
             user: usuarioAtual,
-            nome,
-            valor: valorNum
+            nome: ativo.value,
+            valor: valor.value
         })
     });
-
-    const data = await res.json();
-    alert(data.message);
 
     carregarCarteira();
 }
 
-// CARREGAR CARTEIRA
 async function carregarCarteira() {
     const res = await fetch("/carteira/" + usuarioAtual);
     const carteira = await res.json();
@@ -147,7 +130,6 @@ async function carregarCarteira() {
     });
 }
 
-// LOGOUT
 function logout() {
     usuarioAtual = null;
     dashboard.style.display = "none";
