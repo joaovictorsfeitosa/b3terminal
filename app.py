@@ -14,11 +14,26 @@ import hashlib
 import hmac
 import secrets
 import json
+import requests
 from functools import wraps
 from collections import defaultdict
 
 app = Flask(__name__)
 CORS(app)
+
+# ─── SESSION YFINANCE (evita bloqueio do Yahoo Finance em servidores) ──────────
+_yf_session = requests.Session()
+_yf_session.headers.update({
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+})
 
 # ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
 SECRET_KEY   = os.environ.get("SECRET_KEY", secrets.token_hex(32))
@@ -236,7 +251,7 @@ def b3_symbol(sym):
         return sym
     return sym if sym.endswith(".SA") else sym + ".SA"
 
-def parse_ticker(ticker, sym_original):
+def parse_ticker(ticker, sym_original, _retry=0):
     try:
         info  = ticker.info or {}
         price = (info.get("currentPrice") or info.get("regularMarketPrice") or info.get("navPrice"))
@@ -282,7 +297,11 @@ def parse_ticker(ticker, sym_original):
             "marketCap":                  info.get("marketCap"),
         }
     except Exception as e:
+        msg = str(e)
         print(f"  parse_ticker({sym_original}): {e}")
+        if "Too Many Requests" in msg and _retry < 2:
+            time.sleep(2 + _retry * 3)
+            return parse_ticker(ticker, sym_original, _retry + 1)
         return None
 
 def get_dividend_history(ticker, sym_original, cotas=1):
@@ -554,13 +573,13 @@ def get_quotes():
         return jsonify({"error": "symbols obrigatório"}), 400
     symbols   = [s.strip().upper() for s in symbols_raw.split(",") if s.strip()]
     cache_key = "quotes_" + "_".join(sorted(symbols))
-    cached    = cache_get(cache_key, ttl=90)
+    cached    = cache_get(cache_key, ttl=300)
     if cached:
         return jsonify(cached)
     results = []
     for sym in symbols:
         try:
-            t    = yf.Ticker(b3_symbol(sym))
+            t    = yf.Ticker(b3_symbol(sym), session=_yf_session)
             data = parse_ticker(t, sym)
             if data: results.append(data)
         except Exception as e:
@@ -575,7 +594,7 @@ def search_symbol(symbol):
     cached    = cache_get(cache_key, ttl=300)
     if cached: return jsonify(cached)
     try:
-        t      = yf.Ticker(b3_symbol(sym))
+        t      = yf.Ticker(b3_symbol(sym), session=_yf_session)
         data   = parse_ticker(t, sym)
         result = {"found": True, "data": data} if data and data.get("regularMarketPrice") else {"found": False}
         cache_set(cache_key, result)
@@ -587,10 +606,10 @@ def search_symbol(symbol):
 def get_index(symbol):
     sym       = symbol.upper()
     cache_key = f"idx_{sym}"
-    cached    = cache_get(cache_key, ttl=120)
+    cached    = cache_get(cache_key, ttl=300)
     if cached: return jsonify(cached)
     try:
-        t    = yf.Ticker(sym)
+        t    = yf.Ticker(sym, session=_yf_session)
         data = parse_ticker(t, sym)
         if data:
             cache_set(cache_key, data)
@@ -633,7 +652,7 @@ def simulate():
             quote = cached["quote"]; div_h = cached["div_h"]
         else:
             try:
-                t = yf.Ticker(b3_symbol(sym))
+                t = yf.Ticker(b3_symbol(sym), session=_yf_session)
                 quote = parse_ticker(t, sym); div_h = get_dividend_history(t, sym)
                 cache_set(ck, {"quote": quote, "div_h": div_h})
             except:
@@ -739,7 +758,7 @@ def get_history(symbol):
     ck  = f"hist_{sym}_{period}"; cached = cache_get(ck, ttl=300)
     if cached: return jsonify(cached)
     try:
-        t    = yf.Ticker(b3_symbol(sym))
+        t    = yf.Ticker(b3_symbol(sym), session=_yf_session)
         hist = t.history(period=period, interval="1d")
         if hist.empty: return jsonify({"error": "sem dados"}), 404
         data = [{"date": str(idx.date()), "close": round(float(row["Close"]), 2),
@@ -756,7 +775,7 @@ def get_asset(symbol):
     cached = cache_get(ck, ttl=120)
     if cached: return jsonify(cached)
     try:
-        t     = yf.Ticker(b3_symbol(sym))
+        t     = yf.Ticker(b3_symbol(sym), session=_yf_session)
         quote = parse_ticker(t, sym)
         if not quote: return jsonify({"error": "não encontrado"}), 404
         divs_raw = []
