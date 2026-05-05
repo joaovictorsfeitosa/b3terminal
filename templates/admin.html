@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B3 Terminal — Painel Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#060a0f;--bg2:#0c1219;--bg3:#111a24;--bd:#1c2e40;
+  --g:#00e676;--gd:rgba(0,230,118,.1);
+  --r:#ff3d57;--rd:rgba(255,61,87,.1);
+  --a:#ffc400;--ad:rgba(255,196,0,.1);
+  --t:#b8ccde;--td:#3d5a72;--tb:#e2f0ff;
+  --mono:'Space Mono',monospace;--sans:'Syne',sans-serif;
+}
+html,body{background:var(--bg);color:var(--t);font-family:var(--mono);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(0,230,118,.05) 0%,transparent 65%);pointer-events:none;z-index:0}
+
+/* TOP BAR */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(6,10,15,.95);border-bottom:1px solid var(--bd);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(12px)}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.logo-box{width:34px;height:34px;background:var(--g);border-radius:8px;display:grid;place-items:center;font-family:var(--sans);font-weight:800;font-size:13px;color:#000}
+.logo-name{font-family:var(--sans);font-weight:800;font-size:16px;color:var(--tb);letter-spacing:2px}
+.admin-badge{background:var(--rd);color:var(--r);border:1px solid var(--r);border-radius:4px;padding:2px 8px;font-size:9px;letter-spacing:2px;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.btn-back{background:var(--bg3);border:1px solid var(--bd);color:var(--t);padding:7px 14px;border-radius:8px;font-family:var(--mono);font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:.2s}
+.btn-back:hover{border-color:var(--g);color:var(--g)}
+.btn-logout{background:var(--rd);border:1px solid var(--r);color:var(--r);padding:7px 14px;border-radius:8px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:.2s}
+.btn-logout:hover{background:var(--r);color:#fff}
+
+/* MAIN */
+.main{max-width:1100px;margin:0 auto;padding:32px 24px}
+
+/* STATS CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px}
+.stat-card{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:20px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.green::before{background:var(--g)}
+.stat-card.red::before{background:var(--r)}
+.stat-card.yellow::before{background:var(--a)}
+.stat-card.blue::before{background:#4fc3f7}
+.stat-label{font-size:9px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.stat-value{font-family:var(--sans);font-size:32px;font-weight:800;color:var(--tb)}
+.stat-sub{font-size:10px;color:var(--td);margin-top:4px}
+
+/* SECTION */
+.section{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;margin-bottom:24px;overflow:hidden}
+.section-header{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.section-title{font-family:var(--sans);font-size:14px;font-weight:800;color:var(--tb);letter-spacing:1px}
+.section-count{font-size:10px;color:var(--td);background:var(--bg3);padding:3px 10px;border-radius:20px;border:1px solid var(--bd)}
+
+/* SEARCH */
+.search-bar{padding:12px 20px;border-bottom:1px solid var(--bd)}
+.search-bar input{width:100%;background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:9px 14px;color:var(--tb);font-family:var(--mono);font-size:12px;outline:none;transition:border-color .2s}
+.search-bar input:focus{border-color:var(--g)}
+
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:9px;color:var(--td);letter-spacing:2px;text-transform:uppercase;padding:10px 20px;text-align:left;border-bottom:1px solid var(--bd)}
+td{padding:12px 20px;border-bottom:1px solid rgba(28,46,64,.5);font-size:12px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:1px}
+.badge.active{background:var(--gd);color:var(--g);border:1px solid rgba(0,230,118,.3)}
+.badge.blocked{background:var(--rd);color:var(--r);border:1px solid rgba(255,61,87,.3)}
+.badge.admin{background:var(--ad);color:var(--a);border:1px solid rgba(255,196,0,.3)}
+
+/* ACTIONS */
+.actions{display:flex;gap:8px}
+.btn-sm{padding:5px 12px;border-radius:6px;font-family:var(--mono);font-size:10px;cursor:pointer;border:1px solid;transition:.2s;font-weight:700}
+.btn-block{background:var(--rd);border-color:var(--r);color:var(--r)}
+.btn-block:hover{background:var(--r);color:#fff}
+.btn-unblock{background:var(--gd);border-color:var(--g);color:var(--g)}
+.btn-unblock:hover{background:var(--g);color:#000}
+.btn-delete{background:rgba(255,61,87,.05);border-color:rgba(255,61,87,.3);color:rgba(255,61,87,.6)}
+.btn-delete:hover{background:var(--r);color:#fff;border-color:var(--r)}
+.btn-view{background:var(--bg3);border-color:var(--bd);color:var(--td)}
+.btn-view:hover{border-color:var(--g);color:var(--g)}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;place-items:center}
+.modal-overlay.open{display:grid}
+.modal{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:28px;width:90%;max-width:500px;max-height:80vh;overflow-y:auto}
+.modal-title{font-family:var(--sans);font-size:16px;font-weight:800;color:var(--tb);margin-bottom:4px}
+.modal-sub{font-size:10px;color:var(--td);margin-bottom:20px}
+.modal-close{float:right;background:none;border:none;color:var(--td);font-size:18px;cursor:pointer;margin-top:-4px}
+.modal-close:hover{color:var(--r)}
+.ativo-list{display:flex;flex-direction:column;gap:8px}
+.ativo-item{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.ativo-sym{font-size:13px;font-weight:700;color:var(--tb)}
+.ativo-info{font-size:10px;color:var(--td)}
+.empty{padding:32px;text-align:center;color:var(--td);font-size:12px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:12px 20px;font-size:12px;color:var(--tb);z-index:9999;transform:translateY(80px);opacity:0;transition:.3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:var(--g);color:var(--g)}
+.toast.err{border-color:var(--r);color:var(--r)}
+
+/* LOADING */
+.loading{padding:40px;text-align:center;color:var(--td);font-size:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:24px;height:24px;border:2px solid var(--bd);border-top-color:var(--g);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-box">B3</div>
+    <span class="logo-name">TERMINAL</span>
+    <span class="admin-badge">ADMIN</span>
+  </div>
+  <div class="topbar-right">
+    <a href="/" class="btn-back">← Voltar ao Site</a>
+    <button class="btn-logout" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- STATS -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="loading"><div class="spinner"></div>Carregando...</div>
+  </div>
+
+  <!-- USERS TABLE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">👥 Usuários Cadastrados</span>
+      <span class="section-count" id="userCount">—</span>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Buscar por nome ou e-mail..." oninput="filterUsers()">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nome</th>
+            <th>E-mail</th>
+            <th>Cadastro</th>
+            <th>Ativos</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="usersBody">
+          <tr><td colspan="7" class="loading"><div class="spinner"></div>Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL ATIVOS -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" id="modalTitle">Carteira</div>
+    <div class="modal-sub" id="modalSub"></div>
+    <div class="ativo-list" id="modalAtivos"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+let allUsers = [];
+
+// ── CHECK ADMIN ──────────────────────────────────────────────────────────────
+async function checkAdmin() {
+  const r = await fetch("/api/auth/me");
+  const d = await r.json();
+  if (!d.logado || !d.is_admin) {
+    window.location.href = "/";
+  }
+}
+
+// ── LOAD STATS ───────────────────────────────────────────────────────────────
+async function loadStats() {
+  const r = await fetch("/api/admin/stats");
+  const d = await r.json();
+  document.getElementById("statsGrid").innerHTML = `
+    <div class="stat-card green">
+      <div class="stat-label">Usuários Totais</div>
+      <div class="stat-value">${d.total_users}</div>
+      <div class="stat-sub">contas cadastradas</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Contas Bloqueadas</div>
+      <div class="stat-value">${d.blocked_users}</div>
+      <div class="stat-sub">acesso suspenso</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="stat-label">Ativos Salvos</div>
+      <div class="stat-value">${d.total_ativos}</div>
+      <div class="stat-sub">na base de dados</div>
+    </div>
+  `;
+}
+
+// ── LOAD USERS ────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const r = await fetch("/api/admin/users");
+  allUsers = await r.json();
+  document.getElementById("userCount").textContent = allUsers.length + " usuários";
+  renderUsers(allUsers);
+}
+
+function renderUsers(users) {
+  const tbody = document.getElementById("usersBody");
+  if (!users.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">Nenhum usuário encontrado.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td style="color:var(--td)">${u.id}</td>
+      <td style="color:var(--tb);font-weight:700">${esc(u.nome)}</td>
+      <td style="color:var(--t)">${esc(u.email)}</td>
+      <td style="color:var(--td);font-size:11px">${u.criado_em}</td>
+      <td>
+        <button class="btn-sm btn-view" onclick="viewAtivos(${u.id},'${esc(u.nome)}')">
+          📊 ${u.num_ativos}
+        </button>
+      </td>
+      <td>
+        ${u.is_admin
+          ? `<span class="badge admin">★ ADMIN</span>`
+          : u.is_blocked
+            ? `<span class="badge blocked">BLOQUEADO</span>`
+            : `<span class="badge active">ATIVO</span>`
+        }
+      </td>
+      <td>
+        <div class="actions">
+          ${!u.is_admin ? `
+            ${u.is_blocked
+              ? `<button class="btn-sm btn-unblock" onclick="toggleBlock(${u.id},false)">Desbloquear</button>`
+              : `<button class="btn-sm btn-block"   onclick="toggleBlock(${u.id},true)">Bloquear</button>`
+            }
+            <button class="btn-sm btn-delete" onclick="deleteUser(${u.id},'${esc(u.nome)}')">Deletar</button>
+          ` : `<span style="font-size:10px;color:var(--td)">—</span>`}
+        </div>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function filterUsers() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  const filtered = allUsers.filter(u =>
+    u.nome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  );
+  renderUsers(filtered);
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+async function toggleBlock(id, block) {
+  const r = await fetch(`/api/admin/user/${id}/block`, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({blocked: block})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    toast(block ? "Usuário bloqueado" : "Usuário desbloqueado", "ok");
+    loadUsers(); loadStats();
+  } else {
+    toast(d.error || "Erro", "err");
+  }
+}
+
+async function deleteUser(id, nome) {
+  if (!confirm(`Deletar a conta de "${nome}"?\nEsta ação não pode ser desfeita.`)) return;
+  const r = await fetch(`/api/admin/user/${id}/delete`, {method:"DELETE"});
+  const d = await r.json();
+  if (d.ok) {
+    toast("Usuário deletado", "ok");
+    loadUsers(); loadStats();
+  } else {
+    toast(d.error || "Erro", "err");
+  }
+}
+
+async function viewAtivos(id, nome) {
+  document.getElementById("modalTitle").textContent = `Carteira de ${nome}`;
+  document.getElementById("modalSub").textContent = "Ativos salvos na conta";
+  document.getElementById("modalAtivos").innerHTML = `<div class="loading"><div class="spinner"></div>Carregando...</div>`;
+  document.getElementById("modalOverlay").classList.add("open");
+  const r = await fetch(`/api/admin/user/${id}/ativos`);
+  const ativos = await r.json();
+  if (!ativos.length) {
+    document.getElementById("modalAtivos").innerHTML = `<div class="empty">Nenhum ativo na carteira.</div>`;
+    return;
+  }
+  document.getElementById("modalAtivos").innerHTML = ativos.map(a => `
+    <div class="ativo-item">
+      <div>
+        <div class="ativo-sym">${a.symbol}</div>
+        <div class="ativo-info">${a.tipo.toUpperCase()}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;color:var(--tb)">${a.qty} cotas</div>
+        <div class="ativo-info">PM: R$ ${a.pm.toFixed(2)}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function closeModal(e) {
+  if (!e || e.target.id === "modalOverlay") {
+    document.getElementById("modalOverlay").classList.remove("open");
+  }
+}
+
+async function logout() {
+  await fetch("/api/auth/logout", {method:"POST"});
+  window.location.href = "/login";
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function toast(msg, type="ok") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.classList.remove("show"), 3000);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+(async () => {
+  await checkAdmin();
+  loadStats();
+  loadUsers();
+})();
+</script>
+</body>
+</html>
