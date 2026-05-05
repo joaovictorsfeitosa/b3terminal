@@ -42,3 +42,13 @@ class Ativo(db.Model):
     adicionado_em = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint("user_id", "symbol"),)
+
+class UserData(db.Model):
+    __tablename__ = "user_data"
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    key        = db.Column(db.String(64), nullable=False)
+    value      = db.Column(db.Text, nullable=False, default="{}")
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint("user_id", "key"),)

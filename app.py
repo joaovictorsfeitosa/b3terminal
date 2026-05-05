@@ -3,7 +3,7 @@ from datetime import datetime, date, timedelta
 from flask import Flask, jsonify, render_template, request, redirect, url_for
 from flask_cors import CORS
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User, Ativo
+from models import db, User, Ativo, UserData
 from models import ADMIN_EMAIL
 import feedparser
 from dateutil.relativedelta import relativedelta
@@ -475,6 +475,37 @@ def clear_cache_route():
         keys=[k for k in _cache if not sym or sym in k]
         for k in keys: del _cache[k]
     return jsonify({"ok":True})
+
+# ── Dados do usuário (watchlist, preferências, etc.) ─────────────────────────
+@app.route("/api/user/data/<key>", methods=["GET"])
+@login_required
+def user_data_get(key):
+    import json as _json
+    row = UserData.query.filter_by(user_id=current_user.id, key=key).first()
+    if not row:
+        return jsonify({"value": None})
+    try:
+        return jsonify({"value": _json.loads(row.value)})
+    except:
+        return jsonify({"value": None})
+
+@app.route("/api/user/data/<key>", methods=["POST"])
+@login_required
+def user_data_set(key):
+    import json as _json
+    body  = request.get_json(silent=True) or {}
+    value = body.get("value")
+    if value is None:
+        return jsonify({"error": "value obrigatório"}), 400
+    row = UserData.query.filter_by(user_id=current_user.id, key=key).first()
+    if row:
+        row.value      = _json.dumps(value)
+        row.updated_at = datetime.utcnow()
+    else:
+        row = UserData(user_id=current_user.id, key=key, value=_json.dumps(value))
+        db.session.add(row)
+    db.session.commit()
+    return jsonify({"ok": True})
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PAINEL ADMINISTRADOR
