@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B3 Terminal — {% if modo == 'login' %}Entrar{% else %}Criar Conta{% endif %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#060a0f;--bg2:#0c1219;--bg3:#111a24;--bd:#1c2e40;
+  --g:#00e676;--gd:rgba(0,230,118,.1);
+  --r:#ff3d57;--rd:rgba(255,61,87,.1);
+  --a:#ffc400;--b:#38bdf8;
+  --t:#b8ccde;--td:#3d5a72;--tb:#e2f0ff;
+  --mono:'Space Mono',monospace;--sans:'Syne',sans-serif;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--t);font-family:var(--mono);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(0,230,118,.06) 0%,transparent 70%);pointer-events:none}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.auth-wrap{width:100%;max-width:420px;animation:fadeIn .4s ease}
+
+/* Logo */
+.auth-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:32px}
+.auth-logo-box{width:42px;height:42px;background:var(--g);border-radius:9px;display:grid;place-items:center;font-family:var(--sans);font-weight:800;font-size:15px;color:#000}
+.auth-logo-name{font-family:var(--sans);font-weight:800;font-size:20px;color:var(--tb);letter-spacing:3px}
+.auth-logo-sub{font-size:9px;color:var(--td);letter-spacing:3px;text-transform:uppercase}
+
+/* Card */
+.auth-card{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:32px 28px}
+.auth-title{font-family:var(--sans);font-size:20px;font-weight:800;color:var(--tb);margin-bottom:6px}
+.auth-sub{font-size:10px;color:var(--td);letter-spacing:1px;margin-bottom:26px}
+
+/* Campos */
+.auth-field{margin-bottom:16px}
+.auth-lbl{font-size:9px;color:var(--td);letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:6px}
+.auth-inp{width:100%;background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:11px 14px;color:var(--tb);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s}
+.auth-inp:focus{border-color:var(--g)}
+.auth-inp.error{border-color:var(--r)}
+
+/* Força da senha */
+.senha-strength{height:3px;border-radius:2px;margin-top:6px;transition:all .3s;background:var(--bd)}
+.senha-strength.fraca{background:var(--r);width:33%}
+.senha-strength.media{background:var(--a);width:66%}
+.senha-strength.forte{background:var(--g);width:100%}
+.senha-hint{font-size:9px;margin-top:4px;letter-spacing:.5px}
+
+/* Botão principal */
+.auth-btn{width:100%;background:var(--g);border:none;color:#000;padding:13px;border-radius:9px;cursor:pointer;font-family:var(--sans);font-size:14px;font-weight:800;letter-spacing:1px;transition:.2s;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+.auth-btn:hover{opacity:.85;transform:translateY(-1px)}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.sp{width:14px;height:14px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+
+/* Erro/sucesso */
+.auth-msg{padding:11px 14px;border-radius:8px;font-size:11px;margin-bottom:16px;display:none;letter-spacing:.5px}
+.auth-msg.err{background:var(--rd);border:1px solid rgba(255,61,87,.3);color:var(--r);display:block}
+.auth-msg.ok{background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);color:var(--g);display:block}
+
+/* Divisor */
+.auth-divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--td);font-size:10px;letter-spacing:1px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--bd)}
+
+/* Link para alternar */
+.auth-switch{text-align:center;font-size:11px;color:var(--td)}
+.auth-switch a{color:var(--g);text-decoration:none;font-weight:700}
+.auth-switch a:hover{text-decoration:underline}
+
+/* Tabs login/cadastro */
+.auth-tabs{display:flex;gap:0;border:1px solid var(--bd);border-radius:9px;overflow:hidden;margin-bottom:26px}
+.auth-tab{flex:1;padding:11px;text-align:center;cursor:pointer;font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--td);background:var(--bg3);border:none;transition:.2s;text-decoration:none;display:block}
+.auth-tab.on{background:var(--g);color:#000}
+.auth-tab:hover:not(.on){color:var(--t);background:var(--bg2)}
+
+/* Checklist */
+.auth-check{display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:10px;color:var(--td);cursor:pointer;user-select:none}
+.auth-check input{width:14px;height:14px;accent-color:var(--g);cursor:pointer}
+
+/* Rodapé */
+.auth-footer{text-align:center;font-size:9px;color:var(--td);letter-spacing:1px;margin-top:22px}
+</style>
+</head>
+<body>
+
+<div class="auth-wrap">
+
+  <!-- Logo -->
+  <div class="auth-logo">
+    <div class="auth-logo-box">B3</div>
+    <div>
+      <div class="auth-logo-name">TERMINAL</div>
+      <div class="auth-logo-sub">Mercado Brasileiro</div>
+    </div>
+  </div>
+
+  <div class="auth-card">
+
+    <!-- Tabs -->
+    <div class="auth-tabs">
+      <a href="/login"   class="auth-tab {% if modo=='login'   %}on{% endif %}">Entrar</a>
+      <a href="/cadastro" class="auth-tab {% if modo=='cadastro' %}on{% endif %}">Criar Conta</a>
+    </div>
+
+    <!-- Mensagem de erro/sucesso -->
+    <div class="auth-msg" id="auth-msg"></div>
+
+    <!-- FORMULÁRIO LOGIN -->
+    {% if modo == 'login' %}
+    <div class="auth-title">Bem-vindo de volta 👋</div>
+    <div class="auth-sub">Entre com sua conta para acessar sua carteira</div>
+
+    <div class="auth-field">
+      <label class="auth-lbl">E-mail</label>
+      <input class="auth-inp" id="email" type="email" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label class="auth-lbl">Senha</label>
+      <input class="auth-inp" id="senha" type="password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <label class="auth-check">
+      <input type="checkbox" id="lembrar" checked>
+      Manter conectado
+    </label>
+    <button class="auth-btn" id="btn-login" onclick="doLogin()">ENTRAR →</button>
+
+    {% else %}
+    <!-- FORMULÁRIO CADASTRO -->
+    <div class="auth-title">Crie sua conta 🚀</div>
+    <div class="auth-sub">Monte sua carteira e acompanhe seus investimentos</div>
+
+    <div class="auth-field">
+      <label class="auth-lbl">Nome completo</label>
+      <input class="auth-inp" id="nome" type="text" placeholder="Seu nome" autocomplete="name">
+    </div>
+    <div class="auth-field">
+      <label class="auth-lbl">E-mail</label>
+      <input class="auth-inp" id="email" type="email" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label class="auth-lbl">Senha</label>
+      <input class="auth-inp" id="senha" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"
+        oninput="checkSenha(this.value)" onkeydown="if(event.key==='Enter')doSignup()">
+      <div class="senha-strength" id="senha-str"></div>
+      <div class="senha-hint" id="senha-hint" style="color:var(--td)"></div>
+    </div>
+    <div class="auth-field">
+      <label class="auth-lbl">Confirmar Senha</label>
+      <input class="auth-inp" id="senha2" type="password" placeholder="Digite a senha novamente"
+        onkeydown="if(event.key==='Enter')doSignup()">
+    </div>
+    <button class="auth-btn" id="btn-signup" onclick="doSignup()">CRIAR CONTA →</button>
+    {% endif %}
+
+  </div>
+
+  <div class="auth-footer">
+    B3 TERMINAL · Dados via Yahoo Finance · Não é recomendação de investimento
+  </div>
+
+</div>
+
+<script>
+function showMsg(txt, tipo="err"){
+  const el = document.getElementById("auth-msg");
+  el.textContent = txt;
+  el.className   = "auth-msg " + tipo;
+}
+
+function setLoading(btnId, loading){
+  const btn = document.getElementById(btnId);
+  if(loading){
+    btn.disabled = true;
+    btn.innerHTML = '<div class="sp"></div>Aguarde…';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = btn.id === "btn-login" ? "ENTRAR →" : "CRIAR CONTA →";
+  }
+}
+
+{% if modo == 'login' %}
+async function doLogin(){
+  const email = document.getElementById("email").value.trim();
+  const senha = document.getElementById("senha").value;
+  if(!email || !senha){ showMsg("Preencha e-mail e senha."); return; }
+  setLoading("btn-login", true);
+  try{
+    const r = await fetch("/api/auth/login",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email, senha})
+    });
+    const d = await r.json();
+    if(d.ok){
+      showMsg("✓ Bem-vindo, " + d.nome + "! Redirecionando…", "ok");
+      setTimeout(()=>{ window.location.href = "/"; }, 800);
+    } else {
+      showMsg(d.error || "Erro ao fazer login.");
+      setLoading("btn-login", false);
+    }
+  }catch(e){
+    showMsg("Erro de conexão. Tente novamente.");
+    setLoading("btn-login", false);
+  }
+}
+{% else %}
+function checkSenha(val){
+  const bar  = document.getElementById("senha-str");
+  const hint = document.getElementById("senha-hint");
+  if(!val){ bar.className="senha-strength"; hint.textContent=""; return; }
+  if(val.length < 6){
+    bar.className="senha-strength fraca";
+    hint.style.color="var(--r)"; hint.textContent="Fraca — mínimo 6 caracteres";
+  } else if(val.length < 10 || !/[0-9]/.test(val)){
+    bar.className="senha-strength media";
+    hint.style.color="var(--a)"; hint.textContent="Média — adicione números para melhorar";
+  } else {
+    bar.className="senha-strength forte";
+    hint.style.color="var(--g)"; hint.textContent="Forte ✓";
+  }
+}
+
+async function doSignup(){
+  const nome  = document.getElementById("nome").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const senha = document.getElementById("senha").value;
+  const s2    = document.getElementById("senha2").value;
+  if(!nome||!email||!senha){ showMsg("Preencha todos os campos."); return; }
+  if(senha !== s2){ showMsg("As senhas não coincidem."); return; }
+  if(senha.length < 6){ showMsg("A senha deve ter pelo menos 6 caracteres."); return; }
+  setLoading("btn-signup", true);
+  try{
+    const r = await fetch("/api/auth/cadastro",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({nome, email, senha})
+    });
+    const d = await r.json();
+    if(d.ok){
+      showMsg("✓ Conta criada! Redirecionando…", "ok");
+      setTimeout(()=>{ window.location.href = "/"; }, 800);
+    } else {
+      showMsg(d.error || "Erro ao criar conta.");
+      setLoading("btn-signup", false);
+    }
+  }catch(e){
+    showMsg("Erro de conexão. Tente novamente.");
+    setLoading("btn-signup", false);
+  }
+}
+{% endif %}
+
+// Foca no primeiro campo
+document.addEventListener("DOMContentLoaded", ()=>{
+  const first = document.querySelector(".auth-inp");
+  if(first) first.focus();
+});
+</script>
+</body>
+</html>
