@@ -668,7 +668,8 @@ function mkCard(q,tipo){
 }
 
 function renderGrid(id,quotes,tipo){
-  $(id).innerHTML=quotes.length?quotes.map(q=>mkCard(q,tipo)).join(''):'<div class="errmsg">Nenhum dado. Verifique sua conexão.</div>';
+  if(!quotes.length) return; // não sobrescreve — o loadMarket cuida do estado vazio
+  $(id).innerHTML=quotes.map(q=>mkCard(q,tipo)).join('');
 }
 
 function renderTicker(quotes){
@@ -680,17 +681,23 @@ function renderTicker(quotes){
 
 async function loadMarket(){
   $("last-upd").textContent="Atualizando…";
+  // Mostra estado vazio imediatamente se listas estiverem vazias
+  if(!wlA.length) $("grid-a").innerHTML='<div class="empty-box"><span class="ei">📈</span><span class="et">Nenhuma ação</span><span>Adicione usando o campo acima</span></div>';
+  if(!wlF.length) $("grid-f").innerHTML='<div class="empty-box"><span class="ei">🏢</span><span class="et">Nenhum FII</span><span>Adicione usando o campo acima</span></div>';
+  $("cnt-a").textContent=wlA.length+" ativo"+(wlA.length!==1?"s":"");
+  $("cnt-f").textContent=wlF.length+" ativo"+(wlF.length!==1?"s":"");
   try{
-    const[aq,fq]=await Promise.all([fetchQ(wlA),fetchQ(wlF)]);
-    renderGrid("grid-a",aq,"acao");renderGrid("grid-f",fq,"fii");
-    $("cnt-a").textContent=aq.length+" ativo"+(aq.length!==1?"s":"");
-    $("cnt-f").textContent=fq.length+" ativo"+(fq.length!==1?"s":"");
-    if(wlA.length===0) $("grid-a").innerHTML='<div class="empty-box"><span class="ei">📈</span><span class="et">Nenhuma ação</span><span>Adicione usando o campo acima</span></div>';
-    if(wlF.length===0) $("grid-f").innerHTML='<div class="empty-box"><span class="ei">🏢</span><span class="et">Nenhum FII</span><span>Adicione usando o campo acima</span></div>';
+    const toFetchA = wlA.length ? fetchQ(wlA) : Promise.resolve([]);
+    const toFetchF = wlF.length ? fetchQ(wlF) : Promise.resolve([]);
+    const[aq,fq]=await Promise.all([toFetchA,toFetchF]);
+    if(aq.length) renderGrid("grid-a",aq,"acao");
+    if(fq.length) renderGrid("grid-f",fq,"fii");
+    $("cnt-a").textContent=wlA.length+" ativo"+(wlA.length!==1?"s":"");
+    $("cnt-f").textContent=wlF.length+" ativo"+(wlF.length!==1?"s":"");
     renderTicker([...aq,...fq]);
     $("last-upd").textContent="Atualizado às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
     divLoaded=false;simLoaded=false;
-  }catch(e){$("grid-a").innerHTML=`<div class="errmsg">⚠ Erro: ${e.message}</div>`;}
+  }catch(e){console.warn("loadMarket:",e);}
   [["^BVSP","ibov-v","ibov-c",v=>v.toLocaleString("pt-BR",{maximumFractionDigits:0})],
    ["USDBRL=X","dol-v","dol-c",v=>"R$ "+v.toFixed(4)],
    ["BTC-USD","btc-v","btc-c",v=>"US$"+((v/1000).toFixed(1))+"K"]
@@ -718,18 +725,19 @@ async function saveWatchlist(){
 async function loadWatchlist(){
   try{
     const r = await apiFetch("/api/user/data/watchlist");
-    if(r && r.value){
+    if(r && r.value && (r.value.acoes || r.value.fiis)){
       wlA = Array.isArray(r.value.acoes) ? r.value.acoes : [];
       wlF = Array.isArray(r.value.fiis)  ? r.value.fiis  : [];
     } else {
-      // Primeira vez: usa lista padrão
+      // Primeira vez: usa lista padrão e salva
       wlA = ["PETR4","VALE3","ITUB4","BBDC4","ABEV3","WEGE3","BBAS3","RENT3"];
       wlF = ["MXRF11","XPML11","BTLG11","HGLG11","KNRI11","VISC11"];
-      await saveWatchlist();
+      saveWatchlist();
     }
   }catch(e){
-    wlA = ["PETR4","VALE3","ITUB4","BBDC4","ABEV3","WEGE3","BBAS3","RENT3"];
-    wlF = ["MXRF11","XPML11","BTLG11","HGLG11","KNRI11","VISC11"];
+    // Fallback silencioso
+    if(!wlA.length) wlA = ["PETR4","VALE3","ITUB4","BBDC4","ABEV3","WEGE3","BBAS3","RENT3"];
+    if(!wlF.length) wlF = ["MXRF11","XPML11","BTLG11","HGLG11","KNRI11","VISC11"];
   }
 }
 
