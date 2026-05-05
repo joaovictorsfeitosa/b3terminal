@@ -26,6 +26,22 @@ login_manager.login_message = ""
 
 with app.app_context():
     db.create_all()
+    # ── Migration: adiciona colunas novas se não existirem ──────────────────
+    try:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            for col, definition in [
+                ("is_admin",   "BOOLEAN NOT NULL DEFAULT FALSE"),
+                ("is_blocked", "BOOLEAN NOT NULL DEFAULT FALSE"),
+            ]:
+                try:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))
+                    conn.commit()
+                    print(f"  Migration: coluna '{col}' adicionada.")
+                except Exception:
+                    conn.rollback()  # coluna já existe, tudo certo
+    except Exception as e:
+        print(f"  Migration warning: {e}")
 
 @login_manager.user_loader
 def load_user(uid):
