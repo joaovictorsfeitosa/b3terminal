@@ -4,6 +4,7 @@ from flask import Flask, jsonify, render_template, request, redirect, url_for
 from flask_cors import CORS
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Ativo
+from models import ADMIN_EMAIL
 import feedparser
 from dateutil.relativedelta import relativedelta
 
@@ -165,6 +166,13 @@ def cadastro_page():
     if current_user.is_authenticated: return redirect(url_for("index"))
     return render_template("auth.html",modo="cadastro")
 
+@app.route("/admin")
+@login_required
+def admin_page():
+    if not current_user.admin:
+        return redirect(url_for("index"))
+    return render_template("admin.html")
+
 @app.route("/api/health")
 def health():
     return jsonify({"status":"ok","time":datetime.now().isoformat(),"brapi":bool(BRAPI_TOKEN)})
@@ -193,8 +201,9 @@ def api_login():
     email=data.get("email","").strip().lower(); senha=data.get("senha","")
     user=User.query.filter_by(email=email).first()
     if not user or not user.check_senha(senha): return jsonify({"error":"E-mail ou senha incorretos."}),401
+    if user.is_blocked: return jsonify({"error":"Conta bloqueada pelo administrador."}),403
     login_user(user,remember=True)
-    return jsonify({"ok":True,"nome":user.nome})
+    return jsonify({"ok":True,"nome":user.nome,"is_admin":user.admin})
 
 @app.route("/api/auth/logout",methods=["POST"])
 @login_required
@@ -204,7 +213,7 @@ def api_logout():
 @app.route("/api/auth/me")
 def api_me():
     if current_user.is_authenticated:
-        return jsonify({"logado":True,"nome":current_user.nome,"email":current_user.email})
+        return jsonify({"logado":True,"nome":current_user.nome,"email":current_user.email,"is_admin":current_user.admin})
     return jsonify({"logado":False})
 
 @app.route("/api/carteira",methods=["GET"])
@@ -426,6 +435,86 @@ def clear_cache_route():
         keys=[k for k in _cache if not sym or sym in k]
         for k in keys: del _cache[k]
     return jsonify({"ok":True})
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAINEL ADMINISTRADOR
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.admin:
+            return jsonify({"error":"Acesso restrito"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route("/api/admin/stats")
+@login_required
+@admin_required
+def admin_stats():
+    total_users   = User.query.filter_by(is_admin=False).count()
+    blocked_users = User.query.filter_by(is_blocked=True).count()
+    total_ativos  = Ativo.query.count()
+    recent_users  = User.query.order_by(User.criado_em.desc()).limit(10).all()
+    return jsonify({
+        "total_users":    total_users,
+        "blocked_users":  blocked_users,
+        "total_ativos":   total_ativos,
+        "recent_users": [{
+            "id":         u.id,
+            "nome":       u.nome,
+            "email":      u.email,
+            "criado_em":  u.criado_em.strftime("%d/%m/%Y %H:%M") if u.criado_em else "",
+            "is_blocked": u.is_blocked,
+            "num_ativos": len(u.ativos),
+        } for u in recent_users]
+    })
+
+@app.route("/api/admin/users")
+@login_required
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.criado_em.desc()).all()
+    return jsonify([{
+        "id":         u.id,
+        "nome":       u.nome,
+        "email":      u.email,
+        "criado_em":  u.criado_em.strftime("%d/%m/%Y %H:%M") if u.criado_em else "",
+        "is_blocked": u.is_blocked,
+        "is_admin":   u.admin,
+        "num_ativos": len(u.ativos),
+    } for u in users])
+
+@app.route("/api/admin/user/<int:user_id>/block", methods=["POST"])
+@login_required
+@admin_required
+def admin_block_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.admin:
+        return jsonify({"error": "Não é possível bloquear o administrador"}), 400
+    body = request.get_json() or {}
+    user.is_blocked = bool(body.get("blocked", True))
+    db.session.commit()
+    return jsonify({"ok": True, "blocked": user.is_blocked})
+
+@app.route("/api/admin/user/<int:user_id>/delete", methods=["DELETE"])
+@login_required
+@admin_required
+def admin_delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.admin:
+        return jsonify({"error": "Não é possível deletar o administrador"}), 400
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/user/<int:user_id>/ativos")
+@login_required
+@admin_required
+def admin_user_ativos(user_id):
+    user = User.query.get_or_404(user_id)
+    return jsonify([{"symbol":a.symbol,"tipo":a.tipo,"qty":a.qty,"pm":a.pm} for a in user.ativos])
 
 if __name__=="__main__":
     print("="*50)
