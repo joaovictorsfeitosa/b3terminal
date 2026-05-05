@@ -375,6 +375,12 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
         <div style="font-size:10px;color:var(--tb);font-weight:700" id="user-nome">—</div>
         <div style="font-size:8px;color:var(--td);letter-spacing:1px" id="user-email">—</div>
       </div>
+      <a href="/admin" id="adminBtn"
+        style="display:none;background:rgba(255,196,0,.1);border:1px solid rgba(255,196,0,.4);color:#ffc400;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:9px;letter-spacing:1px;transition:.2s;font-family:var(--mono);text-decoration:none;align-items:center;gap:4px"
+        onmouseover="this.style.background='rgba(255,196,0,.25)'"
+        onmouseout="this.style.background='rgba(255,196,0,.1)'">
+        ★ ADMIN
+      </a>
       <button onclick="doLogout()" title="Sair"
         style="background:var(--rd);border:1px solid rgba(255,61,87,.3);color:var(--r);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:9px;letter-spacing:1px;transition:.2s;font-family:var(--mono)"
         onmouseover="this.style.background='var(--r)';this.style.color='#fff'"
@@ -1444,6 +1450,10 @@ async function loadUserInfo(){
     if(d.logado){
       $("user-nome").textContent  = d.nome;
       $("user-email").textContent = d.email;
+      if(d.is_admin){
+        const adminBtn = document.getElementById("adminBtn");
+        if(adminBtn) adminBtn.style.display = "flex";
+      }
     } else {
       window.location.href = "/login";
     }
