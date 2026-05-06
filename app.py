@@ -125,76 +125,69 @@ def brapi_history(symbol, range_="1mo"):
 
 def brapi_dividends(symbol, cotas=1):
     sym = symbol.upper().replace(".SA","")
-    ck  = f"bdiv_{sym}"; raw = cache_get(ck, ttl=3600)
+    ck  = f"bdiv_{sym}"; raw = cache_get(ck, ttl=1800)
     if raw is None:
         data = brapi_get(f"/quote/{sym}", {"dividends":"true"})
         if not data or "results" not in data or not data["results"]: return None
-        raw = data["results"][0].get("dividendsData",{})
+        raw = data["results"][0].get("dividendsData") or {}
         cache_set(ck, raw)
-    cash_divs = raw.get("cashDividends",[])
+
+    cash_divs = raw.get("cashDividends") or []
     if not cash_divs: return None
 
-    # ── Coleta TODO o histórico disponível (sem limite de data) ───────────────
     payments = []
     for d in cash_divs:
         try:
-            dt_str = d.get("paymentDate") or d.get("approvedOn","")
+            dt_str = (d.get("paymentDate") or d.get("lastDatePrior") or
+                      d.get("approvedOn") or d.get("declaredDate") or "")
             if not dt_str: continue
-            dt  = datetime.strptime(dt_str[:10],"%Y-%m-%d")
-            val = float(d.get("rate") or d.get("value") or 0)
+            dt  = datetime.strptime(dt_str[:10], "%Y-%m-%d")
+            val = float(d.get("rate") or d.get("value") or d.get("adjValue") or 0)
             if val <= 0: continue
             payments.append({"year":dt.year,"month":dt.month,"day":dt.day,
                              "value":round(val,6),"date_str":dt.strftime("%d/%m/%Y")})
         except: pass
+
     if not payments: return None
-    payments.sort(key=lambda x:(x["year"],x["month"]))
+    payments.sort(key=lambda x:(x["year"],x["month"],x["day"]))
 
-    # ── Detecta frequência pelos últimos 24 meses ─────────────────────────────
-    months_paid = sorted(set(p["month"] for p in payments[-24:]))
+    recent = payments[-24:]
+    months_paid = sorted(set(p["month"] for p in recent))
     n = len(months_paid)
-    if n>=10:  freq_label,freq_months="Mensal",list(range(1,13))
-    elif n>=4: freq_label,freq_months="Trimestral",months_paid if n>=4 else [3,6,9,12]
-    elif n>=2: freq_label,freq_months="Semestral",months_paid if n>=2 else [6,12]
-    else:      freq_label,freq_months="Anual",months_paid if months_paid else [12]
+    if n >= 10: freq_label,freq_months = "Mensal",list(range(1,13))
+    elif n >= 4: freq_label,freq_months = "Trimestral",[3,6,9,12]
+    elif n >= 2: freq_label,freq_months = "Semestral",[6,12]
+    else:        freq_label,freq_months = "Anual",months_paid or [12]
 
-    # ── Calcula média por mês de pagamento usando TODO o histórico ────────────
-    # Para cada mês que a empresa costuma pagar, calcula a média histórica
-    # Ex: empresa paga todo mês → média de todos os janeiros, fevereiros, etc.
     month_avgs = {}
     for m in freq_months:
         vals = [p["value"] for p in payments if p["month"] == m]
-        if vals:
-            month_avgs[m] = round(sum(vals) / len(vals), 6)
+        if vals: month_avgs[m] = round(sum(vals)/len(vals), 6)
 
-    # Média geral de todos os pagamentos disponíveis
-    avg_value   = round(sum(p["value"] for p in payments) / len(payments), 6)
-    last_val    = payments[-1]["value"]
+    avg_value = round(sum(p["value"] for p in payments)/len(payments), 6)
+    last_val  = payments[-1]["value"]
 
-    # ── Projeção usando a média histórica de cada mês ─────────────────────────
     today = date.today(); projected = []
-    for i in range(14):
+    for i in range(15):
         future = today + relativedelta(months=i)
         if future.month in freq_months:
-            # Usa a média histórica daquele mês específico, ou a média geral
             proj_val = month_avgs.get(future.month, avg_value)
-            hm  = [p for p in payments if p["month"] == future.month]
-            ad  = int(sum(p["day"] for p in hm)/len(hm)) if hm else 15
-            ad  = min(ad, calendar.monthrange(future.year, future.month)[1])
-            pd  = date(future.year, future.month, ad)
+            hm = [p for p in payments if p["month"] == future.month]
+            ad = int(sum(p["day"] for p in hm)/len(hm)) if hm else 15
+            ad = min(ad, calendar.monthrange(future.year, future.month)[1])
+            pd = date(future.year, future.month, ad)
             if pd >= today:
-                projected.append({"date_str":pd.strftime("%d/%m/%Y"),
-                                  "month_name":pd.strftime("%b/%Y"),
-                                  "value_cota":round(proj_val,6),
-                                  "value_total":round(proj_val*cotas,2),
-                                  "is_next":len(projected)==0})
-
-    num_anos = round((payments[-1]["year"] - payments[0]["year"]) +
-                     (payments[-1]["month"] - payments[0]["month"]) / 12, 1) if len(payments) > 1 else 0
+                projected.append({"date_str": pd.strftime("%d/%m/%Y"),
+                                  "month_name": pd.strftime("%b/%Y"),
+                                  "value_cota": round(proj_val, 6),
+                                  "value_total": round(proj_val * cotas, 2),
+                                  "is_next": len(projected) == 0})
 
     return {"sym":sym,"freq_label":freq_label,"freq_months":freq_months,
             "avg_value":avg_value,"last_value":last_val,"months_paid":months_paid,
             "history":payments[-24:],"projected":projected[:12],
-            "total_pagamentos":len(payments),"anos_historico":num_anos}
+            "total_pagamentos":len(payments)}
+
 
 @app.route("/login",methods=["GET"])
 def login_page():
