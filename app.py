@@ -310,7 +310,15 @@ def search_symbol(symbol):
     cached=cache_get(ck,ttl=600)
     if cached: return jsonify(cached)
     res=brapi_quotes([sym])
-    r={"found":True,"data":res[0]} if res and res[0].get("regularMarketPrice") else {"found":False}
+    if res and res[0].get("regularMarketPrice"):
+        q = res[0]
+        # Detecta se é FII pelo nome ou tipo
+        name = (q.get("shortName") or q.get("longName") or "").lower()
+        tipo = "fii" if (sym.endswith("11") and any(x in name for x in ["fii","fundo","reit","cri","cra","lci","lca"])) or \
+               (sym.endswith("11") and q.get("quoteType","") in ["ETF","FUND"]) else "acao"
+        r = {"found":True,"data":q,"tipo":tipo}
+    else:
+        r = {"found":False}
     cache_set(ck,r); return jsonify(r)
 
 @app.route("/api/index/<path:symbol>")
