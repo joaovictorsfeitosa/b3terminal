@@ -8,170 +8,270 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#060a0f;--bg2:#0c1219;--bg3:#111a24;--bd:#1c2e40;
-  --g:#00e676;--gd:rgba(0,230,118,.1);
-  --r:#ff3d57;--rd:rgba(255,61,87,.1);
-  --a:#ffc400;
-  --t:#b8ccde;--td:#3d5a72;--tb:#e2f0ff;
+  --bg:#040810;--bg2:#060f1a;--bg3:#0a1524;--bd:#0f2030;
+  --ui1:#00e5b0;--ui2:#00b0ff;
+  --ui-grd:linear-gradient(135deg,#00e5b0,#00b0ff);
+  --pos:#00e676;--neg:#ff3d57;--a:#ffc400;
+  --t:#94a8be;--td:#2a4560;--tb:#ddeeff;
   --mono:'Space Mono',monospace;--sans:'Syne',sans-serif;
 }
-html,body{background:var(--bg);color:var(--t);font-family:var(--mono);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
-body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(0,230,118,.07) 0%,transparent 65%);pointer-events:none;z-index:0}
+html,body{background:var(--bg);color:var(--t);font-family:var(--mono);min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow:hidden}
 
-@keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0}
+.bg-glow::before{content:'';position:absolute;top:-20%;left:50%;transform:translateX(-50%);
+  width:700px;height:500px;background:radial-gradient(ellipse,rgba(0,176,255,.07) 0%,transparent 70%);
+  animation:glowpulse 6s ease-in-out infinite}
+.bg-glow::after{content:'';position:absolute;bottom:-10%;right:10%;
+  width:400px;height:400px;background:radial-gradient(ellipse,rgba(0,229,176,.05) 0%,transparent 70%);
+  animation:glowpulse 8s ease-in-out infinite reverse}
 
-.wrap{width:100%;max-width:420px;position:relative;z-index:1;animation:fadeIn .4s ease}
+.grid-lines{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.025;
+  background-image:linear-gradient(var(--ui2) 1px,transparent 1px),linear-gradient(90deg,var(--ui2) 1px,transparent 1px);
+  background-size:60px 60px}
 
-/* Logo */
-.logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:32px}
-.logo-box{width:44px;height:44px;background:var(--g);border-radius:10px;display:grid;place-items:center;font-family:var(--sans);font-weight:800;font-size:15px;color:#000}
-.logo-text{}
-.logo-name{font-family:var(--sans);font-weight:800;font-size:20px;color:var(--tb);letter-spacing:3px}
-.logo-sub{font-size:9px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+.particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.p{position:absolute;border-radius:50%;animation:float linear infinite;opacity:0}
+.p1{width:2px;height:2px;background:var(--ui1);left:15%;animation-duration:12s;animation-delay:0s}
+.p2{width:3px;height:3px;background:var(--ui2);left:35%;animation-duration:18s;animation-delay:3s}
+.p3{width:2px;height:2px;background:var(--ui1);left:60%;animation-duration:14s;animation-delay:6s}
+.p4{width:2px;height:2px;background:var(--ui2);left:80%;animation-duration:20s;animation-delay:1s}
+.p5{width:3px;height:3px;background:var(--ui1);left:90%;animation-duration:16s;animation-delay:9s}
+.p6{width:2px;height:2px;background:var(--ui2);left:5%;animation-duration:22s;animation-delay:4s}
 
-/* Live dot */
-.live{display:flex;align-items:center;justify-content:center;gap:5px;font-size:9px;color:var(--g);letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
-.dot{width:6px;height:6px;background:var(--g);border-radius:50%;animation:blink 1.4s infinite}
+@keyframes float{0%{transform:translateY(100vh) scale(0);opacity:0}10%{opacity:.6}90%{opacity:.4}100%{transform:translateY(-10vh) scale(1.2);opacity:0}}
+@keyframes glowpulse{0%,100%{opacity:.8;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.1)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-/* Card */
-.card{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:32px 28px;box-shadow:0 20px 60px rgba(0,0,0,.7)}
+.wrap{width:100%;max-width:420px;position:relative;z-index:1;animation:fadeUp .5s ease}
 
-/* Tabs */
-.tabs{display:flex;border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:26px}
-.tab{flex:1;padding:10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:.2s;text-transform:uppercase;text-decoration:none;display:block;color:var(--td)}
-.tab.on{background:var(--gd);color:var(--g)}
-.tab:hover:not(.on){color:var(--t)}
+.logo{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px}
+.logo-box{width:48px;height:48px;background:var(--ui-grd);border-radius:12px;display:grid;
+  place-items:center;font-family:var(--sans);font-weight:800;font-size:16px;color:#000;
+  box-shadow:0 0 24px rgba(0,176,255,.3),0 0 48px rgba(0,229,176,.1)}
+.logo-name{font-family:var(--sans);font-weight:800;font-size:22px;letter-spacing:4px;
+  background:var(--ui-grd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-sub{font-size:9px;color:var(--td);letter-spacing:3px;text-transform:uppercase;margin-top:2px}
 
-/* Field */
-.field{margin-bottom:16px}
-.field label{display:block;font-size:9px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
-.field input{width:100%;background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;color:var(--tb);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s}
-.field input:focus{border-color:var(--g)}
+.live-badge{display:flex;align-items:center;justify-content:center;gap:6px;
+  font-size:8px;color:var(--ui1);letter-spacing:3px;text-transform:uppercase;margin-bottom:20px}
+.dot{width:6px;height:6px;background:var(--ui1);border-radius:50%;animation:blink 1.4s infinite;
+  box-shadow:0 0 6px var(--ui1)}
+
+.stats-bar{display:flex;justify-content:center;gap:20px;margin-bottom:20px;opacity:.65}
+.stat{text-align:center}
+.stat-v{font-size:11px;font-weight:700;color:var(--tb)}
+.stat-l{font-size:7px;color:var(--td);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+
+.features{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-bottom:24px}
+.feat{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;
+  background:rgba(0,176,255,.05);border:1px solid rgba(0,176,255,.1);
+  font-size:9px;color:var(--td);letter-spacing:1px}
+
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:18px;padding:30px 28px;
+  box-shadow:0 24px 64px rgba(0,0,0,.7),0 0 0 1px rgba(0,176,255,.04);
+  position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--ui-grd)}
+.card::after{content:'';position:absolute;top:2px;left:50%;transform:translateX(-50%);
+  width:60%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,176,.35),transparent)}
+
+.tabs{display:flex;background:var(--bg3);border:1px solid var(--bd);border-radius:10px;
+  overflow:hidden;margin-bottom:26px;padding:3px;gap:3px}
+.tab{flex:1;padding:9px;text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;
+  cursor:pointer;transition:all .2s;text-transform:uppercase;text-decoration:none;
+  display:block;color:var(--td);border-radius:7px}
+.tab.on{background:var(--ui-grd);color:#000}
+.tab:hover:not(.on){color:var(--ui2);background:rgba(0,176,255,.06)}
+
+.field{margin-bottom:18px}
+.field label{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--td);
+  letter-spacing:2px;text-transform:uppercase;margin-bottom:7px}
+.inp-wrap{position:relative}
+.inp-wrap .eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  cursor:pointer;font-size:14px;color:var(--td);transition:color .2s;user-select:none;z-index:1}
+.inp-wrap .eye:hover{color:var(--ui1)}
+.field input{width:100%;background:var(--bg3);border:1px solid var(--bd);border-radius:10px;
+  padding:13px 40px 13px 14px;color:var(--tb);font-family:var(--mono);font-size:13px;
+  outline:none;transition:all .25s}
+.field input:focus{border-color:transparent;background:rgba(10,21,36,.9);
+  box-shadow:0 0 0 1.5px var(--ui2),0 0 14px rgba(0,176,255,.1)}
+.field input:not(:placeholder-shown):not(:focus){border-color:rgba(0,229,176,.15)}
 .field input::placeholder{color:var(--td)}
 
-/* Button */
-.btn{width:100%;padding:13px;background:var(--g);color:#000;border:none;border-radius:8px;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:.2s;margin-top:4px}
-.btn:hover{opacity:.88}
+.strength-bar{height:2px;border-radius:1px;margin-top:5px;background:var(--bd);overflow:hidden;display:none}
+.strength-fill{height:100%;border-radius:1px;transition:width .3s,background .3s}
+
+.btn{width:100%;padding:14px;background:var(--ui-grd);color:#000;border:none;border-radius:10px;
+  font-family:var(--sans);font-size:13px;font-weight:800;cursor:pointer;letter-spacing:2px;
+  transition:all .2s;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover{box-shadow:0 0 24px rgba(0,176,255,.35);opacity:.9}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+.sp{width:14px;height:14px;border:2px solid rgba(0,0,0,.2);border-top-color:#000;
+  border-radius:50%;animation:spin .7s linear infinite;display:none;flex-shrink:0}
+.btn.loading .sp{display:block}
+.btn.loading .btn-txt{display:none}
 
-/* Message */
-.msg{font-size:11px;text-align:center;margin-top:12px;min-height:18px;padding:0 4px;line-height:1.5}
-.msg.err{color:var(--r)}
-.msg.ok{color:var(--g)}
+.msg{font-size:11px;text-align:center;margin-top:12px;min-height:20px;padding:0 4px;line-height:1.6}
+.msg.err{color:var(--neg)}.msg.ok{color:var(--ui1)}
 
-/* Footer */
-.footer{margin-top:24px;font-size:9px;color:var(--td);letter-spacing:1px;text-align:center}
+.footer{margin-top:20px;font-size:9px;color:var(--td);letter-spacing:1px;text-align:center;line-height:2}
+.footer a{color:var(--ui2);text-decoration:none}
 </style>
 </head>
 <body>
 
+<div class="bg-glow"></div>
+<div class="grid-lines"></div>
+<div class="particles">
+  <div class="p p1"></div><div class="p p2"></div><div class="p p3"></div>
+  <div class="p p4"></div><div class="p p5"></div><div class="p p6"></div>
+</div>
+
 <div class="wrap">
 
-  <!-- Logo -->
   <div class="logo">
     <div class="logo-box">B3</div>
-    <div class="logo-text">
-      <div class="logo-name">B3 TERMINAL</div>
-      <div class="logo-sub">Plataforma de Investimentos</div>
+    <div>
+      <div class="logo-name">TERMINAL</div>
+      <div class="logo-sub">Mercado Brasileiro</div>
     </div>
   </div>
 
-  <div class="live"><div class="dot"></div>ACESSO RESTRITO</div>
+  <div class="live-badge"><div class="dot"></div>PLATAFORMA AO VIVO</div>
+
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-v" style="color:var(--pos)">+0.68%</div><div class="stat-l">IBOV</div></div>
+    <div class="stat"><div class="stat-v" style="color:var(--ui2)">R$4,91</div><div class="stat-l">USD/BRL</div></div>
+    <div class="stat"><div class="stat-v" style="color:var(--ui1)">$80.9K</div><div class="stat-l">BTC</div></div>
+    <div class="stat"><div class="stat-v" style="color:var(--pos)">186.754</div><div class="stat-l">IBOVESPA</div></div>
+  </div>
+
+  <div class="features">
+    <span class="feat">📈 Cotações ao vivo</span>
+    <span class="feat">💰 Simulador dividendos</span>
+    <span class="feat">📊 Minha carteira</span>
+    <span class="feat">📰 Notícias B3</span>
+  </div>
 
   <div class="card">
-
-    <!-- Tabs -->
     <div class="tabs">
-      <a href="/login"    class="tab {% if modo=='login'    %}on{% endif %}">Entrar</a>
-      <a href="/cadastro" class="tab {% if modo=='cadastro' %}on{% endif %}">Criar conta</a>
+      <a href="/login"    class="tab {% if modo=='login'    %}on{% endif %}">🔑 Entrar</a>
+      <a href="/cadastro" class="tab {% if modo=='cadastro' %}on{% endif %}">✨ Criar conta</a>
     </div>
 
-    <!-- LOGIN -->
     {% if modo == 'login' %}
     <div class="field">
-      <label>E-mail</label>
-      <input id="email" type="email" autocomplete="email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')doLogin()">
+      <label>✉ E-mail</label>
+      <div class="inp-wrap">
+        <input id="email" type="email" autocomplete="email" placeholder="seu@email.com"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
     </div>
     <div class="field">
-      <label>Senha</label>
-      <input id="senha" type="password" autocomplete="current-password" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()">
+      <label>🔒 Senha</label>
+      <div class="inp-wrap">
+        <input id="senha" type="password" autocomplete="current-password" placeholder="••••••••"
+          onkeydown="if(event.key==='Enter')doLogin()">
+        <span class="eye" onclick="toggleSenha('senha',this)">👁</span>
+      </div>
     </div>
-    <button class="btn" id="btn" onclick="doLogin()">ENTRAR</button>
+    <button class="btn" id="btn" onclick="doLogin()">
+      <span class="sp"></span><span class="btn-txt">ENTRAR NO TERMINAL</span>
+    </button>
     <div class="msg" id="msg"></div>
     {% endif %}
 
-    <!-- CADASTRO -->
     {% if modo == 'cadastro' %}
     <div class="field">
-      <label>Nome</label>
-      <input id="nome" type="text" autocomplete="name" placeholder="Seu nome" onkeydown="if(event.key==='Enter')doCadastro()">
+      <label>👤 Nome</label>
+      <div class="inp-wrap">
+        <input id="nome" type="text" autocomplete="name" placeholder="Seu nome completo"
+          onkeydown="if(event.key==='Enter')doCadastro()">
+      </div>
     </div>
     <div class="field">
-      <label>E-mail</label>
-      <input id="email" type="email" autocomplete="email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')doCadastro()">
+      <label>✉ E-mail</label>
+      <div class="inp-wrap">
+        <input id="email" type="email" autocomplete="email" placeholder="seu@email.com"
+          onkeydown="if(event.key==='Enter')doCadastro()">
+      </div>
     </div>
     <div class="field">
-      <label>Senha <span style="color:var(--td);font-size:8px">(mínimo 6 caracteres)</span></label>
-      <input id="senha" type="password" autocomplete="new-password" placeholder="••••••" onkeydown="if(event.key==='Enter')doCadastro()">
+      <label>🔒 Senha <span style="color:var(--td);font-size:8px;letter-spacing:0;text-transform:none">(mín. 6 caracteres)</span></label>
+      <div class="inp-wrap">
+        <input id="senha" type="password" autocomplete="new-password" placeholder="••••••••"
+          oninput="checkStrength(this.value)"
+          onkeydown="if(event.key==='Enter')doCadastro()">
+        <span class="eye" onclick="toggleSenha('senha',this)">👁</span>
+      </div>
+      <div class="strength-bar" id="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
     </div>
-    <button class="btn" id="btn" onclick="doCadastro()">CRIAR CONTA</button>
+    <button class="btn" id="btn" onclick="doCadastro()">
+      <span class="sp"></span><span class="btn-txt">CRIAR MINHA CONTA</span>
+    </button>
     <div class="msg" id="msg"></div>
     {% endif %}
-
   </div>
 
-  <div class="footer">Faça login para acessar o terminal · Acesso restrito</div>
+  <div class="footer">
+    Acesso restrito · Dados protegidos · B3 Terminal © 2025<br>
+    <span style="opacity:.5">Desenvolvido com 💙 usando dados da Brapi</span>
+  </div>
+
 </div>
 
 <script>
-async function doLogin() {
-  const email = document.getElementById('email').value.trim();
-  const senha = document.getElementById('senha').value.trim();
-  const msg   = document.getElementById('msg');
-  const btn   = document.getElementById('btn');
-  if (!email || !senha) { msg.className='msg err'; msg.textContent='Preencha todos os campos.'; return; }
-  btn.disabled=true; btn.textContent='AGUARDE...'; msg.textContent='';
-  try {
-    const r = await fetch('/api/auth/login', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({email, senha})
-    });
-    const d = await r.json();
-    if (!r.ok) { msg.className='msg err'; msg.textContent=d.error||'Erro ao entrar.'; btn.disabled=false; btn.textContent='ENTRAR'; return; }
-    msg.className='msg ok'; msg.textContent='Bem-vindo, '+d.nome+'! Redirecionando...';
-    setTimeout(()=>window.location.href='/', 800);
-  } catch(e) { msg.className='msg err'; msg.textContent='Erro de conexão.'; btn.disabled=false; btn.textContent='ENTRAR'; }
+function toggleSenha(id,el){
+  const inp=document.getElementById(id);
+  inp.type=inp.type==='password'?'text':'password';
+  el.textContent=inp.type==='password'?'👁':'🙈';
 }
-
-async function doCadastro() {
-  const nome  = document.getElementById('nome')?.value.trim();
-  const email = document.getElementById('email').value.trim();
-  const senha = document.getElementById('senha').value.trim();
-  const msg   = document.getElementById('msg');
-  const btn   = document.getElementById('btn');
-  if (!nome || !email || !senha) { msg.className='msg err'; msg.textContent='Preencha todos os campos.'; return; }
-  btn.disabled=true; btn.textContent='CRIANDO...'; msg.textContent='';
-  try {
-    const r = await fetch('/api/auth/cadastro', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({nome, email, senha})
-    });
-    const d = await r.json();
-    if (!r.ok) { msg.className='msg err'; msg.textContent=d.error||'Erro ao criar conta.'; btn.disabled=false; btn.textContent='CRIAR CONTA'; return; }
-    msg.className='msg ok'; msg.textContent='Conta criada! Entrando...';
-    setTimeout(()=>window.location.href='/', 800);
-  } catch(e) { msg.className='msg err'; msg.textContent='Erro de conexão.'; btn.disabled=false; btn.textContent='CRIAR CONTA'; }
+function checkStrength(val){
+  const bar=document.getElementById('strength-bar');
+  const fill=document.getElementById('strength-fill');
+  if(!bar)return;
+  bar.style.display='block';
+  let s=0;
+  if(val.length>=6)s++;if(val.length>=10)s++;
+  if(/[A-Z]/.test(val))s++;if(/[0-9]/.test(val))s++;if(/[^A-Za-z0-9]/.test(val))s++;
+  fill.style.width=Math.min(100,s*20)+'%';
+  fill.style.background=s<=1?'#ff3d57':s<=3?'#ffc400':'#00e5b0';
 }
-
-// Foca no primeiro campo ao carregar
-window.addEventListener('load', () => {
-  const first = document.querySelector('input');
-  if (first) first.focus();
-});
+async function doLogin(){
+  const email=document.getElementById('email').value.trim();
+  const senha=document.getElementById('senha').value;
+  const msg=document.getElementById('msg');
+  const btn=document.getElementById('btn');
+  if(!email||!senha){msg.className='msg err';msg.textContent='Preencha todos os campos.';return;}
+  btn.classList.add('loading');btn.disabled=true;msg.textContent='';
+  try{
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,senha})});
+    const d=await r.json();
+    if(!r.ok){msg.className='msg err';msg.textContent=d.error||'E-mail ou senha incorretos.';btn.classList.remove('loading');btn.disabled=false;return;}
+    msg.className='msg ok';msg.textContent='✓ Bem-vindo, '+d.nome+'! Entrando...';
+    setTimeout(()=>window.location.href='/',700);
+  }catch(e){msg.className='msg err';msg.textContent='Erro de conexão.';btn.classList.remove('loading');btn.disabled=false;}
+}
+async function doCadastro(){
+  const nome=document.getElementById('nome')?.value.trim();
+  const email=document.getElementById('email').value.trim();
+  const senha=document.getElementById('senha').value;
+  const msg=document.getElementById('msg');
+  const btn=document.getElementById('btn');
+  if(!nome||!email||!senha){msg.className='msg err';msg.textContent='Preencha todos os campos.';return;}
+  if(senha.length<6){msg.className='msg err';msg.textContent='Senha deve ter no mínimo 6 caracteres.';return;}
+  btn.classList.add('loading');btn.disabled=true;msg.textContent='';
+  try{
+    const r=await fetch('/api/auth/cadastro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome,email,senha})});
+    const d=await r.json();
+    if(!r.ok){msg.className='msg err';msg.textContent=d.error||'Erro ao criar conta.';btn.classList.remove('loading');btn.disabled=false;return;}
+    msg.className='msg ok';msg.textContent='✓ Conta criada! Entrando...';
+    setTimeout(()=>window.location.href='/',700);
+  }catch(e){msg.className='msg err';msg.textContent='Erro de conexão.';btn.classList.remove('loading');btn.disabled=false;}
+}
+window.addEventListener('load',()=>{const f=document.querySelector('input');if(f)f.focus();});
 </script>
-  <p style="text-align:center; color:#888; font-size:12px; margin-top:20px;">
-  Created by João Victor Santos Feitosa
-</p>
 </body>
 </html>
