@@ -468,15 +468,6 @@ def get_news():
         if k not in seen: seen.add(k); unique.append(n)
     cache_set(ck,unique[:30]); return jsonify(unique[:30])
 
-@app.route("/api/dividends/<symbol>")
-@login_required
-def get_dividends(symbol):
-    sym = symbol.upper().replace(".SA","")
-    result = brapi_dividends(sym, 1)
-    if not result:
-        return jsonify({"found": False, "projected": [], "freq_label": "—"})
-    return jsonify({**result, "found": True})
-
 @app.route("/api/clear-cache",methods=["POST"])
 @login_required
 def clear_cache_route():
@@ -487,6 +478,15 @@ def clear_cache_route():
     return jsonify({"ok":True})
 
 # ── Dados do usuário (watchlist, preferências, etc.) ─────────────────────────
+@app.route("/api/dividends/<symbol>")
+@login_required
+def get_dividends(symbol):
+    sym = symbol.upper().replace(".SA","")
+    result = brapi_dividends(sym, 1)
+    if not result:
+        return jsonify({"found":False,"projected":[],"freq_label":"—","avg_value":0})
+    return jsonify({**result,"found":True})
+
 @app.route("/api/user/data/<key>", methods=["GET"])
 @login_required
 def user_data_get(key):
