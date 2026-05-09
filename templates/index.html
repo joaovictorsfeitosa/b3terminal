@@ -1069,11 +1069,18 @@ function closeModal(){$("overlay").classList.remove("on");}
 async function loadDivData(){
   $("dcards").innerHTML='<div class="loading"><div class="sp"></div>BUSCANDO DIVIDENDOS…</div>';
   try{
-    // Garante que a carteira foi carregada antes de buscar dividendos
-    if(!Object.keys(carteira).length){
-      await initCarteira();
+    // Busca diretamente da API para garantir dados corretos do usuário
+    const savedAtivos = await apiFetch("/api/carteira");
+    if(!savedAtivos || !savedAtivos.length){
+      divData=[];divLoaded=true;renderDivData();return;
     }
-    const carteiraSyms = Object.keys(carteira);
+    // Sincroniza carteira local com dados do servidor
+    for(const a of savedAtivos){
+      if(!carteira[a.symbol]){
+        carteira[a.symbol]={tipo:a.tipo,qty:a.qty||0,pm:a.pm||0};
+      }
+    }
+    const carteiraSyms = savedAtivos.map(a=>a.symbol);
     if(!carteiraSyms.length){
       divData=[];divLoaded=true;renderDivData();return;
     }
@@ -1756,6 +1763,7 @@ async function initCarteira(){
       carteira[a.symbol] = { tipo: a.tipo, qty: a.qty||0, pm: a.pm||0, loading: true };
     }
     ctRenderGrid(); // mostra loading
+    // Aguarda dados de mercado antes de retornar (importante para loadDivData)
 
     // Busca dados de mercado para cada ativo
     const promises = saved.map(async a=>{
