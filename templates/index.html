@@ -1086,20 +1086,33 @@ async function loadDivData(){
     }
     const res=await fetchQ(carteiraSyms,true);
     res.forEach(q=>{cache[q.symbol]={...(cache[q.symbol]||{}),...q}});
-    // Busca histórico de dividendos para cada ativo
-    const divHistory=await Promise.allSettled(
+    // Busca histórico de dividendos — indexado por símbolo para evitar desalinhamento
+    const divHistoryArr=await Promise.allSettled(
       carteiraSyms.map(s=>apiFetch(`/api/dividends/${s}`).catch(()=>null))
     );
-    divData=res.map((q,i)=>{
-      const hist=divHistory[i]?.status==="fulfilled"?divHistory[i].value:null;
-      const ct=carteira[q.symbol]||{};
+    const divHistMap={};
+    carteiraSyms.forEach((s,i)=>{
+      const r=divHistoryArr[i];
+      divHistMap[s]=r?.status==="fulfilled"?r.value:null;
+    });
+    // Monta divData para TODOS os ativos da carteira, mesmo sem cotação da Brapi
+    divData=carteiraSyms.map(sym=>{
+      const q=cache[sym]||{symbol:sym};
+      const hist=divHistMap[sym];
+      const ct=carteira[sym]||{};
       return{
-        symbol:q.symbol,name:q.shortName||q.symbol,
-        tipo:ct.tipo||(q.symbol.endsWith("11")?"fii":"acao"),
-        price:q.regularMarketPrice||0,yieldA:q.dividendYield||0,
-        rate:q.dividendRate||0,lstVal:q.lastDividendValue||0,
-        exDate:q.exDividendDate||null,lstDate:q.lastDividendDate||null,
-        projected:hist?.projected||[],freq:hist?.freq_label||"—",avgVal:hist?.avg_value||0,
+        symbol:sym,
+        name:q.shortName||q.longName||sym,
+        tipo:ct.tipo||(sym.endsWith("11")?"fii":"acao"),
+        price:q.regularMarketPrice||0,
+        yieldA:q.dividendYield||0,
+        rate:q.dividendRate||0,
+        lstVal:q.lastDividendValue||0,
+        exDate:q.exDividendDate||null,
+        lstDate:q.lastDividendDate||null,
+        projected:hist?.projected||[],
+        freq:hist?.freq_label||"—",
+        avgVal:hist?.avg_value||0,
       };
     });
     divLoaded=true;renderDivData();
