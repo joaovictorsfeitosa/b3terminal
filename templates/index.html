@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>B3 Terminal</title>
+<title>B3 Terminal — Mercado Brasileiro</title>
+<meta name="description" content="Acompanhe cotações, dividendos e carteira da B3 em tempo real.">
+<meta name="theme-color" content="#00e5b0">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e5b0'/%3E%3Cstop offset='1' stop-color='%2300b0ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Arial Black' font-size='14' font-weight='900' fill='black'%3EB3%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -51,7 +54,7 @@ a{text-decoration:none;color:inherit}
 .logo-name{font-family:var(--sans);font-weight:800;font-size:15px;color:var(--tb);letter-spacing:4px}
 .logo-sub{font-size:8px;color:var(--td);letter-spacing:2px;text-transform:uppercase}
 .hdr-r{display:flex;align-items:center;gap:16px}
-.live{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--g);letter-spacing:2px;text-transform:uppercase}
+.live{display:flex;align-items:center;justify-content:center;gap:5px;font-size:9px;color:var(--ui1);letter-spacing:2px;text-transform:uppercase}
 .dot{width:6px;height:6px;background:var(--ui1);border-radius:50%;animation:pulse 2s infinite}
 #clock{font-size:12px;color:var(--a);letter-spacing:1px}
 #eta{font-size:9px;color:var(--td)}
@@ -234,7 +237,7 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 .logo-name{font-family:var(--sans);font-weight:800;font-size:15px;color:var(--tb);letter-spacing:3px}
 .logo-sub{font-size:8px;color:var(--td);letter-spacing:2px;text-transform:uppercase}
 .hdr-r{display:flex;align-items:center;gap:14px}
-.live{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--g);letter-spacing:2px;text-transform:uppercase}
+.live{display:flex;align-items:center;justify-content:center;gap:5px;font-size:9px;color:var(--ui1);letter-spacing:2px;text-transform:uppercase}
 .dot{width:6px;height:6px;background:var(--ui1);border-radius:50%;animation:blink 1.4s infinite}
 #clock{font-size:12px;color:var(--a);letter-spacing:1px}
 #eta{font-size:9px;color:var(--td)}
@@ -557,6 +560,66 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
   .ct-grid{grid-template-columns:1fr}
   .ct-form-grid{grid-template-columns:1fr 1fr}
 }
+
+/* ══ RESPONSIVIDADE ══════════════════════════════════════════════ */
+@media(max-width:900px){
+  .wrap{padding:14px 12px 60px}
+  .agrid{grid-template-columns:repeat(auto-fill,minmax(165px,1fr))}
+  .ct-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+  .dcards{grid-template-columns:repeat(2,1fr)}
+  .sim-lay{grid-template-columns:1fr}
+  .idx-grid{grid-template-columns:repeat(3,1fr)}
+  .ngrid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:720px){
+  .logo-sub{display:none}
+  #hdr{padding:0 12px}
+  .hdr-r{gap:8px}
+  #tabs .tab{padding:10px 10px;font-size:9px;letter-spacing:0.5px}
+  .agrid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .ct-grid{grid-template-columns:1fr}
+  .dcards{grid-template-columns:1fr}
+  .ngrid{grid-template-columns:1fr}
+  .ct-form-grid{grid-template-columns:1fr 1fr}
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .ct-kpis{flex-wrap:wrap;gap:12px}
+}
+@media(max-width:480px){
+  #hdr{height:46px;padding:0 10px}
+  .logo-name{font-size:12px;letter-spacing:2px}
+  .logo-box{width:28px;height:28px;font-size:10px}
+  #clock{font-size:10px}
+  .live{font-size:8px;gap:4px}
+  #tabs{padding:0 6px}
+  #tabs .tab{padding:9px 7px;font-size:8px;letter-spacing:0}
+  .wrap{padding:10px 8px 60px}
+  .agrid{grid-template-columns:1fr 1fr;gap:7px}
+  .card{padding:11px}
+  .c-price{font-size:15px}
+  .c-sym{font-size:12px}
+  .c-foot{flex-wrap:wrap;gap:4px}
+  .idx-grid{grid-template-columns:repeat(3,1fr);gap:5px}
+  .idx-card{padding:9px}
+  .idx-v{font-size:12px}
+  th,td{padding:6px 8px;font-size:10px}
+  .add-row{flex-wrap:wrap}
+  .inp{width:100%}
+  .btnadd{width:100%;justify-content:center}
+  .income-val{font-size:24px}
+  .modal{width:96%;padding:18px 14px}
+  .sim-p{padding:14px}
+  .fbar{gap:4px}
+  .fb{padding:4px 8px;font-size:8px}
+  .div-hero{padding:14px 16px}
+  .sim-hero{padding:14px 16px}
+}
+@media(max-width:360px){
+  .logo-name{display:none}
+  .agrid{grid-template-columns:1fr}
+  #tabs .tab{padding:8px 5px;font-size:7.5px}
+  .hdr-r .live{display:none}
+}
+
 </style>
 </head>
 <body>
@@ -1585,7 +1648,7 @@ function ctRenderGrid(){
     // Próx. dividendo projetado
     const proj = d.div_projection;
     const proxDiv = proj && proj.projected && proj.projected.length
-      ? `<div class="ct-div-row" style="background:rgba(0,176,255,.04);border-radius:4px;margin-bottom:4px"><span class="ct-div-date" style="color:var(--g)">📅 ${proj.projected[0].date_str} (proj.)</span><span class="ct-div-val">${fR(proj.projected[0].value_cota)}/cota</span></div>`
+      ? `<div class="ct-div-row" style="background:rgba(0,176,255,.04);border-radius:4px;margin-bottom:4px"><span class="ct-div-date" style="color:var(--ui2)">📅 ${proj.projected[0].date_str&&proj.projected[0].date_str!=="undefined"?proj.projected[0].date_str:"—"} (proj.)</span><span class="ct-div-val">${fR(proj.projected[0].value_cota)}/cota</span></div>`
       : "";
 
     return`<div class="ct-card" id="ct-card-${sym}">
