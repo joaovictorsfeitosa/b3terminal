@@ -9,7 +9,8 @@ import feedparser
 from dateutil.relativedelta import relativedelta
 
 app = Flask(__name__)
-app.config["SECRET_KEY"]               = os.environ.get("SECRET_KEY", "b3terminal-2025-secret")
+import secrets as _sec
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or _sec.token_hex(32)
 app.config["SQLALCHEMY_DATABASE_URI"]  = os.environ.get("DATABASE_URL", "sqlite:////tmp/b3terminal.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
@@ -17,7 +18,7 @@ app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
 BRAPI_TOKEN = os.environ.get("BRAPI_TOKEN", "")
 BRAPI_BASE  = "https://brapi.dev/api"
 
-CORS(app)
+CORS(app, origins=["https://b3terminal.onrender.com","http://localhost:5000"], supports_credentials=True)
 db.init_app(app)
 
 login_manager = LoginManager(app)
@@ -42,6 +43,16 @@ with app.app_context():
                     conn.rollback()  # coluna já existe, tudo certo
     except Exception as e:
         print(f"  Migration warning: {e}")
+
+# ── Rate limiting simples ──────────────────────────────────────────────────
+_rl_store, _rl_lock = {}, threading.Lock()
+def rate_limit_check(ip, max_req=10, window=300):
+    now = time.time()
+    with _rl_lock:
+        hits = [t for t in _rl_store.get(ip, []) if now-t < window]
+        if len(hits) >= max_req: return False
+        hits.append(now); _rl_store[ip] = hits
+    return True
 
 @login_manager.user_loader
 def load_user(uid):
@@ -230,6 +241,9 @@ def api_cadastro():
 
 @app.route("/api/auth/login",methods=["POST"])
 def api_login():
+    ip = (request.headers.get("X-Forwarded-For","") or request.remote_addr or "").split(",")[0].strip()
+    if not rate_limit_check(ip):
+        return jsonify({"error":"Muitas tentativas. Aguarde alguns minutos."}),429
     data=request.get_json() or {}
     email=data.get("email","").strip().lower(); senha=data.get("senha","")
     user=User.query.filter_by(email=email).first()
@@ -473,8 +487,8 @@ def get_news():
 def clear_cache_route():
     body=request.get_json() or {}; sym=body.get("symbol","").upper()
     with _lock:
-        keys=[k for k in _cache if not sym or sym in k]
-        for k in keys: del _cache[k]
+        keys=[k for k in list(_cache.keys()) if not sym or sym in k]
+        for k in keys: _cache.pop(k,None)
     return jsonify({"ok":True})
 
 # ── Dados do usuário (watchlist, preferências, etc.) ─────────────────────────
@@ -596,6 +610,16 @@ def admin_delete_user(user_id):
 def admin_user_ativos(user_id):
     user = User.query.get_or_404(user_id)
     return jsonify([{"symbol":a.symbol,"tipo":a.tipo,"qty":a.qty,"pm":a.pm} for a in user.ativos])
+
+@app.after_request
+def sec_headers(r):
+    r.headers.update({
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options":        "SAMEORIGIN",
+        "X-XSS-Protection":       "1; mode=block",
+        "Referrer-Policy":        "strict-origin-when-cross-origin",
+    })
+    return r
 
 if __name__=="__main__":
     print("="*50)
