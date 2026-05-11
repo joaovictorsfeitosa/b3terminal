@@ -11,8 +11,22 @@ from dateutil.relativedelta import relativedelta
 app = Flask(__name__)
 import secrets as _sec
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or _sec.token_hex(32)
-app.config["SQLALCHEMY_DATABASE_URI"]  = os.environ.get("DATABASE_URL", "sqlite:////tmp/b3terminal.db")
+_db_url = os.environ.get("DATABASE_URL", "sqlite:////tmp/b3terminal.db")
+# Render usa postgres:// mas SQLAlchemy precisa de postgresql://
+if _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"]       = _db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Reconecta automaticamente quando a conexão SSL quebra (comum no Render free tier)
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping":   True,       # testa a conexão antes de usar
+    "pool_recycle":    280,        # recicla conexões a cada 280s (antes do timeout do Render)
+    "pool_size":       5,
+    "max_overflow":    2,
+    "connect_args":    {"sslmode": "require", "connect_timeout": 10}
+    if not _db_url.startswith("sqlite") else {},
+}
 app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
 
 BRAPI_TOKEN = os.environ.get("BRAPI_TOKEN", "")
