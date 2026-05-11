@@ -1076,14 +1076,27 @@ async function addAtivo(tipo){
       tipo==="a"?wlA.push(sym):wlF.push(sym);
       saveWatchlist();
       divLoaded=false;simLoaded=false;
-      const currentList=tipo==="a"?wlA:wlF;
       const tipoStr=tipo==="a"?"acao":"fii";
-      const all=await fetchQ(currentList);
-      all.forEach(q=>{cache[q.symbol]={...(cache[q.symbol]||{}),...q}});
-      if(all.length)renderGrid(gridId,all,tipoStr);
+      const currentList=tipo==="a"?wlA:wlF;
+      // Busca SÓ o novo ativo — não substitui o grid inteiro
+      const newQ=await fetchQ([sym]);
+      if(newQ&&newQ[0]){
+        cache[newQ[0].symbol]={...(cache[newQ[0].symbol]||{}),...newQ[0]};
+        // Adiciona card ao grid sem apagar os existentes
+        const grid=$(gridId);
+        // Remove estado vazio se existir
+        const empty=grid.querySelector('.empty-box');
+        if(empty) empty.remove();
+        // Cria e adiciona o novo card
+        const tmp=document.createElement('div');
+        tmp.innerHTML=mkCard(newQ[0],tipoStr);
+        const newCard=tmp.firstElementChild;
+        grid.appendChild(newCard);
+      }
       $(cntId).textContent=currentList.length+" ativo"+(currentList.length!==1?"s":"");
-      const other=await fetchQ(tipo==="a"?wlF:wlA);
-      renderTicker(tipo==="a"?[...all,...other]:[...other,...all]);
+      // Atualiza ticker com todos os ativos visíveis
+      const allCached=[...wlA,...wlF].map(s=>cache[s]).filter(q=>q&&q.regularMarketPrice);
+      if(allCached.length)renderTicker(allCached);
       $(inpId).value="";
     }
   }catch(e){showInpMsg(inpId,"Erro ao buscar. Tente novamente.","err");}
