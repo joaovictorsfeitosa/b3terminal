@@ -913,13 +913,18 @@ async function apiFetch(path,opts={}){
   return r.json();
 }
 
-async function fetchQ(syms,fund=false){
-  if(!syms.length)return[];
+async function fetchQ(syms,fund=false,_retry=0){
+  if(!syms||!syms.length)return[];
   const out=[];
   for(let i=0;i<syms.length;i+=8){
     const s=syms.slice(i,i+8).join(",");
     try{const d=await apiFetch(`/api/quotes?symbols=${s}${fund?"&fundamental=true":""}`);if(Array.isArray(d))out.push(...d);}
-    catch(e){console.warn(e.message);}
+    catch(e){console.warn("fetchQ:",e.message);}
+  }
+  // Se vazio mas tinha símbolos, retenta 1x após 2.5s
+  if(!out.length&&syms.length&&_retry<1){
+    await new Promise(r=>setTimeout(r,2500));
+    return fetchQ(syms,fund,_retry+1);
   }
   return out;
 }
@@ -942,10 +947,13 @@ function mkCard(q,tipo){
 }
 
 function renderGrid(id,quotes,tipo){
+  const wl=tipo==="acao"?wlA:wlF;
   if(!quotes||!quotes.length){
-    // Só mostra vazio se realmente não tem nada na lista
-    const wl = tipo==="acao"?wlA:wlF;
-    if(!wl.length) $(id).innerHTML='<div class="empty-box"><span class="ei">'+(tipo==="acao"?"📈":"🏢")+'</span><span class="et">Nenhum '+(tipo==="acao"?"ação":"FII")+'</span><span>Adicione usando o campo acima</span></div>';
+    if(!wl.length){
+      $(id).innerHTML=`<div class="empty-box"><span class="ei">${tipo==="acao"?"📈":"🏢"}</span><span class="et">Nenhum ${tipo==="acao"?"ação":"FII"}</span><span>Adicione usando o campo acima</span></div>`;
+    } else {
+      $(id).innerHTML=`<div class="errmsg" style="grid-column:1/-1">⚠ Cotações indisponíveis no momento. <button onclick="loadMarket()" style="background:none;border:none;color:var(--ui2);cursor:pointer;text-decoration:underline;font-family:var(--mono);font-size:11px">↺ Tentar novamente</button></div>`;
+    }
     return;
   }
   $(id).innerHTML=quotes.map(q=>mkCard(q,tipo)).join('');
@@ -973,8 +981,9 @@ async function loadMarket(){
     const idxFetch = fetchQ(["^BVSP","USDBRL=X","BTC-USD"]);
     const[aq,fq,idxQ]=await Promise.all([toFetchA,toFetchF,idxFetch]);
     [...aq,...fq,...idxQ].forEach(q=>{cache[q.symbol]={...(cache[q.symbol]||{}),...q}});
-    if(aq.length) renderGrid("grid-a",aq,"acao");
-    if(fq.length) renderGrid("grid-f",fq,"fii");
+    // Sempre chama renderGrid — ele cuida do estado vazio/erro
+    renderGrid("grid-a",aq,"acao");
+    renderGrid("grid-f",fq,"fii");
     $("cnt-a").textContent=wlA.length+" ativo"+(wlA.length!==1?"s":"");
     $("cnt-f").textContent=wlF.length+" ativo"+(wlF.length!==1?"s":"");
     // Ticker usa ativos do mercado; se vazio, usa da carteira
@@ -991,7 +1000,11 @@ async function loadMarket(){
     if(tickerData.length) renderTicker(tickerData);
     $("last-upd").textContent="Atualizado às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
     divLoaded=false;simLoaded=false;
-  }catch(e){console.warn("loadMarket:",e);}
+  }catch(e){
+    console.warn("loadMarket:",e);
+    if(wlA.length) $("grid-a").innerHTML='<div class="errmsg" style="grid-column:1/-1">⚠ Erro ao carregar. <button onclick="loadMarket()" style="background:none;border:none;color:var(--ui2);cursor:pointer;text-decoration:underline;font-family:var(--mono);font-size:11px">↺ Tentar novamente</button></div>';
+    if(wlF.length) $("grid-f").innerHTML='<div class="errmsg" style="grid-column:1/-1">⚠ Erro ao carregar. <button onclick="loadMarket()" style="background:none;border:none;color:var(--ui2);cursor:pointer;text-decoration:underline;font-family:var(--mono);font-size:11px">↺ Tentar novamente</button></div>';
+  }
   [["^BVSP","ibov-v","ibov-c",v=>v.toLocaleString("pt-BR",{maximumFractionDigits:0})],
    ["USDBRL=X","dol-v","dol-c",v=>"R$ "+v.toFixed(4)],
    ["BTC-USD","btc-v","btc-c",v=>"US$"+((v/1000).toFixed(1))+"K"]
