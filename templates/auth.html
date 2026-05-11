@@ -91,14 +91,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
   </div>
 
-  <div class="live"><div class="dot"></div>ACESSO RESTRITO</div>
-
   <div class="card">
 
     <!-- Tabs -->
     <div class="tabs">
-      <a href="/login"    class="tab {% if modo=='login'    %}on{% endif %}">Entrar</a>
-      <a href="/cadastro" class="tab {% if modo=='cadastro' %}on{% endif %}">Criar conta</a>
+      <a href="/login"    class="tab {% if modo=='login'    %}on {% endif %}">Entrar</a>
+      <a href="/cadastro" class="tab {% if modo=='cadastro' %}on {% endif %}">Criar conta</a>
     </div>
 
     <!-- LOGIN -->
@@ -117,6 +115,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
     <!-- CADASTRO -->
     {% if modo == 'cadastro' %}
+    <!-- Frase destaque -->
+    <div style="background:rgba(0,176,255,.06);border:1px solid rgba(0,176,255,.15);border-left:3px solid var(--ui2);border-radius:8px;padding:12px 14px;margin-bottom:18px">
+      <div style="font-size:9px;color:var(--ui2);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:700">💡 Para refletir</div>
+      <div style="font-size:11px;color:var(--tb);line-height:1.7;font-style:italic">"A questão não é quanto você ganha, mas quanto você guarda, o quão arduamente o dinheiro trabalha para você e por quantas gerações você o mantém."</div>
+      <div style="font-size:9px;color:var(--td);margin-top:6px;letter-spacing:1px">— Warren Buffett</div>
+    </div>
     <div class="field">
       <label>Nome</label>
       <input id="nome" type="text" autocomplete="name" placeholder="Seu nome" onkeydown="if(event.key==='Enter')doCadastro()">
@@ -136,8 +140,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 
   <div class="footer">
-    Acesso restrito · B3 Terminal &copy; 2025<br>
-    <span style="opacity:.6">Created by <strong style="color:var(--ui1)">João Victor Santos Feitosa</strong></span>
+    Created by <strong style="color:var(--ui1)">João Victor Santos Feitosa</strong>
   </div>
 </div>
 
