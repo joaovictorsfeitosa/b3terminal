@@ -2256,14 +2256,13 @@ function riNav(btn,panel){
 
 // Todas as empresas com filtro por setor
 function riLoadAll(){
-  if(!_riAllData.length){ $('ri-all-grid').innerHTML='<div class="loading"><div class="sp"></div>CARREGANDO…</div>'; return; }
-  // Setores únicos
-  const setores=[...new Set(_riAllData.map(i=>i.s))].sort();
-  $('ri-filters').innerHTML='<button class="ri-filter on" onclick="riFilter(this,'')" data-s="">Todos</button>'+
-    setores.map(s=>`<button class="ri-filter" onclick="riFilter(this,'${s.replace(/'/g,"\'")}')" data-s="${s}">${s}</button>`).join('');
+  if(!_riAllData.length){$('ri-all-grid').innerHTML='<div class="loading"><div class="sp"></div>CARREGANDO…</div>';return;}
+  const setores=[...new Set(_riAllData.map(function(i){return i.s;}))].sort();
+  var btns='<button class="ri-filter on" data-s="" onclick="riFilter(this,\'\')">Todos</button>';
+  setores.forEach(function(s){btns+='<button class="ri-filter" data-s="'+s+'" onclick="riFilter(this,this.getAttribute(\'data-s\'))">'+s+'</button>';});
+  $('ri-filters').innerHTML=btns;
   riRenderCards(_riAllData,'ri-all-grid');
 }
-
 function riFilter(btn,setor){
   document.querySelectorAll('.ri-filter').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
