@@ -620,6 +620,117 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
   .hdr-r .live{display:none}
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   ABA RI — RELAÇÕES COM INVESTIDORES
+   ══════════════════════════════════════════════════════════════ */
+
+/* Hero */
+.ri-hero{background:linear-gradient(135deg,rgba(0,176,255,.06),transparent 70%);
+  border:1px solid rgba(0,176,255,.15);border-radius:14px;padding:20px 24px;
+  margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:14px;position:relative;overflow:hidden}
+.ri-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--ui-grd)}
+.ri-hero-t{font-family:var(--sans);font-size:18px;font-weight:800;color:var(--tb);margin-bottom:5px}
+.ri-hero-s{font-size:11px;color:var(--td);max-width:500px;line-height:1.7}
+.ri-kpis{display:flex;gap:24px}
+
+/* Search */
+.ri-search-wrap{position:relative;margin-bottom:20px}
+.ri-search-box{position:relative;display:flex;align-items:center}
+.ri-search-ico{position:absolute;left:14px;font-size:16px;pointer-events:none;z-index:1}
+.ri-search-inp{width:100%;background:var(--bg2);border:1.5px solid var(--bd);border-radius:12px;
+  padding:14px 44px 14px 44px;color:var(--tb);font-family:var(--mono);font-size:14px;
+  outline:none;transition:all .25s}
+.ri-search-inp:focus{border-color:var(--ui2);background:var(--bg3);
+  box-shadow:0 0 0 3px rgba(0,176,255,.1),0 4px 20px rgba(0,0,0,.3)}
+.ri-search-inp::placeholder{color:var(--td)}
+.ri-clear-btn{position:absolute;right:14px;background:none;border:none;
+  color:var(--td);cursor:pointer;font-size:14px;padding:4px;transition:color .2s}
+.ri-clear-btn:hover{color:var(--neg)}
+
+/* Suggestions dropdown */
+.ri-suggestions{position:absolute;top:calc(100% + 6px);left:0;right:0;
+  background:var(--bg2);border:1px solid var(--bd);border-radius:12px;
+  z-index:200;max-height:280px;overflow-y:auto;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);display:none}
+.ri-suggestions.open{display:block;animation:fadeUp .15s ease}
+.ri-sugg-item{display:flex;align-items:center;gap:12px;padding:11px 16px;
+  cursor:pointer;border-bottom:1px solid rgba(15,32,48,.6);transition:background .15s}
+.ri-sugg-item:last-child{border-bottom:none}
+.ri-sugg-item:hover{background:rgba(0,176,255,.06)}
+.ri-sugg-logo{width:32px;height:32px;border-radius:8px;object-fit:contain;
+  background:var(--bg3);border:1px solid var(--bd);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--td)}
+.ri-sugg-ticker{font-family:var(--sans);font-size:13px;font-weight:800;color:var(--tb)}
+.ri-sugg-name{font-size:11px;color:var(--td);margin-top:1px}
+.ri-sugg-sector{font-size:9px;color:var(--ui2);background:rgba(0,176,255,.08);
+  padding:2px 7px;border-radius:4px;border:1px solid rgba(0,176,255,.2);margin-left:auto;white-space:nowrap}
+
+/* Nav tabs internos */
+.ri-nav{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.ri-nb{padding:7px 16px;border-radius:20px;border:1px solid var(--bd);background:transparent;
+  color:var(--td);font-size:10px;letter-spacing:1px;cursor:pointer;transition:all .2s;
+  font-family:var(--mono)}
+.ri-nb:hover{border-color:var(--ui2);color:var(--ui2)}
+.ri-nb.on{background:rgba(0,176,255,.1);border-color:var(--ui2);color:var(--ui2)}
+
+/* Filters */
+.ri-filters{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap}
+.ri-filter{padding:5px 13px;border-radius:20px;border:1px solid var(--bd);background:transparent;
+  color:var(--td);font-size:9px;letter-spacing:1px;cursor:pointer;transition:all .2s}
+.ri-filter:hover,.ri-filter.on{border-color:var(--ui1);color:var(--ui1);background:rgba(0,229,176,.08)}
+
+/* Grid */
+.ri-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:24px}
+.ri-start{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--td)}
+
+/* Card RI */
+.ri-card{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;
+  padding:18px;transition:all .25s;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:12px}
+.ri-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--ui-grd);transform:scaleX(0);transform-origin:left;transition:transform .3s}
+.ri-card:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(0,0,0,.5);border-color:rgba(0,176,255,.25)}
+.ri-card:hover::before{transform:scaleX(1)}
+
+.ri-card-head{display:flex;align-items:flex-start;gap:12px}
+.ri-logo{width:44px;height:44px;border-radius:10px;object-fit:contain;
+  background:var(--bg3);border:1px solid var(--bd);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;
+  font-family:var(--sans);font-weight:800;color:var(--ui2)}
+.ri-logo img{width:100%;height:100%;object-fit:contain;border-radius:10px}
+.ri-card-info{flex:1;min-width:0}
+.ri-card-ticker{font-family:var(--sans);font-size:16px;font-weight:800;color:var(--tb);margin-bottom:2px}
+.ri-card-name{font-size:11px;color:var(--t);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ri-card-full{font-size:9px;color:var(--td);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ri-fav-btn{background:none;border:none;cursor:pointer;font-size:16px;padding:2px;
+  transition:transform .2s;flex-shrink:0}
+.ri-fav-btn:hover{transform:scale(1.2)}
+
+.ri-sector{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:6px;
+  font-size:9px;font-weight:700;letter-spacing:1px;
+  background:rgba(0,176,255,.08);color:var(--ui2);border:1px solid rgba(0,176,255,.2)}
+
+.ri-card-footer{display:flex;gap:8px;margin-top:4px}
+.ri-btn{flex:1;padding:10px;border-radius:9px;font-family:var(--sans);font-size:11px;
+  font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:6px}
+.ri-btn-main{background:var(--ui-grd);color:#000;border:none}
+.ri-btn-main:hover{opacity:.88;box-shadow:0 4px 14px rgba(0,176,255,.3)}
+.ri-btn-ext{background:rgba(0,176,255,.08);color:var(--ui2);border:1px solid rgba(0,176,255,.3)}
+.ri-btn-ext:hover{background:rgba(0,176,255,.15)}
+
+/* Not found */
+.ri-notfound{grid-column:1/-1;text-align:center;padding:40px;background:var(--bg2);
+  border:1px solid var(--bd);border-radius:14px}
+
+/* Responsive */
+@media(max-width:600px){
+  .ri-hero{padding:14px 16px}
+  .ri-hero-t{font-size:15px}
+  .ri-grid{grid-template-columns:1fr}
+  .ri-search-inp{font-size:13px;padding:12px 40px}
+  .ri-kpis{display:none}
+}
+
 </style>
 </head>
 <body>
@@ -665,6 +776,7 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
   <div class="tab"     data-tab="dividendos" onclick="goTab(this)">💰 Dividendos</div>
   <div class="tab"     data-tab="simulador"  onclick="goTab(this)">🧮 Simulador</div>
   <div class="tab"     data-tab="noticias"   onclick="goTab(this)">📰 Notícias</div>
+  <div class="tab"     data-tab="ri"         onclick="goTab(this)">🏢 RI</div>
 </nav>
 
 <!-- MERCADO -->
@@ -853,6 +965,71 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
       <p style="font-size:11px;letter-spacing:2px;color:var(--td)">BUSCANDO NOTÍCIAS...</p>
     </div>
   </div>
+</div></div>
+
+<div class="page" id="page-ri"><div class="wrap">
+
+  <!-- Hero RI -->
+  <div class="ri-hero">
+    <div>
+      <div class="ri-hero-t">🏢 Relações com Investidores</div>
+      <div class="ri-hero-s">Acesse o portal oficial de RI de qualquer empresa listada na B3 — relatórios, resultados, dividendos e muito mais.</div>
+    </div>
+    <div class="ri-kpis">
+      <div><div class="kpi-l">EMPRESAS</div><div class="kpi-v" id="ri-total">100+</div></div>
+      <div><div class="kpi-l">SETORES</div><div class="kpi-v">25+</div></div>
+    </div>
+  </div>
+
+  <!-- Busca -->
+  <div class="ri-search-wrap">
+    <div class="ri-search-box">
+      <span class="ri-search-ico">🔍</span>
+      <input class="ri-search-inp" id="ri-inp" type="text" placeholder="Busque por ticker ou nome da empresa... ex: PETR4, Vale, Itaú" autocomplete="off" oninput="riSearch(this.value)" onkeydown="if(event.key==='Escape'){riClear();this.value=''}">
+      <button class="ri-clear-btn" id="ri-clear" onclick="riClear()" style="display:none">✕</button>
+    </div>
+    <div class="ri-suggestions" id="ri-suggestions"></div>
+  </div>
+
+  <!-- Tabs de navegação interna -->
+  <div class="ri-nav">
+    <button class="ri-nb on" onclick="riNav(this,'search')">🔍 Resultados</button>
+    <button class="ri-nb" onclick="riNav(this,'favs')">⭐ Favoritos</button>
+    <button class="ri-nb" onclick="riNav(this,'history')">🕐 Recentes</button>
+    <button class="ri-nb" onclick="riNav(this,'all')">📋 Todas</button>
+  </div>
+
+  <!-- Resultados da busca -->
+  <div id="ri-panel-search">
+    <div class="ri-grid" id="ri-results">
+      <div class="ri-start">
+        <div style="font-size:40px;margin-bottom:16px">🏢</div>
+        <div style="font-family:var(--sans);font-size:16px;font-weight:700;color:var(--tb);margin-bottom:8px">Encontre o RI da sua empresa</div>
+        <div style="font-size:12px;color:var(--td)">Digite o ticker (ex: PETR4) ou o nome da empresa</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Favoritos -->
+  <div id="ri-panel-favs" style="display:none">
+    <div class="ri-grid" id="ri-favs-grid">
+      <div class="ri-start"><div style="font-size:32px;margin-bottom:12px">⭐</div><div style="font-family:var(--sans);font-size:14px;color:var(--t)">Nenhum favorito ainda</div><div style="font-size:11px;color:var(--td);margin-top:6px">Clique em ⭐ nos cards para favoritar</div></div>
+    </div>
+  </div>
+
+  <!-- Histórico -->
+  <div id="ri-panel-history" style="display:none">
+    <div class="ri-grid" id="ri-history-grid">
+      <div class="ri-start"><div style="font-size:32px;margin-bottom:12px">🕐</div><div style="font-family:var(--sans);font-size:14px;color:var(--t)">Nenhuma pesquisa recente</div></div>
+    </div>
+  </div>
+
+  <!-- Todas as empresas -->
+  <div id="ri-panel-all" style="display:none">
+    <div class="ri-filters" id="ri-filters"></div>
+    <div class="ri-grid" id="ri-all-grid"><div class="loading"><div class="sp"></div>CARREGANDO…</div></div>
+  </div>
+
 </div></div>
 
 <div id="overlay" onclick="if(event.target===this)closeModal()">
@@ -1910,6 +2087,7 @@ function goTab(btn){
   btn.classList.add("on");$("page-"+tab).classList.add("on");
   if(tab==="carteira"   &&!Object.keys(carteira).length) initCarteira();
   else if(tab==="carteira") ctRenderGrid();
+  if(tab==="ri"&&!_riAllData.length){ initRI(); }
   if(tab==="dividendos"){
     divLoaded=false;
     // Se carteira ainda vazia, carrega primeiro
@@ -1933,6 +2111,166 @@ function startTimer(){
     if(countdown<=0){clearInterval(timerID);$("progfill").style.width="0%";loadMarket().then(startTimer);}
   },1000);
 }
+
+
+/* ══════════════════════════════════════════════════════════════
+   ABA RI — JAVASCRIPT COMPLETO
+   ══════════════════════════════════════════════════════════════ */
+let _riDebounce, _riCurPanel='search', _riFavs=[], _riHistory=[], _riAllData=[];
+
+// Inicializa RI — carrega favs e history do localStorage/banco
+async function initRI(){
+  try{
+    // Carrega favoritos do banco
+    const fd = await apiFetch('/api/user/data/ri_favs').catch(()=>({value:null}));
+    _riFavs = (fd&&fd.value&&Array.isArray(fd.value)) ? fd.value : [];
+    // Carrega histórico local
+    try{ _riHistory = JSON.parse(localStorage.getItem('ri_history')||'[]'); }catch(e){ _riHistory=[]; }
+    // Carrega todas as empresas
+    const all = await apiFetch('/api/ri/all');
+    if(Array.isArray(all)){ _riAllData=all; $('ri-total').textContent=all.length+'+'; }
+  }catch(e){ console.warn('initRI:',e); }
+}
+
+// Busca com debounce
+function riSearch(val){
+  const btn=$('ri-clear'); if(btn) btn.style.display=val?'block':'none';
+  clearTimeout(_riDebounce);
+  if(!val||val.length<2){ $('ri-suggestions').classList.remove('open'); return; }
+  _riDebounce=setTimeout(async()=>{
+    const res=await apiFetch(`/api/ri/search?q=${encodeURIComponent(val)}`).catch(()=>[]);
+    riShowSuggestions(res,val);
+    if(res.length) riRenderCards(res, 'ri-results');
+    else $('ri-results').innerHTML=`<div class="ri-notfound"><div style="font-size:32px;margin-bottom:12px">🔍</div><div style="font-family:var(--sans);font-size:15px;color:var(--tb);margin-bottom:8px">Empresa não encontrada</div><div style="font-size:12px;color:var(--td)">Tente outro ticker ou nome. Ex: PETR4, VALE3, Ambev</div></div>`;
+  },350);
+}
+
+// Sugestões dropdown
+function riShowSuggestions(items,q){
+  const box=$('ri-suggestions');
+  if(!items||!items.length){ box.classList.remove('open'); return; }
+  box.innerHTML=items.slice(0,8).map(i=>`
+    <div class="ri-sugg-item" onclick="riSelectItem('${i.t}')">
+      <div class="ri-logo ri-logo-sm">${riLogoEl(i,28)}</div>
+      <div>
+        <div class="ri-sugg-ticker">${i.t}</div>
+        <div class="ri-sugg-name">${i.n}</div>
+      </div>
+      <span class="ri-sugg-sector">${i.s}</span>
+    </div>`).join('');
+  box.classList.add('open');
+}
+
+function riSelectItem(ticker){
+  $('ri-inp').value=ticker;
+  $('ri-suggestions').classList.remove('open');
+  apiFetch(`/api/ri/search?q=${ticker}`).then(res=>{
+    if(res.length){ riRenderCards(res,'ri-results'); riAddHistory(res[0]); }
+  }).catch(()=>{});
+}
+
+function riClear(){
+  $('ri-inp').value='';
+  $('ri-suggestions').classList.remove('open');
+  const btn=$('ri-clear'); if(btn) btn.style.display='none';
+  $('ri-results').innerHTML=`<div class="ri-start"><div style="font-size:40px;margin-bottom:16px">🏢</div><div style="font-family:var(--sans);font-size:16px;font-weight:700;color:var(--tb);margin-bottom:8px">Encontre o RI da sua empresa</div><div style="font-size:12px;color:var(--td)">Digite o ticker (ex: PETR4) ou o nome da empresa</div></div>`;
+}
+
+// Fecha sugestões ao clicar fora
+document.addEventListener('click',e=>{ if(!e.target.closest('.ri-search-wrap')) $('ri-suggestions').classList.remove('open'); });
+
+// Renderiza cards
+function riRenderCards(items, targetId){
+  const grid=$(targetId);
+  if(!items||!items.length){ grid.innerHTML='<div class="ri-notfound"><div style="font-size:32px;margin-bottom:12px">📭</div><div style="font-family:var(--sans);font-size:14px;color:var(--t)">Nenhum resultado</div></div>'; return; }
+  grid.innerHTML=items.map(i=>riCardHtml(i)).join('');
+}
+
+function riCardHtml(i){
+  const isFav=_riFavs.some(f=>f.t===i.t);
+  return`<div class="ri-card" id="ri-card-${i.t}">
+    <div class="ri-card-head">
+      <div class="ri-logo">${riLogoEl(i,44)}</div>
+      <div class="ri-card-info">
+        <div class="ri-card-ticker">${i.t}</div>
+        <div class="ri-card-name">${i.n}</div>
+        <div class="ri-card-full">${i.full}</div>
+      </div>
+      <button class="ri-fav-btn" onclick="riToggleFav('${i.t}')" id="ri-fav-${i.t}" title="${isFav?'Remover favorito':'Adicionar favorito'}">${isFav?'⭐':'☆'}</button>
+    </div>
+    <span class="ri-sector">🏭 ${i.s}</span>
+    <div class="ri-card-footer">
+      <button class="ri-btn ri-btn-main" onclick="riOpenRI('${i.t}','${i.ri}')">🏢 Acessar RI</button>
+      <button class="ri-btn ri-btn-ext" onclick="window.open('${i.ri}','_blank')" title="Abrir em nova aba">↗</button>
+    </div>
+  </div>`;
+}
+
+function riLogoEl(i,size){
+  const s=size||44;
+  return `<img src="https://logo.clearbit.com/${i.d}" width="${s}" height="${s}" style="border-radius:${s>32?'10':'7'}px;object-fit:contain" onerror="this.style.display='none';this.nextSibling.style.display='flex'" alt="${i.t}"><span style="display:none;width:${s}px;height:${s}px;border-radius:${s>32?'10':'7'}px;background:var(--bg3);border:1px solid var(--bd);align-items:center;justify-content:center;font-family:var(--sans);font-weight:800;font-size:${Math.round(s/3.5)}px;color:var(--ui2)">${i.t.slice(0,2)}</span>`;
+}
+
+function riOpenRI(ticker,url){
+  riAddHistory(_riAllData.find(x=>x.t===ticker)||{t:ticker,n:ticker,s:'—',ri:url,d:'',full:ticker});
+  window.open(url,'_blank','noopener,noreferrer');
+}
+
+// Favoritos
+async function riToggleFav(ticker){
+  const item=_riAllData.find(x=>x.t===ticker);
+  if(!item) return;
+  const idx=_riFavs.findIndex(f=>f.t===ticker);
+  if(idx>-1){ _riFavs.splice(idx,1); } else { _riFavs.unshift(item); }
+  // Atualiza botão
+  const btn=$(`ri-fav-${ticker}`);
+  if(btn){ btn.textContent=idx>-1?'☆':'⭐'; btn.title=idx>-1?'Adicionar favorito':'Remover favorito'; }
+  // Salva no banco
+  apiFetch('/api/user/data/ri_favs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:_riFavs})}).catch(()=>{});
+  // Atualiza painel favs se aberto
+  if(_riCurPanel==='favs') riRenderCards(_riFavs,'ri-favs-grid');
+}
+
+// Histórico
+function riAddHistory(item){
+  if(!item||!item.t) return;
+  _riHistory=_riHistory.filter(h=>h.t!==item.t);
+  _riHistory.unshift(item);
+  _riHistory=_riHistory.slice(0,20);
+  try{ localStorage.setItem('ri_history',JSON.stringify(_riHistory)); }catch(e){}
+}
+
+// Navegação interna
+function riNav(btn,panel){
+  document.querySelectorAll('.ri-nb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  ['search','favs','history','all'].forEach(p=>{
+    const el=$(`ri-panel-${p}`);
+    if(el) el.style.display=p===panel?'block':'none';
+  });
+  _riCurPanel=panel;
+  if(panel==='favs')    riRenderCards(_riFavs,'ri-favs-grid');
+  if(panel==='history') riRenderCards(_riHistory,'ri-history-grid');
+  if(panel==='all')     riLoadAll();
+}
+
+// Todas as empresas com filtro por setor
+function riLoadAll(){
+  if(!_riAllData.length){ $('ri-all-grid').innerHTML='<div class="loading"><div class="sp"></div>CARREGANDO…</div>'; return; }
+  // Setores únicos
+  const setores=[...new Set(_riAllData.map(i=>i.s))].sort();
+  $('ri-filters').innerHTML='<button class="ri-filter on" onclick="riFilter(this,'')" data-s="">Todos</button>'+
+    setores.map(s=>`<button class="ri-filter" onclick="riFilter(this,'${s.replace(/'/g,"\'")}')" data-s="${s}">${s}</button>`).join('');
+  riRenderCards(_riAllData,'ri-all-grid');
+}
+
+function riFilter(btn,setor){
+  document.querySelectorAll('.ri-filter').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const filtered=setor?_riAllData.filter(i=>i.s===setor):_riAllData;
+  riRenderCards(filtered,'ri-all-grid');
+}
+
 
 loadWatchlist().then(()=>loadMarket().then(startTimer));
 initCarteira();
