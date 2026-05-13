@@ -2218,17 +2218,66 @@ function riOpenRI(ticker,url){
 
 // Favoritos
 async function riToggleFav(ticker){
-  const item=_riAllData.find(x=>x.t===ticker);
-  if(!item) return;
-  const idx=_riFavs.findIndex(f=>f.t===ticker);
-  if(idx>-1){ _riFavs.splice(idx,1); } else { _riFavs.unshift(item); }
-  // Atualiza botão
-  const btn=$(`ri-fav-${ticker}`);
-  if(btn){ btn.textContent=idx>-1?'☆':'⭐'; btn.title=idx>-1?'Adicionar favorito':'Remover favorito'; }
+  // Busca item em todas as fontes possíveis
+  let item = _riAllData.find(function(x){return x.t===ticker;});
+  // Se não achou em _riAllData, busca na API
+  if(!item){
+    try{
+      const res = await apiFetch('/api/ri/search?q='+ticker);
+      item = res && res.length ? res[0] : null;
+      if(item && !_riAllData.find(function(x){return x.t===item.t;})){
+        _riAllData.push(item);
+      }
+    }catch(e){ item = null; }
+  }
+  if(!item){ console.warn('riToggleFav: item não encontrado', ticker); return; }
+
+  const idx = _riFavs.findIndex(function(f){return f.t===ticker;});
+  if(idx>-1){ _riFavs.splice(idx,1); }
+  else { _riFavs.unshift(item); }
+
+  // Atualiza todos os botões com esse ticker na página
+  document.querySelectorAll('[id^="ri-fav-"]').forEach(function(btn){
+    if(btn.id === 'ri-fav-'+ticker){
+      const isFav = _riFavs.some(function(f){return f.t===ticker;});
+      btn.textContent = isFav ? '⭐' : '☆';
+      btn.title = isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
+    }
+  });
+
   // Salva no banco
-  apiFetch('/api/user/data/ri_favs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:_riFavs})}).catch(()=>{});
+  apiFetch('/api/user/data/ri_favs',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({value:_riFavs})
+  }).catch(function(){});
+
+  // Feedback visual rápido
+  const toastMsg = _riFavs.some(function(f){return f.t===ticker;})
+    ? '⭐ '+ticker+' adicionado aos favoritos'
+    : ticker+' removido dos favoritos';
+  showRiToast(toastMsg);
+
   // Atualiza painel favs se aberto
   if(_riCurPanel==='favs') riRenderCards(_riFavs,'ri-favs-grid');
+}
+
+function showRiToast(msg){
+  let toast = document.getElementById('ri-toast');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'ri-toast';
+    toast.style.cssText = 'position:fixed;bottom:28px;right:24px;background:var(--bg2);border:1px solid var(--ui2);color:var(--ui1);padding:10px 18px;border-radius:10px;font-size:12px;z-index:9999;transition:all .3s;opacity:0;transform:translateY(12px)';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateY(0)';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(12px)';
+  }, 2500);
 }
 
 // Histórico
