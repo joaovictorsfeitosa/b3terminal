@@ -625,6 +625,157 @@ def admin_user_ativos(user_id):
     user = User.query.get_or_404(user_id)
     return jsonify([{"symbol":a.symbol,"tipo":a.tipo,"qty":a.qty,"pm":a.pm} for a in user.ativos])
 
+
+# ════════════════════════════════════════════════════════════════════════════════
+# ABA RI — RELAÇÕES COM INVESTIDORES
+# ════════════════════════════════════════════════════════════════════════════════
+
+RI_DB = [
+  # AÇÕES — GRANDES EMPRESAS
+  {"t":"PETR4","n":"Petrobras","full":"Petróleo Brasileiro S.A.","s":"Petróleo e Gás","ri":"https://ri.petrobras.com.br","d":"petrobras.com.br"},
+  {"t":"PETR3","n":"Petrobras","full":"Petróleo Brasileiro S.A.","s":"Petróleo e Gás","ri":"https://ri.petrobras.com.br","d":"petrobras.com.br"},
+  {"t":"VALE3","n":"Vale","full":"Vale S.A.","s":"Mineração","ri":"https://ri.vale.com/pt-br","d":"vale.com"},
+  {"t":"ITUB4","n":"Itaú Unibanco","full":"Itaú Unibanco Holding S.A.","s":"Bancos","ri":"https://www.itau.com.br/relacoes-com-investidores","d":"itau.com.br"},
+  {"t":"ITUB3","n":"Itaú Unibanco","full":"Itaú Unibanco Holding S.A.","s":"Bancos","ri":"https://www.itau.com.br/relacoes-com-investidores","d":"itau.com.br"},
+  {"t":"BBDC4","n":"Bradesco","full":"Banco Bradesco S.A.","s":"Bancos","ri":"https://ri.bradesco.com.br","d":"bradesco.com.br"},
+  {"t":"BBDC3","n":"Bradesco","full":"Banco Bradesco S.A.","s":"Bancos","ri":"https://ri.bradesco.com.br","d":"bradesco.com.br"},
+  {"t":"ABEV3","n":"Ambev","full":"Ambev S.A.","s":"Bebidas","ri":"https://ri.ambev.com.br","d":"ambev.com.br"},
+  {"t":"WEGE3","n":"WEG","full":"WEG S.A.","s":"Bens Industriais","ri":"https://ri.weg.net/pt-br","d":"weg.net"},
+  {"t":"BBAS3","n":"Banco do Brasil","full":"Banco do Brasil S.A.","s":"Bancos","ri":"https://ri.bb.com.br","d":"bb.com.br"},
+  {"t":"RENT3","n":"Localiza","full":"Localiza Rent a Car S.A.","s":"Mobilidade","ri":"https://ri.localiza.com","d":"localiza.com"},
+  {"t":"LREN3","n":"Lojas Renner","full":"Lojas Renner S.A.","s":"Varejo","ri":"https://ri.lojasrenner.com.br","d":"lojasrenner.com.br"},
+  {"t":"MGLU3","n":"Magazine Luiza","full":"Magazine Luiza S.A.","s":"Varejo","ri":"https://ri.magazineluiza.com.br","d":"magazineluiza.com.br"},
+  {"t":"SUZB3","n":"Suzano","full":"Suzano S.A.","s":"Papel e Celulose","ri":"https://ri.suzano.com.br","d":"suzano.com.br"},
+  {"t":"GGBR4","n":"Gerdau","full":"Gerdau S.A.","s":"Siderurgia","ri":"https://ri.gerdau.com/pt","d":"gerdau.com"},
+  {"t":"GGBR3","n":"Gerdau","full":"Gerdau S.A.","s":"Siderurgia","ri":"https://ri.gerdau.com/pt","d":"gerdau.com"},
+  {"t":"EQTL3","n":"Equatorial Energia","full":"Equatorial Energia S.A.","s":"Energia Elétrica","ri":"https://ri.equatorialenergia.com.br","d":"equatorialenergia.com.br"},
+  {"t":"TOTS3","n":"TOTVS","full":"TOTVS S.A.","s":"Tecnologia","ri":"https://ri.totvs.com","d":"totvs.com"},
+  {"t":"PRIO3","n":"PetroRio","full":"PetroRio S.A.","s":"Petróleo e Gás","ri":"https://ri.petrorio.com.br","d":"petrorio.com.br"},
+  {"t":"CSAN3","n":"Cosan","full":"Cosan S.A.","s":"Energia / Logística","ri":"https://ri.cosan.com.br","d":"cosan.com.br"},
+  {"t":"BPAC11","n":"BTG Pactual","full":"Banco BTG Pactual S.A.","s":"Bancos","ri":"https://ri.btgpactual.com","d":"btgpactual.com"},
+  {"t":"BPAC3","n":"BTG Pactual","full":"Banco BTG Pactual S.A.","s":"Bancos","ri":"https://ri.btgpactual.com","d":"btgpactual.com"},
+  {"t":"RDOR3","n":"Rede D'Or","full":"Rede D'Or São Luiz S.A.","s":"Saúde","ri":"https://ri.rededorsaoluiz.com.br","d":"rededorsaoluiz.com.br"},
+  {"t":"HAPV3","n":"Hapvida","full":"Hapvida Participações e Investimentos S.A.","s":"Saúde","ri":"https://ri.hapvida.com.br","d":"hapvida.com.br"},
+  {"t":"RADL3","n":"Raia Drogasil","full":"Raia Drogasil S.A.","s":"Farmácias","ri":"https://ri.raiadrogasil.com.br","d":"raiadrogasil.com.br"},
+  {"t":"SBSP3","n":"Sabesp","full":"Companhia de Saneamento Básico do Estado de SP","s":"Saneamento","ri":"https://ri.sabesp.com.br","d":"sabesp.com.br"},
+  {"t":"ENEV3","n":"Eneva","full":"Eneva S.A.","s":"Energia Elétrica","ri":"https://ri.eneva.com.br","d":"eneva.com.br"},
+  {"t":"BRFS3","n":"BRF","full":"BRF S.A.","s":"Alimentos","ri":"https://ri.brf-global.com","d":"brf-global.com"},
+  {"t":"JBSS3","n":"JBS","full":"JBS S.A.","s":"Alimentos","ri":"https://ri.jbs.com.br","d":"jbs.com.br"},
+  {"t":"BEEF3","n":"Minerva Foods","full":"Minerva S.A.","s":"Alimentos","ri":"https://ri.minervafoods.com","d":"minervafoods.com"},
+  {"t":"SLCE3","n":"SLC Agrícola","full":"SLC Agrícola S.A.","s":"Agronegócio","ri":"https://ri.slcagricola.com.br","d":"slcagricola.com.br"},
+  {"t":"AGRO3","n":"BrasilAgro","full":"BrasilAgro - Companhia Brasileira de Propriedades Agrícolas","s":"Agronegócio","ri":"https://ri.brasil-agro.com","d":"brasil-agro.com"},
+  {"t":"CPFE3","n":"CPFL Energia","full":"CPFL Energia S.A.","s":"Energia Elétrica","ri":"https://ri.cpfl.com.br","d":"cpfl.com.br"},
+  {"t":"ELET3","n":"Eletrobras","full":"Centrais Elétricas Brasileiras S.A.","s":"Energia Elétrica","ri":"https://ri.eletrobras.com","d":"eletrobras.com"},
+  {"t":"ELET6","n":"Eletrobras","full":"Centrais Elétricas Brasileiras S.A.","s":"Energia Elétrica","ri":"https://ri.eletrobras.com","d":"eletrobras.com"},
+  {"t":"CMIG4","n":"CEMIG","full":"Companhia Energética de Minas Gerais","s":"Energia Elétrica","ri":"https://ri.cemig.com.br","d":"cemig.com.br"},
+  {"t":"CMIG3","n":"CEMIG","full":"Companhia Energética de Minas Gerais","s":"Energia Elétrica","ri":"https://ri.cemig.com.br","d":"cemig.com.br"},
+  {"t":"CPLE6","n":"Copel","full":"Companhia Paranaense de Energia","s":"Energia Elétrica","ri":"https://ri.copel.com","d":"copel.com"},
+  {"t":"EGIE3","n":"Engie Brasil","full":"Engie Brasil Energia S.A.","s":"Energia Elétrica","ri":"https://ri.engieenergia.com.br","d":"engieenergia.com.br"},
+  {"t":"TAEE4","n":"Taesa","full":"Transmissora Aliança de Energia Elétrica S.A.","s":"Energia Elétrica","ri":"https://ri.taesa.com.br","d":"taesa.com.br"},
+  {"t":"TAEE11","n":"Taesa","full":"Transmissora Aliança de Energia Elétrica S.A.","s":"Energia Elétrica","ri":"https://ri.taesa.com.br","d":"taesa.com.br"},
+  {"t":"CXSE3","n":"Caixa Seguridade","full":"Caixa Seguridade Participações S.A.","s":"Seguros","ri":"https://ri.caixaseguridade.com.br","d":"caixaseguridade.com.br"},
+  {"t":"COGN3","n":"Cogna Educação","full":"Cogna Educação S.A.","s":"Educação","ri":"https://ri.cogna.com.br","d":"cogna.com.br"},
+  {"t":"YDUQ3","n":"Yduqs","full":"Yduqs Participações S.A.","s":"Educação","ri":"https://ri.yduqs.com.br","d":"yduqs.com.br"},
+  {"t":"SOMA3","n":"Grupo Soma","full":"Grupo de Moda S.A.","s":"Vestuário","ri":"https://ri.somagrupo.com.br","d":"somagrupo.com.br"},
+  {"t":"VIVA3","n":"Vivara","full":"Vivara Participações S.A.","s":"Varejo","ri":"https://ri.vivara.com.br","d":"vivara.com.br"},
+  {"t":"GMAT3","n":"Grupo Mateus","full":"Grupo Mateus S.A.","s":"Varejo Alimentar","ri":"https://ri.grupomateus.com.br","d":"grupomateus.com.br"},
+  {"t":"PCAR3","n":"GPA","full":"Grupo Pão de Açúcar S.A.","s":"Varejo Alimentar","ri":"https://ri.gpabr.com","d":"gpabr.com"},
+  {"t":"ASAI3","n":"Assaí","full":"Sendas Distribuidora S.A.","s":"Varejo Alimentar","ri":"https://ri.assai.com.br","d":"assai.com.br"},
+  {"t":"RAIL3","n":"Rumo","full":"Rumo S.A.","s":"Logística","ri":"https://ri.rumolog.com","d":"rumolog.com"},
+  {"t":"ECOR3","n":"EcoRodovias","full":"EcoRodovias Infraestrutura e Logística S.A.","s":"Concessões","ri":"https://ri.ecorodovias.com.br","d":"ecorodovias.com.br"},
+  {"t":"CCRO3","n":"CCR","full":"CCR S.A.","s":"Concessões","ri":"https://ri.ccr.com.br","d":"ccr.com.br"},
+  {"t":"MULT3","n":"Multiplan","full":"Multiplan Empreendimentos Imobiliários S.A.","s":"Shoppings","ri":"https://ri.multiplan.com.br","d":"multiplan.com.br"},
+  {"t":"BRML3","n":"BR Malls","full":"BR Malls Participações S.A.","s":"Shoppings","ri":"https://ri.brmalls.com.br","d":"brmalls.com.br"},
+  {"t":"IGTI11","n":"Iguatemi","full":"Iguatemi S.A.","s":"Shoppings","ri":"https://ri.iguatemi.com.br","d":"iguatemi.com.br"},
+  {"t":"CYRE3","n":"Cyrela","full":"Cyrela Brazil Realty S.A.","s":"Construção","ri":"https://ri.cyrela.com.br","d":"cyrela.com.br"},
+  {"t":"EZTC3","n":"EZTEC","full":"EZTEC Empreendimentos e Participações S.A.","s":"Construção","ri":"https://ri.eztec.com.br","d":"eztec.com.br"},
+  {"t":"MRVE3","n":"MRV Engenharia","full":"MRV Engenharia e Participações S.A.","s":"Construção","ri":"https://ri.mrv.com.br","d":"mrv.com.br"},
+  {"t":"EVEN3","n":"Even","full":"Even Construtora e Incorporadora S.A.","s":"Construção","ri":"https://ri.even.com.br","d":"even.com.br"},
+  {"t":"DIRR3","n":"Direcional","full":"Direcional Engenharia S.A.","s":"Construção","ri":"https://ri.direcional.com.br","d":"direcional.com.br"},
+  {"t":"LWSA3","n":"Locaweb","full":"Locaweb Serviços de Internet S.A.","s":"Tecnologia","ri":"https://ri.locaweb.com.br","d":"locaweb.com.br"},
+  {"t":"INTB3","n":"Intelbras","full":"Intelbras S.A.","s":"Tecnologia","ri":"https://ri.intelbras.com.br","d":"intelbras.com.br"},
+  {"t":"POSI3","n":"Positivo","full":"Positivo Tecnologia S.A.","s":"Tecnologia","ri":"https://ri.positivotecnologia.com.br","d":"positivotecnologia.com.br"},
+  {"t":"CASH3","n":"Meliuz","full":"Méliuz S.A.","s":"Tecnologia Financeira","ri":"https://ri.meliuz.com.br","d":"meliuz.com.br"},
+  {"t":"BMGB4","n":"Banco BMG","full":"Banco BMG S.A.","s":"Bancos","ri":"https://ri.bancobmg.com.br","d":"bancobmg.com.br"},
+  {"t":"BIDI11","n":"Banco Inter","full":"Banco Inter S.A.","s":"Bancos","ri":"https://investors.inter.co","d":"inter.co"},
+  {"t":"SANB11","n":"Santander Brasil","full":"Banco Santander Brasil S.A.","s":"Bancos","ri":"https://www.santander.com.br/ri","d":"santander.com.br"},
+  {"t":"SANB4","n":"Santander Brasil","full":"Banco Santander Brasil S.A.","s":"Bancos","ri":"https://www.santander.com.br/ri","d":"santander.com.br"},
+  {"t":"IRBR3","n":"IRB Brasil RE","full":"IRB Brasil Resseguros S.A.","s":"Seguros","ri":"https://ri.irbre.com","d":"irbre.com"},
+  {"t":"BBSE3","n":"BB Seguridade","full":"BB Seguridade Participações S.A.","s":"Seguros","ri":"https://ri.bbseguridade.com.br","d":"bbseguridade.com.br"},
+  {"t":"PSSA3","n":"Porto Seguro","full":"Porto Seguro S.A.","s":"Seguros","ri":"https://ri.portoseguro.com.br","d":"portoseguro.com.br"},
+  {"t":"QUAL3","n":"Qualicorp","full":"Qualicorp Consultoria e Corretora de Seguros S.A.","s":"Saúde","ri":"https://ri.qualicorp.com.br","d":"qualicorp.com.br"},
+  {"t":"FLRY3","n":"Fleury","full":"Fleury S.A.","s":"Saúde","ri":"https://ri.fleury.com.br","d":"fleury.com.br"},
+  {"t":"HYPE3","n":"Hypera Pharma","full":"Hypera S.A.","s":"Farmacêutico","ri":"https://ri.hypera.com.br","d":"hypera.com.br"},
+  {"t":"KLBN4","n":"Klabin","full":"Klabin S.A.","s":"Papel e Celulose","ri":"https://ri.klabin.com.br","d":"klabin.com.br"},
+  {"t":"KLBN11","n":"Klabin","full":"Klabin S.A.","s":"Papel e Celulose","ri":"https://ri.klabin.com.br","d":"klabin.com.br"},
+  {"t":"DXCO3","n":"Dexco","full":"Dexco S.A.","s":"Materiais de Construção","ri":"https://ri.dexco.com.br","d":"dexco.com.br"},
+  {"t":"USIM5","n":"Usiminas","full":"Usinas Siderúrgicas de Minas Gerais S.A.","s":"Siderurgia","ri":"https://ri.usiminas.com","d":"usiminas.com"},
+  {"t":"CSNA3","n":"CSN","full":"Companhia Siderúrgica Nacional","s":"Siderurgia","ri":"https://ri.csn.com.br","d":"csn.com.br"},
+  {"t":"GOAU4","n":"Metalúrgica Gerdau","full":"Metalúrgica Gerdau S.A.","s":"Siderurgia","ri":"https://ri.gerdau.com/pt","d":"gerdau.com"},
+  {"t":"EMBR3","n":"Embraer","full":"Embraer S.A.","s":"Aeroespacial","ri":"https://ri.embraer.com.br","d":"embraer.com.br"},
+  {"t":"RAIZ4","n":"Raízen","full":"Raízen S.A.","s":"Energia / Açúcar","ri":"https://ri.raizen.com.br","d":"raizen.com.br"},
+  {"t":"SMTO3","n":"São Martinho","full":"São Martinho S.A.","s":"Açúcar e Etanol","ri":"https://ri.saomartinho.com.br","d":"saomartinho.com.br"},
+  {"t":"ENGI11","n":"Energisa","full":"Energisa S.A.","s":"Energia Elétrica","ri":"https://ri.energisa.com.br","d":"energisa.com.br"},
+  {"t":"ENBR3","n":"EDP Brasil","full":"EDP Energias do Brasil S.A.","s":"Energia Elétrica","ri":"https://ri.edp.com.br","d":"edp.com.br"},
+  {"t":"AURE3","n":"Auren Energia","full":"Auren Energia S.A.","s":"Energia Elétrica","ri":"https://ri.aurenenergia.com.br","d":"aurenenergia.com.br"},
+  {"t":"LEVE3","n":"Mahle-Metal Leve","full":"Mahle Metal Leve S.A.","s":"Autopeças","ri":"https://ri.metaleve.com.br","d":"metaleve.com.br"},
+  {"t":"MOVI3","n":"Movida","full":"Movida Participações S.A.","s":"Mobilidade","ri":"https://ri.movida.com.br","d":"movida.com.br"},
+  {"t":"UNIP6","n":"Unipar","full":"Unipar Carbocloro S.A.","s":"Química","ri":"https://ri.unipar.com","d":"unipar.com"},
+  {"t":"KEPL3","n":"Kepler Weber","full":"Kepler Weber S.A.","s":"Agronegócio","ri":"https://ri.keplerweber.com.br","d":"keplerweber.com.br"},
+  {"t":"RECV3","n":"PetroRecôncavo","full":"PetroRecôncavo S.A.","s":"Petróleo e Gás","ri":"https://ri.petroreconcavo.com.br","d":"petroreconcavo.com.br"},
+  {"t":"3R11","n":"3R Petroleum","full":"3R Petroleum Óleo e Gás S.A.","s":"Petróleo e Gás","ri":"https://ri.3rpetroleum.com.br","d":"3rpetroleum.com.br"},
+  {"t":"ORVR3","n":"Orizon","full":"Orizon Valorização de Resíduos S.A.","s":"Saneamento","ri":"https://ri.orizon.com.br","d":"orizon.com.br"},
+  {"t":"SIMH3","n":"Simpar","full":"Simpar S.A.","s":"Logística","ri":"https://ri.simpar.com.br","d":"simpar.com.br"},
+  # FIIs
+  {"t":"MXRF11","n":"Maxi Renda FII","full":"XP Malls Fundo de Investimento Imobiliário","s":"FII - Recebíveis","ri":"https://www.btgpactual.com/investment-banking/asset-management/fundos/mxrf11","d":"btgpactual.com"},
+  {"t":"HGLG11","n":"CSHG Logística","full":"CSHG Logística Fundo de Investimento Imobiliário","s":"FII - Logística","ri":"https://www.creditsuissehedginggriffin.com.br/hglg11","d":"cshg.com.br"},
+  {"t":"KNRI11","n":"Kinea Renda Imobiliária","full":"Kinea Renda Imobiliária Fundo de Investimento Imobiliário","s":"FII - Híbrido","ri":"https://www.kinea.com.br/fundos/knri11","d":"kinea.com.br"},
+  {"t":"XPML11","n":"XP Malls","full":"XP Malls Fundo de Investimento Imobiliário","s":"FII - Shoppings","ri":"https://xpinvestimentos.com.br/fundos/xp-malls","d":"xpinvestimentos.com.br"},
+  {"t":"BCFF11","n":"BTG Pactual Fundo de Fundos","full":"BTG Pactual Fundo de Fundos Imobiliários","s":"FII - Fundos","ri":"https://www.btgpactual.com/ri-fundos/bcff11","d":"btgpactual.com"},
+  {"t":"VISC11","n":"Vinci Shopping Centers","full":"Vinci Shopping Centers FII","s":"FII - Shoppings","ri":"https://www.vincifunds.com.br/visc11","d":"vincifunds.com.br"},
+  {"t":"BTLG11","n":"BTG Pactual Logística","full":"BTG Pactual Logística FII","s":"FII - Logística","ri":"https://www.btgpactual.com/ri-fundos/btlg11","d":"btgpactual.com"},
+  {"t":"XPLG11","n":"XP Log","full":"XP Log Fundo de Investimento Imobiliário","s":"FII - Logística","ri":"https://xpinvestimentos.com.br/fundos/xp-log","d":"xpinvestimentos.com.br"},
+  {"t":"RBRR11","n":"RBR Rendimento High Grade","full":"RBR Rendimento High Grade FII","s":"FII - Recebíveis","ri":"https://www.rbrasset.com.br/rbrr11","d":"rbrasset.com.br"},
+  {"t":"HFOF11","n":"Hedge Top FOFII","full":"Hedge Top FOFII 3 FII","s":"FII - Fundos","ri":"https://www.hedgeinvestimentos.com.br/hfof11","d":"hedgeinvestimentos.com.br"},
+  {"t":"IRDM11","n":"Iridium Recebíveis","full":"Iridium Recebíveis Imobiliários FII","s":"FII - Recebíveis","ri":"https://www.iridiumgestao.com.br/irdm11","d":"iridiumgestao.com.br"},
+  {"t":"RBRF11","n":"RBR Alpha","full":"RBR Alpha Multiestratégia Real Estate FII","s":"FII - Híbrido","ri":"https://www.rbrasset.com.br/rbrf11","d":"rbrasset.com.br"},
+  {"t":"GTWR11","n":"GR Louveira","full":"GR Louveira Fundo de Investimento Imobiliário","s":"FII - Logística","ri":"https://www.granadeiro.com.br/gtwr11","d":"granadeiro.com.br"},
+  {"t":"HSML11","n":"HSI Malls","full":"HSI Malls Fundo de Investimento Imobiliário","s":"FII - Shoppings","ri":"https://www.hsi.com.br/hsml11","d":"hsi.com.br"},
+]
+
+RI_INDEX = {}
+for item in RI_DB:
+    RI_INDEX[item["t"].upper()] = item
+    for word in item["n"].lower().split():
+        if len(word) > 2:
+            RI_INDEX.setdefault(f"_n_{word}", [])
+            if isinstance(RI_INDEX[f"_n_{word}"], list):
+                RI_INDEX[f"_n_{word}"].append(item["t"])
+
+@app.route("/api/ri/search")
+@login_required
+def ri_search():
+    q = request.args.get("q","").strip().upper()
+    if len(q) < 2:
+        return jsonify([])
+    results = []
+    seen = set()
+    # Busca por ticker exato primeiro
+    for k, v in RI_INDEX.items():
+        if not k.startswith("_") and q in k and v["t"] not in seen:
+            results.append(v); seen.add(v["t"])
+    # Busca por nome
+    q_lower = q.lower()
+    for item in RI_DB:
+        if item["t"] not in seen and (q_lower in item["n"].lower() or q_lower in item["full"].lower() or q_lower in item["s"].lower()):
+            results.append(item); seen.add(item["t"])
+    return jsonify(results[:15])
+
+@app.route("/api/ri/all")
+@login_required
+def ri_all():
+    return jsonify(RI_DB[:50])
+
 @app.after_request
 def sec_headers(r):
     r.headers.update({
