@@ -787,13 +787,13 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
     <div class="idx-card"><div class="idx-n">USD / BRL</div><div class="idx-v" id="dol-v">—</div><div class="idx-c" id="dol-c">—</div></div>
     <div class="idx-card"><div class="idx-n">Bitcoin</div><div class="idx-v" id="btc-v">—</div><div class="idx-c" id="btc-c">—</div></div>
   </div>
-  <div class="stitle"><div class="sl">Ações</div><div class="sr" id="cnt-a">— ativos</div></div>
+  <div class="stitle"><div class="sl">Ações</div><div class="sr" id="cnt-a">— ativos</div><button onclick="clearWatchlist('a')" title="Limpar todas as ações" style="font-size:9px;color:var(--td);background:none;border:none;cursor:pointer;padding:0 6px;transition:color .2s" onmouseover="this.style.color='var(--neg)'" onmouseout="this.style.color='var(--td)'">✕ limpar</button></div>
   <div class="add-row">
     <input class="inp" id="inp-a" placeholder="Ex: PETR4, VALE3…" maxlength="8" onkeydown="if(event.key==='Enter')addAtivo('a')">
     <button class="btnadd" id="btn-a" onclick="addAtivo('a')">+ ADICIONAR</button>
   </div>
   <div class="agrid" id="grid-a"><div class="loading"><div class="sp"></div>BUSCANDO...</div></div>
-  <div class="stitle"><div class="sl">Fundos Imobiliários</div><div class="sr" id="cnt-f">— ativos</div></div>
+  <div class="stitle"><div class="sl">Fundos Imobiliários</div><div class="sr" id="cnt-f">— ativos</div><button onclick="clearWatchlist('f')" title="Limpar todos os FIIs" style="font-size:9px;color:var(--td);background:none;border:none;cursor:pointer;padding:0 6px;transition:color .2s" onmouseover="this.style.color='var(--neg)'" onmouseout="this.style.color='var(--td)'">✕ limpar</button></div>
   <div class="add-row">
     <input class="inp" id="inp-f" placeholder="Ex: MXRF11, HGLG11…" maxlength="8" onkeydown="if(event.key==='Enter')addAtivo('f')">
     <button class="btnadd" id="btn-f" onclick="addAtivo('f')">+ ADICIONAR</button>
@@ -1110,7 +1110,7 @@ function mkCard(q,tipo){
   const up=(q.regularMarketChangePercent||0)>=0;
   cache[q.symbol]={...(cache[q.symbol]||{}),...q};
   const abs=q.regularMarketChange!=null?(q.regularMarketChange>=0?"+":"")+`R$${Math.abs(q.regularMarketChange).toFixed(2)}`:"—";
-  return`<div class="card ${up?"card-up":"card-dn"}" onclick="openModal('${q.symbol}')">
+  return`<div class="card ${up?"card-up":"card-dn"}" id="card-${q.symbol}" onclick="openModal('${q.symbol}')">
     <div class="del-btn" onclick="event.stopPropagation();removeAtivo('${q.symbol}','${tipo}')" title="Remover ${q.symbol}">✕</div>
     <div class="c-head"><div><div class="c-sym">${q.symbol}</div><div class="c-name">${q.shortName||"—"}</div></div>${pill(tipo)}</div>
     <div class="c-price">${fR(q.regularMarketPrice)}</div>
@@ -1196,6 +1196,13 @@ async function loadMarket(){
 }
 
 // ── Watchlist persistida no servidor ────────────────────────────────────────
+function clearWatchlist(tipo){
+  if(!confirm('Limpar toda a lista de '+(tipo==='a'?'ações':'FIIs')+'?')) return;
+  if(tipo==='a'){ wlA=[]; $('grid-a').innerHTML='<div class="empty-box"><span class="ei">📈</span><span class="et">Nenhuma ação</span><span>Adicione usando o campo acima</span></div>'; $('cnt-a').textContent='0 ativos'; }
+  else          { wlF=[]; $('grid-f').innerHTML='<div class="empty-box"><span class="ei">🏢</span><span class="et">Nenhum FII</span><span>Adicione usando o campo acima</span></div>'; $('cnt-f').textContent='0 ativos'; }
+  saveWatchlist();
+}
+
 async function saveWatchlist(){
   try{
     await apiFetch("/api/user/data/watchlist",{
@@ -1210,8 +1217,14 @@ async function loadWatchlist(){
   try{
     const r = await apiFetch("/api/user/data/watchlist");
     if(r && r.value){
-      wlA = Array.isArray(r.value.acoes) ? r.value.acoes : [];
-      wlF = Array.isArray(r.value.fiis)  ? r.value.fiis  : [];
+      // Filtra apenas strings válidas de ticker
+      wlA = (Array.isArray(r.value.acoes) ? r.value.acoes : [])
+            .filter(function(s){ return typeof s==='string' && s.length>=4 && s.length<=8; });
+      wlF = (Array.isArray(r.value.fiis) ? r.value.fiis : [])
+            .filter(function(s){ return typeof s==='string' && s.length>=4 && s.length<=8; });
+      // Remove duplicatas
+      wlA = [...new Set(wlA)];
+      wlF = [...new Set(wlF)];
     } else {
       wlA = []; wlF = [];
     }
@@ -1248,13 +1261,17 @@ async function removeAtivo(sym,tipo){
 async function addAtivo(tipo){
   const inpId=tipo==="a"?"inp-a":"inp-f",btnId=tipo==="a"?"btn-a":"btn-f";
   const gridId=tipo==="a"?"grid-a":"grid-f",cntId=tipo==="a"?"cnt-a":"cnt-f";
-  const wl=tipo==="a"?wlA:wlF;
-  const sym=$(inpId).value.trim().toUpperCase();
+  const sym=$(inpId).value.trim().toUpperCase().replace(/\.SA$/i,'');
   if(!sym){$(inpId).focus();return;}
-  if(wl.includes(sym)){
-    showInpMsg(inpId,`${sym} já está na lista`,"warn");
+  // Verifica se card JÁ ESTÁ VISÍVEL no grid (não apenas na lista)
+  const cardNoGrid=$(gridId) && document.getElementById('card-'+sym);
+  if(cardNoGrid){
+    showInpMsg(inpId,sym+' já está na lista',"warn");
     return;
   }
+  // Se está na lista mas não no grid, remove da lista para re-adicionar
+  if(tipo==="a") wlA=wlA.filter(s=>s!==sym);
+  else           wlF=wlF.filter(s=>s!==sym);
   const btn=$(btnId),inp=$(inpId);
   btn.disabled=true;inp.disabled=true;
   btn.innerHTML='<div class="sp"></div>Buscando…';
@@ -2090,7 +2107,8 @@ function goTab(btn){
   if(tab==="ri"&&!_riAllData.length){ initRI(); }
   if(tab==="dividendos"){
     divLoaded=false;
-    // Se carteira ainda vazia, carrega primeiro
+    // Limpa cache de dividendos para forçar re-fetch
+    apiFetch("/api/clear-cache",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({symbol:"bdiv_"})}).catch(()=>{});
     if(!Object.keys(carteira).length){
       initCarteira().then(()=>loadDivData());
     } else {
