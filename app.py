@@ -405,6 +405,81 @@ def get_history(symbol):
     if data: cache_set(ck,data)
     return jsonify(data or [])
 
+# ── Chart endpoint for Análise Gráfica ────────────────────────────────────────
+CHART_PERIOD_MAP = {
+    "1d":  ("1d",  "30m",  True),
+    "5d":  ("5d",  "1h",   True),
+    "1mo": ("1mo", "1d",   False),
+    "3mo": ("3mo", "1d",   False),
+    "6mo": ("6mo", "1d",   False),
+    "1y":  ("1y",  "1d",   False),
+    "5y":  ("5y",  "1wk",  False),
+    "max": ("max", "1mo",  False),
+}
+
+def brapi_chart(symbol, period="1mo"):
+    sym = symbol.upper().replace(".SA","")
+    range_, interval, intraday = CHART_PERIOD_MAP.get(period, ("1mo","1d",False))
+    ttl = 120 if intraday else 600
+    ck  = f"gc_{sym}_{period}"
+    cached = cache_get(ck, ttl=ttl)
+    if cached: return cached
+    data = brapi_get(f"/quote/{sym}", {"range": range_, "interval": interval})
+    if not data or "results" not in data or not data["results"]: return []
+    hist = data["results"][0].get("historicalDataPrice", [])
+    out, seen = [], set()
+    for h in hist:
+        ts = h.get("date")
+        if not ts: continue
+        try:
+            cl = float(h.get("close") or 0)
+            op = float(h.get("open")  or 0) or cl
+            hi = float(h.get("high")  or 0) or cl
+            lo = float(h.get("low")   or 0) or cl
+            if cl <= 0: continue
+            if intraday:
+                time_val = int(ts)
+            else:
+                dt = datetime.utcfromtimestamp(ts)
+                time_val = dt.strftime("%Y-%m-%d")
+            if time_val in seen: continue
+            seen.add(time_val)
+            out.append({"time":time_val,"open":round(op,2),"high":round(hi,2),
+                        "low":round(lo,2),"close":round(cl,2),"volume":int(h.get("volume") or 0)})
+        except: pass
+    # If intraday returned no data, fallback to daily
+    if not out and intraday:
+        data2 = brapi_get(f"/quote/{sym}", {"range": range_, "interval": "1d"})
+        if data2 and "results" in data2 and data2["results"]:
+            for h in data2["results"][0].get("historicalDataPrice",[]):
+                ts = h.get("date")
+                if not ts: continue
+                try:
+                    cl = float(h.get("close") or 0)
+                    if cl <= 0: continue
+                    dt = datetime.utcfromtimestamp(ts)
+                    time_val = dt.strftime("%Y-%m-%d")
+                    if time_val in seen: continue
+                    seen.add(time_val)
+                    out.append({"time":time_val,
+                                "open":round(float(h.get("open") or 0) or cl,2),
+                                "high":round(float(h.get("high") or 0) or cl,2),
+                                "low":round(float(h.get("low")  or 0) or cl,2),
+                                "close":cl,"volume":int(h.get("volume") or 0)})
+                except: pass
+    cache_set(ck, out)
+    return out
+
+@app.route("/api/chart/<symbol>")
+@login_required
+def get_chart(symbol):
+    sym    = symbol.upper().strip().replace(".SA","")
+    period = request.args.get("period","1mo")
+    if period not in CHART_PERIOD_MAP:
+        period = "1mo"
+    data = brapi_chart(sym, period)
+    return jsonify(data or [])
+
 @app.route("/api/asset/<symbol>")
 @login_required
 def get_asset(symbol):
