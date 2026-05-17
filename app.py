@@ -870,6 +870,95 @@ for item in RI_DB:
             if isinstance(RI_INDEX[f"_n_{word}"], list):
                 RI_INDEX[f"_n_{word}"].append(item["t"])
 
+@app.route("/api/ai/chat", methods=["POST"])
+@login_required
+def ai_chat():
+    """João — AI Financial Assistant powered by Claude."""
+    ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not ANTHROPIC_KEY:
+        return jsonify({"error": "IA não configurada. Adicione ANTHROPIC_API_KEY nas variáveis de ambiente."}), 503
+
+    body = request.get_json() or {}
+    messages = body.get("messages", [])
+    if not messages:
+        return jsonify({"error": "messages obrigatório"}), 400
+
+    # Validate and sanitize messages
+    clean_msgs = []
+    for m in messages[-20:]:  # max 20 turns of history
+        role = m.get("role", "")
+        content = str(m.get("content", "")).strip()
+        if role in ("user", "assistant") and content:
+            clean_msgs.append({"role": role, "content": content[:2000]})
+
+    if not clean_msgs:
+        return jsonify({"error": "Nenhuma mensagem válida."}), 400
+
+    system_prompt = """Você é João, um assistente especializado no mercado financeiro brasileiro (B3).
+
+Seu perfil:
+- Nome: João
+- Especialidade: Mercado de capitais brasileiro — ações, FIIs, ETFs, BDRs, índices da B3
+- Tom: Objetivo, claro, educativo e amigável. Profissional mas acessível.
+- Idioma: Sempre português brasileiro
+
+Você domina:
+- Análise fundamentalista: P/L, P/VP, EV/EBITDA, ROE, ROIC, Margem EBITDA, Dívida Líquida/EBITDA
+- Análise técnica: médias móveis, suporte/resistência, candlestick, volume
+- FIIs: tipos (tijolo, papel, híbrido, FOF), P/VP, DY, vacância, gestão
+- ETFs brasileiros: BOVA11, IVVB11, SMAL11, DIVO11, HASH11 e outros
+- BDRs: como funcionam, tributação, principais ativos
+- Estratégias: diversificação, rebalanceamento, preço médio, juros compostos
+- Conceitos: dividendos, proventos, JCP, bonificação, subscrição
+- Tributação: IR sobre ações, FIIs, ETFs — isenções e obrigações
+
+Ao responder:
+- Seja direto e objetivo. Evite respostas longas desnecessárias.
+- Use exemplos práticos com números reais quando útil.
+- Para perguntas sobre preços específicos, informe que não tem acesso a cotações em tempo real.
+- Nunca faça recomendações definitivas de compra/venda sem embasamento — sempre mencione riscos.
+- Quando não souber algo, seja honesto.
+- Use marcações simples: **negrito** para termos importantes, linhas separadas para listas.
+"""
+
+    try:
+        r = req_lib.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": ANTHROPIC_KEY,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 1024,
+                "system": system_prompt,
+                "messages": clean_msgs,
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        data = r.json()
+        reply = ""
+        for block in data.get("content", []):
+            if block.get("type") == "text":
+                reply += block.get("text", "")
+        if not reply:
+            return jsonify({"error": "Resposta vazia da IA."}), 502
+        return jsonify({"reply": reply.strip()})
+    except req_lib.exceptions.Timeout:
+        return jsonify({"error": "Tempo de resposta excedido. Tente novamente."}), 504
+    except req_lib.exceptions.HTTPError as e:
+        status = e.response.status_code if e.response else 500
+        print(f"  AI chat HTTP error {status}: {e}")
+        if status == 401:
+            return jsonify({"error": "Chave da API inválida. Verifique ANTHROPIC_API_KEY."}), 503
+        return jsonify({"error": f"Erro na API de IA ({status})."}), 502
+    except Exception as e:
+        print(f"  AI chat error: {e}")
+        return jsonify({"error": "Erro ao processar resposta da IA."}), 500
+
+
 @app.route("/api/ri/search")
 @login_required
 def ri_search():
