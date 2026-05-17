@@ -976,21 +976,28 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 @keyframes joaoTyping{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
 @keyframes joaoMsgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
-/* Floating trigger button */
+/* Floating trigger button — icon only */
 #joao-btn{
-  position:fixed;top:10px;right:70px;z-index:200;
-  display:flex;align-items:center;gap:7px;
-  background:var(--ui-grd);border:none;border-radius:20px;
-  padding:7px 13px 7px 10px;cursor:pointer;
-  font-family:var(--sans);font-size:11px;font-weight:700;color:#000;
-  box-shadow:0 2px 16px rgba(0,229,176,.35);
-  transition:all .25s cubic-bezier(.34,1.56,.64,1);
-  letter-spacing:.5px;
+  position:fixed;top:11px;right:76px;z-index:200;
+  width:34px;height:34px;
+  background:var(--bg2);border:1.5px solid rgba(0,229,176,.45);border-radius:50%;
+  cursor:pointer;display:grid;place-items:center;
+  box-shadow:0 0 14px rgba(0,229,176,.2),0 2px 8px rgba(0,0,0,.4);
+  transition:all .22s cubic-bezier(.34,1.56,.64,1);
+  padding:0;
 }
-#joao-btn:hover{transform:scale(1.06);box-shadow:0 4px 24px rgba(0,229,176,.5)}
-#joao-btn.open{background:rgba(23,32,48,.95);color:var(--ui1);border:1px solid var(--ui1);box-shadow:0 2px 16px rgba(0,229,176,.2)}
-#joao-btn-dot{width:7px;height:7px;background:var(--ui1);border-radius:50%;animation:pulse 2s infinite;flex-shrink:0}
-#joao-btn.open #joao-btn-dot{background:var(--r);animation:none}
+#joao-btn svg{width:16px;height:16px;transition:all .22s}
+#joao-btn:hover{
+  border-color:var(--ui1);
+  box-shadow:0 0 22px rgba(0,229,176,.45),0 4px 16px rgba(0,0,0,.5);
+  transform:scale(1.1);
+}
+#joao-btn.open{
+  background:rgba(0,229,176,.1);
+  border-color:var(--ui1);
+  box-shadow:0 0 18px rgba(0,229,176,.35);
+}
+#joao-btn-dot{display:none}
 
 /* Chat panel */
 #joao-panel{
@@ -1087,10 +1094,10 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 #joao-send{
   width:36px;height:36px;background:var(--ui-grd);border:none;border-radius:10px;
   cursor:pointer;display:grid;place-items:center;flex-shrink:0;
-  color:#000;font-size:15px;transition:all .2s;font-weight:700;
+  color:#000;transition:all .2s;
 }
 #joao-send:hover{transform:scale(1.08);box-shadow:0 2px 12px rgba(0,229,176,.4)}
-#joao-send:disabled{opacity:.4;cursor:not-allowed;transform:none}
+#joao-send:disabled{opacity:.35;cursor:not-allowed;transform:none}
 
 /* Welcome banner inside chat */
 .joao-welcome{
@@ -1118,9 +1125,14 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
     <div id="clock">--:--:--</div>
     <div id="eta">↺ --s</div>
     <!-- João AI Button -->
-    <button id="joao-btn" onclick="joaoToggle()" title="Assistente IA João">
+    <button id="joao-btn" onclick="joaoToggle()" title="João — Assistente Financeiro IA" aria-label="Abrir assistente IA">
       <div id="joao-btn-dot"></div>
-      <span>João IA</span>
+      <svg id="joao-ico-chat" viewBox="0 0 24 24" fill="none" stroke="var(--ui1)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <svg id="joao-ico-close" viewBox="0 0 24 24" fill="none" stroke="var(--ui1)" stroke-width="2" stroke-linecap="round" style="display:none">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
     </button>
     <div id="user-info" style="display:flex;align-items:center;gap:10px;border-left:1px solid var(--bd);padding-left:14px">
       <div>
@@ -3398,6 +3410,7 @@ function gcToggleInd(ind){
 let _joaoOpen = false;
 let _joaoMsgs = [];  // [{role:"user"|"assistant", content:"..."}]
 let _joaoLoading = false;
+let _joaoLastError = 0; // timestamp of last error for debounce
 
 const JOAO_CHIPS = [
   "O que é um FII?",
@@ -3411,7 +3424,6 @@ const JOAO_CHIPS = [
 ];
 
 function joaoInit(){
-  // Build panel HTML if not yet injected
   if($("joao-panel")) return;
   const panel = document.createElement("div");
   panel.id = "joao-panel";
@@ -3443,7 +3455,11 @@ function joaoInit(){
     <div id="joao-input-area">
       <input id="joao-inp" placeholder="Pergunte sobre investimentos..." maxlength="500"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();joaoSend()}">
-      <button id="joao-send" onclick="joaoSend()">➤</button>
+      <button id="joao-send" onclick="joaoSend()">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
     </div>
   `;
   document.body.appendChild(panel);
@@ -3456,26 +3472,32 @@ function joaoToggle(){
   const btn   = $("joao-btn");
   panel.classList.toggle("open", _joaoOpen);
   btn.classList.toggle("open",   _joaoOpen);
+  // Swap icons
+  const icoChat  = $("joao-ico-chat");
+  const icoClose = $("joao-ico-close");
+  if(icoChat)  icoChat.style.display  = _joaoOpen ? "none" : "";
+  if(icoClose) icoClose.style.display = _joaoOpen ? ""     : "none";
   if(_joaoOpen){
-    setTimeout(()=>{ const inp=$("joao-inp"); if(inp) inp.focus(); }, 320);
+    setTimeout(()=>{ const inp=$("joao-inp"); if(inp) inp.focus(); }, 300);
   }
 }
 
 function joaoChip(el, text){
   const inp = $("joao-inp");
-  if(inp){ inp.value = text; }
-  // Hide chips after first use
-  el.closest("#joao-chips")?.querySelectorAll(".jchip").forEach(c=>c.style.opacity="0.4");
+  if(inp) inp.value = text;
   joaoSend();
 }
 
 function joaoScrollBottom(){
   const msgs = $("joao-msgs");
-  if(msgs) msgs.scrollTop = msgs.scrollHeight;
+  if(msgs) requestAnimationFrame(()=>{ msgs.scrollTop = msgs.scrollHeight; });
 }
 
 function joaoAddMsg(role, text){
-  _joaoMsgs.push({role, content: text});
+  // Only push to history for real exchange (not system error notices)
+  if(role === "user" || role === "assistant"){
+    _joaoMsgs.push({role, content: text});
+  }
   const msgs = $("joao-msgs");
   if(!msgs) return;
   const wrap = document.createElement("div");
@@ -3485,10 +3507,21 @@ function joaoAddMsg(role, text){
   av.textContent = role==="user" ? "EU" : "J";
   const bubble = document.createElement("div");
   bubble.className = "jbubble";
-  // Basic markdown: **bold**, *em*, \n→<br>
   bubble.innerHTML = joaoFormatText(text);
   wrap.appendChild(av);
   wrap.appendChild(bubble);
+  msgs.appendChild(wrap);
+  joaoScrollBottom();
+}
+
+function joaoAddError(text){
+  // Error bubble — not added to conversation history
+  const msgs = $("joao-msgs");
+  if(!msgs) return;
+  const wrap = document.createElement("div");
+  wrap.className = "jmsg jmsg-ai";
+  wrap.innerHTML = `<div class="jmsg-av" style="background:var(--rd);border:1px solid rgba(255,61,87,.3)">!</div>
+    <div class="jbubble" style="border-color:rgba(255,61,87,.2);background:var(--rd);color:var(--r)">${joaoFormatText(text)}</div>`;
   msgs.appendChild(wrap);
   joaoScrollBottom();
 }
@@ -3498,7 +3531,7 @@ function joaoFormatText(text){
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
     .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
     .replace(/\*(.+?)\*/g,"<em>$1</em>")
-    .replace(/`(.+?)`/g,"<code style='background:var(--bd);padding:1px 4px;border-radius:3px;font-family:var(--mono);font-size:10px'>$1</code>")
+    .replace(/`(.+?)`/g,"<code style='background:rgba(0,229,176,.08);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:10px;color:var(--ui1)'>$1</code>")
     .replace(/\n/g,"<br>");
 }
 
@@ -3507,40 +3540,74 @@ async function joaoSend(){
   if(!inp || _joaoLoading) return;
   const text = inp.value.trim();
   if(!text) return;
-  inp.value = "";
 
-  // Disable chips permanently after first real message
-  $("joao-chips")?.querySelectorAll(".jchip").forEach(c=>c.style.pointerEvents="none");
+  // Basic debounce — avoid double-send
+  if(Date.now() - _joaoLastError < 800) return;
+
+  inp.value = "";
+  // Hide chips after use
+  const chips = $("joao-chips");
+  if(chips) chips.style.display = "none";
 
   joaoAddMsg("user", text);
 
-  // Show typing
   _joaoLoading = true;
-  const send = $("joao-send"); if(send) send.disabled = true;
-  const typing = $("joao-typing"); if(typing) typing.classList.add("show");
+  const sendBtn = $("joao-send");
+  if(sendBtn) sendBtn.disabled = true;
+  const typing = $("joao-typing");
+  if(typing) typing.classList.add("show");
   joaoScrollBottom();
 
   try {
-    const res = await apiFetch("/api/ai/chat", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({messages: _joaoMsgs.slice(-20)}),
-    });
-    if(typing) typing.classList.remove("show");
-    if(res && res.reply){
-      joaoAddMsg("assistant", res.reply);
-    } else if(res && res.error) {
-      joaoAddMsg("assistant", "❌ " + (res.error||"Erro ao processar. Tente novamente."));
-    } else {
-      joaoAddMsg("assistant", "❌ Não foi possível obter resposta. Verifique se a IA está configurada.");
+    // ── Use raw fetch (NOT apiFetch) so we can read the body on any status ──
+    const ctrl = new AbortController();
+    const tout = setTimeout(()=>ctrl.abort(), 30000);
+
+    let response;
+    try {
+      response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({messages: _joaoMsgs.slice(-20)}),
+        signal: ctrl.signal,
+        credentials: "same-origin",
+      });
+    } finally {
+      clearTimeout(tout);
     }
-  } catch(e) {
+
     if(typing) typing.classList.remove("show");
-    joaoAddMsg("assistant", "❌ Erro de conexão. Tente novamente em instantes.");
+
+    // Always try to parse JSON regardless of HTTP status
+    let data = null;
+    try { data = await response.json(); } catch(parseErr) { /* non-json body */ }
+
+    if(response.ok && data && data.reply){
+      joaoAddMsg("assistant", data.reply);
+    } else {
+      // Remove the user message from history so user can retry
+      _joaoMsgs.pop();
+      const errMsg = (data && data.error) ? data.error : `Erro ${response.status} — tente novamente.`;
+      joaoAddError("⚠️ " + errMsg);
+      _joaoLastError = Date.now();
+      // Restore input so user can retry
+      if(inp) inp.value = text;
+    }
+
+  } catch(e){
+    if(typing) typing.classList.remove("show");
+    _joaoMsgs.pop(); // remove unsent user message from history
+    _joaoLastError = Date.now();
+    if(inp) inp.value = text; // restore so user can retry
+
+    let errText = "⚠️ Sem resposta do servidor.";
+    if(e.name === "AbortError") errText = "⚠️ Tempo de resposta excedido. Tente novamente.";
+    else if(!navigator.onLine) errText = "⚠️ Sem conexão com a internet.";
+    joaoAddError(errText);
   } finally {
     _joaoLoading = false;
-    if(send) send.disabled = false;
-    if(inp) inp.focus();
+    if(sendBtn) sendBtn.disabled = false;
+    if(inp && !inp.value) inp.focus();
   }
 }
 
