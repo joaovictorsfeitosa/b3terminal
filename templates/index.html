@@ -41,7 +41,20 @@ a{text-decoration:none;color:inherit}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
 @keyframes tkrun{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,176,255,.3)}70%{box-shadow:0 0 0 6px rgba(0,176,255,0)}}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:.9}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+
+/* INDEX CARDS */
+.idx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:22px}
+.idx-card{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:15px;
+  position:relative;overflow:hidden;transition:all .2s;cursor:default}
+.idx-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,176,255,.03),transparent);pointer-events:none}
+.idx-card:hover{border-color:rgba(0,176,255,.3);transform:translateY(-1px)}
+.idx-n{font-size:9px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.idx-v{font-family:var(--sans);font-size:18px;font-weight:800;color:var(--tb);letter-spacing:-1px;margin-bottom:4px}
+.idx-c{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block}
+.idx-c.up{background:rgba(0,230,118,.1);color:var(--g);border:1px solid rgba(0,230,118,.2)}
+.idx-c.dn{background:var(--rd);color:var(--r);border:1px solid rgba(255,61,87,.2)}
 
 /* HEADER */
 #hdr{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:54px;
@@ -69,14 +82,75 @@ a{text-decoration:none;color:inherit}
 .tk-sym{color:var(--tb);font-weight:700}
 .up{color:var(--g)}.dn{color:var(--r)}
 
-/* TABS */
-#tabs{display:flex;background:rgba(8,14,24,.9);border-bottom:1px solid var(--bd);padding:0 14px;overflow-x:auto;backdrop-filter:blur(12px)}
+/* TABS — horizontal default */
+#tabs{display:flex;background:rgba(4,8,16,.92);border-bottom:1px solid var(--bd);
+  padding:0 16px;overflow-x:auto;backdrop-filter:blur(16px);position:sticky;
+  top:54px;z-index:90;transition:all .3s}
 #tabs::-webkit-scrollbar{height:0}
 .tab{padding:12px 18px;font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:2px;
   text-transform:uppercase;color:var(--td);cursor:pointer;border-bottom:2px solid transparent;
-  transition:all .2s;white-space:nowrap;user-select:none}
+  transition:all .2s;white-space:nowrap;user-select:none;display:flex;align-items:center;gap:6px}
 .tab:hover{color:var(--ui1)}.tab.on{color:var(--ui2);border-bottom-color:var(--ui2)}
-.page{display:none}.page.on{display:block;animation:fadeUp .25s ease}
+.tab-ico{font-size:14px}
+
+/* SIDEBAR — large screens */
+@media(min-width:1080px){
+  #tabs{
+    position:fixed;left:0;top:54px;bottom:0;width:58px;
+    flex-direction:column;border-bottom:none;border-right:1px solid var(--bd);
+    padding:10px 0;overflow:hidden;overflow-y:auto;
+    transition:width .22s cubic-bezier(.4,0,.2,1);
+    background:rgba(4,8,16,.96)
+  }
+  #tabs:hover{width:220px}
+  #tabs::-webkit-scrollbar{width:0}
+  .tab{
+    padding:12px 18px;border-bottom:none;border-left:3px solid transparent;
+    border-radius:0 10px 10px 0;margin:1px 0;width:100%;
+    overflow:hidden;white-space:nowrap;letter-spacing:1.5px;font-size:9px
+  }
+  .tab.on{background:rgba(0,176,255,.1);border-left-color:var(--ui2);color:var(--ui2)}
+  .tab:hover:not(.on){background:rgba(255,255,255,.04);color:var(--ui1)}
+  .tab-ico{flex-shrink:0;font-size:16px}
+  .tab-lbl{opacity:0;transition:opacity .15s .05s;white-space:nowrap}
+  #tabs:hover .tab-lbl{opacity:1}
+  #tkbar,#hdr{padding-left:74px;transition:padding-left .22s}
+  #tabs:hover~*{margin-left:0}/* handled via body class below */
+  body.sb-open #tkbar,body.sb-open #hdr{padding-left:236px}
+  .wrap{margin-left:58px;max-width:1300px;transition:margin-left .22s}
+  body.sb-open .wrap{margin-left:220px}
+  /* sidebar divider */
+  .tab-sep{height:1px;background:var(--bd);margin:6px 14px;flex-shrink:0;width:30px;transition:width .22s}
+  #tabs:hover .tab-sep{width:calc(100% - 28px)}
+}
+
+/* BOTTOM NAV — mobile */
+#bottom-nav{display:none}
+@media(max-width:767px){
+  #tabs{display:none}
+  #bottom-nav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:58px;
+    background:rgba(4,8,16,.96);border-top:1px solid var(--bd);
+    backdrop-filter:blur(20px);z-index:200;align-items:stretch;
+    overflow-x:auto;overflow-y:hidden;
+  }
+  #bottom-nav::-webkit-scrollbar{height:0}
+  .bnav-item{
+    flex:1;min-width:52px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:3px;
+    cursor:pointer;transition:background .15s;color:var(--td);
+    border-top:2px solid transparent;font-size:7px;
+    letter-spacing:.5px;text-transform:uppercase;font-family:var(--sans);
+    font-weight:700;padding:2px 6px;text-align:center
+  }
+  .bnav-item.on{color:var(--ui2);border-top-color:var(--ui2);background:rgba(0,176,255,.06)}
+  .bnav-item:hover:not(.on){background:rgba(255,255,255,.04);color:var(--ui1)}
+  .bnav-ico{font-size:18px;line-height:1}
+  .wrap{padding-bottom:72px}
+  #progbar{bottom:58px}
+}
+
+.page{display:none}.page.on{display:block;animation:fadeUp .22s ease}
 .wrap{max-width:1300px;margin:0 auto;padding:20px 18px 60px}
 
 /* SECTION */
@@ -128,6 +202,13 @@ a{text-decoration:none;color:inherit}
 .c-abs{font-size:9px;color:var(--td)}
 .c-foot{display:flex;justify-content:space-between;margin-top:10px;padding-top:9px;border-top:1px solid var(--bd)}
 .cs{text-align:center}.cs-l{font-size:8px;color:var(--td);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}.cs-v{font-size:9px;color:var(--t)}
+/* Quick chart shortcut */
+.c-chart-btn{position:absolute;bottom:10px;right:10px;font-size:9px;
+  background:rgba(0,176,255,.08);border:1px solid rgba(0,176,255,.22);color:var(--ui2);
+  padding:2px 7px;border-radius:5px;cursor:pointer;transition:.15s;
+  display:none;font-family:var(--sans);font-weight:700;letter-spacing:.5px;z-index:5}
+.card:hover .c-chart-btn{display:block}
+.c-chart-btn:hover{background:rgba(0,176,255,.22)}
 
 /* STATES */
 .loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--td);font-size:11px;letter-spacing:2px;grid-column:1/-1}
@@ -926,14 +1007,23 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
   <div id="tk-inner"><div id="tk-scroll"><div class="tk-item"><span class="tk-sym">—</span><span style="color:var(--td)">Carregando cotações...</span></div></div></div>
 </div>
 
-<nav id="tabs">
-  <div class="tab on"  data-tab="mercado"    onclick="goTab(this)">📈 Mercado</div>
-  <div class="tab"     data-tab="carteira"   onclick="goTab(this)">💼 Minha Carteira</div>
-  <div class="tab"     data-tab="dividendos" onclick="goTab(this)">💰 Dividendos</div>
-  <div class="tab"     data-tab="simulador"  onclick="goTab(this)">🧮 Simulador</div>
-  <div class="tab"     data-tab="graficos"   onclick="goTab(this)">📊 Gráficos</div>
-  <div class="tab"     data-tab="noticias"   onclick="goTab(this)">📰 Notícias</div>
-  <div class="tab"     data-tab="ri"         onclick="goTab(this)">🏢 RI</div>
+<nav id="tabs" onmouseenter="document.body.classList.add('sb-open')" onmouseleave="document.body.classList.remove('sb-open')">
+  <div class="tab on"  data-tab="mercado"    onclick="goTab(this)"><span class="tab-ico">📈</span><span class="tab-lbl">Mercado</span></div>
+  <div class="tab"     data-tab="carteira"   onclick="goTab(this)"><span class="tab-ico">💼</span><span class="tab-lbl">Minha Carteira</span></div>
+  <div class="tab"     data-tab="dividendos" onclick="goTab(this)"><span class="tab-ico">💰</span><span class="tab-lbl">Dividendos</span></div>
+  <div class="tab"     data-tab="simulador"  onclick="goTab(this)"><span class="tab-ico">🧮</span><span class="tab-lbl">Simulador</span></div>
+  <div class="tab"     data-tab="graficos"   onclick="goTab(this)"><span class="tab-ico">📊</span><span class="tab-lbl">Gráficos</span></div>
+  <div class="tab"     data-tab="noticias"   onclick="goTab(this)"><span class="tab-ico">📰</span><span class="tab-lbl">Notícias</span></div>
+  <div class="tab"     data-tab="ri"         onclick="goTab(this)"><span class="tab-ico">🏢</span><span class="tab-lbl">RI</span></div>
+</nav>
+
+<!-- BOTTOM NAV (mobile only) -->
+<nav id="bottom-nav">
+  <div class="bnav-item on"  data-tab="mercado"    onclick="goTab(this)"><span class="bnav-ico">📈</span>Mercado</div>
+  <div class="bnav-item"     data-tab="carteira"   onclick="goTab(this)"><span class="bnav-ico">💼</span>Carteira</div>
+  <div class="bnav-item"     data-tab="dividendos" onclick="goTab(this)"><span class="bnav-ico">💰</span>Dividendos</div>
+  <div class="bnav-item"     data-tab="graficos"   onclick="goTab(this)"><span class="bnav-ico">📊</span>Gráficos</div>
+  <div class="bnav-item"     data-tab="simulador"  onclick="goTab(this)"><span class="bnav-ico">🧮</span>Mais</div>
 </nav>
 
 <!-- MERCADO -->
@@ -1337,10 +1427,23 @@ setInterval(()=>{$("clock").textContent=new Date().toLocaleTimeString("pt-BR",{h
 
 function _goTabOld_removed(){ /* substituído pela nova versão acima */ }
 
-async function apiFetch(path,opts={}){
-  const r=await fetch(path,opts);
-  if(!r.ok)throw new Error(`HTTP ${r.status}`);
-  return r.json();
+async function apiFetch(path,opts={},_retries=0){
+  const ctrl=new AbortController();
+  const tout=setTimeout(()=>ctrl.abort(),14000);
+  try{
+    const r=await fetch(path,{...opts,signal:ctrl.signal});
+    clearTimeout(tout);
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }catch(e){
+    clearTimeout(tout);
+    const noRetry=opts.noRetry||opts.method==='POST';
+    if(_retries<2&&!noRetry){
+      await new Promise(r=>setTimeout(r,1200*(1+_retries)));
+      return apiFetch(path,opts,_retries+1);
+    }
+    throw e;
+  }
 }
 
 async function fetchQ(syms,fund=false,_retry=0){
@@ -1373,6 +1476,7 @@ function mkCard(q,tipo){
       <div class="cs"><div class="cs-l">MÁX</div><div class="cs-v">${q.regularMarketDayHigh!=null?"R$"+q.regularMarketDayHigh.toFixed(2):"—"}</div></div>
       <div class="cs"><div class="cs-l">VOL</div><div class="cs-v">${fVol(q.regularMarketVolume)}</div></div>
     </div>
+    <div class="c-chart-btn" onclick="event.stopPropagation();goTabByName('graficos');gcLoadAsset('${q.symbol}')">📊 CHART</div>
   </div>`;
 }
 
@@ -1382,7 +1486,13 @@ function renderGrid(id,quotes,tipo){
     if(!wl.length){
       $(id).innerHTML=`<div class="empty-box"><span class="ei">${tipo==="acao"?"📈":"🏢"}</span><span class="et">Nenhum ${tipo==="acao"?"ação":"FII"}</span><span>Adicione usando o campo acima</span></div>`;
     } else {
-      $(id).innerHTML=`<div class="errmsg" style="grid-column:1/-1">⚠ Cotações indisponíveis no momento. <button onclick="loadMarket()" style="background:none;border:none;color:var(--ui2);cursor:pointer;text-decoration:underline;font-family:var(--mono);font-size:11px">↺ Tentar novamente</button></div>`;
+      // Silent: show skeleton cards while retrying in background
+      $(id).innerHTML=wl.map(sym=>`
+        <div class="card" style="cursor:default;opacity:.6">
+          <div class="c-sym" style="font-family:var(--sans);font-size:15px;font-weight:800;color:var(--tb)">${sym}</div>
+          <div style="height:32px;background:var(--bg3);border-radius:6px;margin:10px 0;animation:pulse 1.5s ease infinite"></div>
+          <div style="height:18px;width:60%;background:var(--bg3);border-radius:4px;animation:pulse 1.5s ease .2s infinite"></div>
+        </div>`).join('');
     }
     return;
   }
@@ -1396,30 +1506,27 @@ function renderTicker(quotes){
   $("tk-scroll").style.animation="tkrun 55s linear infinite";
 }
 
-async function loadMarket(){
+async function loadMarket(_retry=0){
   $("last-upd").textContent="Atualizando…";
+  // Show loading skeletons if we have watchlist items
   if(wlA.length) $("grid-a").innerHTML='<div class="loading"><div class="sp"></div>CARREGANDO…</div>';
-  else $("grid-a").innerHTML='<div class="empty-box"><span class="ei">📈</span><span class="et">Nenhuma ação</span><span>Adicione usando o campo acima</span></div>';
+  else $("grid-a").innerHTML=`<div class="empty-box"><span class="ei">📈</span><span class="et">Nenhuma ação</span><span>Adicione usando o campo acima</span></div>`;
   if(wlF.length) $("grid-f").innerHTML='<div class="loading"><div class="sp"></div>CARREGANDO…</div>';
-  else $("grid-f").innerHTML='<div class="empty-box"><span class="ei">🏢</span><span class="et">Nenhum FII</span><span>Adicione usando o campo acima</span></div>';
+  else $("grid-f").innerHTML=`<div class="empty-box"><span class="ei">🏢</span><span class="et">Nenhum FII</span><span>Adicione usando o campo acima</span></div>`;
   $("cnt-a").textContent=wlA.length+" ativo"+(wlA.length!==1?"s":"");
   $("cnt-f").textContent=wlF.length+" ativo"+(wlF.length!==1?"s":"");
   try{
     const toFetchA = wlA.length ? fetchQ(wlA) : Promise.resolve([]);
     const toFetchF = wlF.length ? fetchQ(wlF) : Promise.resolve([]);
-    // Busca IBOV/USD/BTC para o ticker sempre, independente da watchlist
     const idxFetch = fetchQ(["^BVSP","USDBRL=X","BTC-USD"]);
     const[aq,fq,idxQ]=await Promise.all([toFetchA,toFetchF,idxFetch]);
     [...aq,...fq,...idxQ].forEach(q=>{cache[q.symbol]={...(cache[q.symbol]||{}),...q}});
-    // Sempre chama renderGrid — ele cuida do estado vazio/erro
     renderGrid("grid-a",aq,"acao");
     renderGrid("grid-f",fq,"fii");
     $("cnt-a").textContent=wlA.length+" ativo"+(wlA.length!==1?"s":"");
     $("cnt-f").textContent=wlF.length+" ativo"+(wlF.length!==1?"s":"");
-    // Ticker usa ativos do mercado; se vazio, usa da carteira
     let tickerData=[...aq,...fq].filter(q=>q.regularMarketPrice);
     if(!tickerData.length){
-      // Busca ativos da carteira para o ticker
       const carteiraSyms=Object.keys(carteira);
       if(carteiraSyms.length){
         const ctQ=await fetchQ(carteiraSyms);
@@ -1432,9 +1539,19 @@ async function loadMarket(){
     divLoaded=false;simLoaded=false;
   }catch(e){
     console.warn("loadMarket:",e);
-    if(wlA.length) $("grid-a").innerHTML='<div class="errmsg" style="grid-column:1/-1">⚠ Erro ao carregar. <button onclick="loadMarket()" style="background:none;border:none;color:var(--ui2);cursor:pointer;text-decoration:underline;font-family:var(--mono);font-size:11px">↺ Tentar novamente</button></div>';
-    if(wlF.length) $("grid-f").innerHTML='<div class="errmsg" style="grid-column:1/-1">⚠ Erro ao carregar. <button onclick="loadMarket()" style="background:none;border:none;color:var(--ui2);cursor:pointer;text-decoration:underline;font-family:var(--mono);font-size:11px">↺ Tentar novamente</button></div>';
+    // Silent retry — never show error messages to the user
+    if(_retry < 3){
+      const delay = [5000, 15000, 30000][_retry] || 30000;
+      setTimeout(()=>loadMarket(_retry+1), delay);
+      $("last-upd").textContent="Reconectando…";
+      // Keep showing whatever was there before (skeleton or existing cards)
+    } else {
+      $("last-upd").textContent="↺ Clique para atualizar";
+      $("last-upd").style.cursor="pointer";
+      $("last-upd").onclick=()=>{ $("last-upd").style.cursor=""; $("last-upd").onclick=null; loadMarket(); };
+    }
   }
+  // Indices — always load independently
   [["^BVSP","ibov-v","ibov-c",v=>v.toLocaleString("pt-BR",{maximumFractionDigits:0})],
    ["USDBRL=X","dol-v","dol-c",v=>"R$ "+v.toFixed(4)],
    ["BTC-USD","btc-v","btc-c",v=>"US$"+((v/1000).toFixed(1))+"K"]
@@ -2403,20 +2520,27 @@ async function initCarteira(){
   }
 }
 
+function goTabByName(tabName){
+  const btn = document.querySelector(`[data-tab="${tabName}"].tab`) ||
+              document.querySelector(`[data-tab="${tabName}"].bnav-item`);
+  if(btn) goTab(btn);
+}
+
 // Carrega carteira quando a aba for clicada
 function goTab(btn){
   const tab=btn.dataset.tab;
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));
+  document.querySelectorAll(".tab,.bnav-item").forEach(t=>t.classList.remove("on"));
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("on"));
-  btn.classList.add("on");$("page-"+tab).classList.add("on");
+  // Activate matching tabs + bnav items
+  document.querySelectorAll(`[data-tab="${tab}"]`).forEach(el=>el.classList.add("on"));
+  $("page-"+tab).classList.add("on");
   if(tab==="carteira"   &&!Object.keys(carteira).length) initCarteira();
   else if(tab==="carteira") ctRenderGrid();
   if(tab==="ri"&&!_riAllData.length){ initRI(); }
   if(tab==="graficos"&&!_gcInited){ gcInit(); _gcInited=true; }
   if(tab==="dividendos"){
     divLoaded=false;
-    // Limpa cache de dividendos para forçar re-fetch
-    apiFetch("/api/clear-cache",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({symbol:"bdiv_"})}).catch(()=>{});
+    apiFetch("/api/clear-cache",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({symbol:"bdiv_"}),noRetry:true}).catch(()=>{});
     if(!Object.keys(carteira).length){
       initCarteira().then(()=>loadDivData());
     } else {
@@ -2777,29 +2901,43 @@ function gcSearchDebounce(){
 }
 
 async function gcDoSearch(){
-  const q = ($("gc-inp")||{}).value;
+  const inp = $("gc-inp");
+  const q = (inp||{}).value||"";
   if(!q||q.length<2){ gcCloseSugg(); return; }
   const sym = q.trim().toUpperCase();
   const sugg = $("gc-sugg");
   try{
-    const res = await apiFetch(`/api/search/${sym}`);
-    if(res.found && res.data){
-      const d   = res.data;
-      const up  = (d.regularMarketChangePercent||0) >= 0;
+    // Use the full RI catalog search — covers all B3 assets
+    const riRes = await apiFetch(`/api/ri/search?q=${encodeURIComponent(sym)}`);
+    if(riRes && riRes.length){
+      sugg.innerHTML = riRes.slice(0,8).map(item=>`
+        <div class="gc-sugg-item" onclick="gcLoadAsset('${item.t}')">
+          <div class="gc-sugg-sym">${item.t}</div>
+          <div class="gc-sugg-name">${item.n}</div>
+          <div class="gc-sugg-price" style="font-size:9px;color:var(--td)">${item.s||''}</div>
+        </div>`).join('');
+      sugg.classList.add("open");
+      return;
+    }
+    // Fallback: try direct brapi lookup
+    const res = await apiFetch(`/api/search/${sym}`).catch(()=>null);
+    if(res && res.found && res.data){
+      const d = res.data;
+      const up = (d.regularMarketChangePercent||0) >= 0;
       sugg.innerHTML = `
         <div class="gc-sugg-item" onclick="gcLoadAsset('${d.symbol}')">
-          <div>
-            <div class="gc-sugg-sym">${d.symbol}</div>
-            <div class="gc-sugg-name">${d.shortName||"—"}</div>
-          </div>
-          <div class="gc-sugg-price">
-            ${fR(d.regularMarketPrice)}<br>
+          <div><div class="gc-sugg-sym">${d.symbol}</div><div class="gc-sugg-name">${d.shortName||"—"}</div></div>
+          <div class="gc-sugg-price">${fR(d.regularMarketPrice)}<br>
             <span style="font-size:10px;color:${up?"var(--g)":"var(--r)"}">${fPct(d.regularMarketChangePercent)}</span>
           </div>
         </div>`;
       sugg.classList.add("open");
     } else {
-      sugg.innerHTML = `<div class="gc-sugg-item"><span style="color:var(--td)">Ativo "${sym}" não encontrado na B3</span></div>`;
+      sugg.innerHTML = `<div class="gc-sugg-item" style="cursor:default">
+        <div><div class="gc-sugg-sym" style="color:var(--td)">${sym}</div>
+        <div class="gc-sugg-name">Digite o ticker completo e pressione Enter</div></div>
+        <div><button class="gc-search-btn" style="padding:6px 12px;font-size:10px" onclick="gcLoadAsset('${sym}')">BUSCAR</button></div>
+      </div>`;
       sugg.classList.add("open");
     }
   }catch(e){ gcCloseSugg(); }
@@ -2807,7 +2945,8 @@ async function gcDoSearch(){
 
 async function gcLoadAsset(sym){
   if(!sym) return;
-  sym = sym.toUpperCase().replace(/\.SA$/i,"");
+  sym = sym.toUpperCase().replace(/\.SA$/i,"").replace(/\s/g,"");
+  if(sym.length < 3 || sym.length > 10){ gcShowToast("Ticker inválido: "+sym); return; }
   gcCloseSugg();
   const inp = $("gc-inp"); if(inp) inp.value = sym;
   _gcSym = sym;
@@ -2817,29 +2956,46 @@ async function gcLoadAsset(sym){
   if(emptyEl) emptyEl.style.display = "none";
   if(contEl)  contEl.style.display  = "block";
 
-  // Show loading
   gcShowLoading(true);
 
-  // Load quote + chart data in parallel
+  // Load quote + chart data in parallel — both use Promise.allSettled so one failure doesn't block
   const [quoteRes, chartData] = await Promise.allSettled([
     apiFetch(`/api/index/${sym}`),
     apiFetch(`/api/chart/${sym}?period=${_gcPeriod}`),
   ]);
 
-  const quote = quoteRes.status==="fulfilled" ? quoteRes.value : null;
-  const data  = chartData.status==="fulfilled" ? chartData.value : [];
+  const quote = quoteRes.status==="fulfilled" && !quoteRes.value?.error ? quoteRes.value : null;
+  const data  = chartData.status==="fulfilled"  ? chartData.value : [];
 
   // Render header
   gcRenderHeader(sym, quote);
 
-  // Render chart
+  // Render chart — show a friendly message if no data
   _gcData = Array.isArray(data) ? data : [];
   gcBuildChart();
-
-  // Render mini stats
   gcRenderMiniStats(quote, _gcData);
 
   gcShowLoading(false);
+
+  // If quote lookup totally failed and we have no data, show toast (not error on page)
+  if(!quote && !_gcData.length){
+    gcShowToast(`Sem dados para "${sym}". Verifique o ticker.`);
+  }
+}
+
+let _gcToastTimer;
+function gcShowToast(msg){
+  let el=document.getElementById('gc-toast');
+  if(!el){
+    el=document.createElement('div');el.id='gc-toast';
+    el.style.cssText='position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(10px);'+
+      'background:var(--bg2);border:1px solid var(--bd);color:var(--td);padding:10px 20px;'+
+      'border-radius:10px;font-size:11px;z-index:9999;transition:all .3s;opacity:0;white-space:nowrap';
+    document.body.appendChild(el);
+  }
+  el.textContent=msg;el.style.opacity='1';el.style.transform='translateX(-50%) translateY(0)';
+  clearTimeout(_gcToastTimer);
+  _gcToastTimer=setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(-50%) translateY(10px)';},3500);
 }
 
 function gcShowLoading(show){
