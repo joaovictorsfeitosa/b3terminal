@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#00e5b0">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e5b0'/%3E%3Cstop offset='1' stop-color='%2300b0ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Arial Black' font-size='14' font-weight='900' fill='black'%3EB3%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -731,6 +732,161 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
   .ri-kpis{display:none}
 }
 
+/* ══════════════════════════════════════════════════════════════
+   ABA ANÁLISE GRÁFICA — PROFESSIONAL CHART PAGE
+   ══════════════════════════════════════════════════════════════ */
+
+/* Hero */
+.gc-hero{background:linear-gradient(135deg,rgba(0,229,176,.06) 0%,rgba(0,176,255,.04) 50%,transparent 100%);
+  border:1px solid rgba(0,229,176,.18);border-radius:16px;padding:22px 28px;margin-bottom:22px;
+  position:relative;overflow:hidden}
+.gc-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--ui1),var(--ui2),transparent)}
+.gc-hero-t{font-family:var(--sans);font-size:20px;font-weight:800;color:var(--tb);margin-bottom:5px;
+  display:flex;align-items:center;gap:10px}
+.gc-hero-s{font-size:11px;color:var(--td);line-height:1.8;max-width:600px}
+
+/* Search */
+.gc-search-outer{position:relative;max-width:680px;margin-bottom:20px}
+.gc-search-row{display:flex;gap:8px;align-items:center}
+.gc-search-rel{position:relative;flex:1}
+.gc-search-ico{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;z-index:2}
+.gc-search-inp{width:100%;background:var(--bg2);border:1.5px solid var(--bd);border-radius:12px;
+  padding:14px 16px 14px 48px;color:var(--tb);font-family:var(--mono);font-size:14px;
+  outline:none;transition:all .25s;text-transform:uppercase}
+.gc-search-inp::placeholder{text-transform:none;color:var(--td);font-size:12px}
+.gc-search-inp:focus{border-color:var(--ui1);background:var(--bg3);
+  box-shadow:0 0 0 3px rgba(0,229,176,.1),0 6px 24px rgba(0,0,0,.4)}
+.gc-search-btn{background:var(--ui-grd);border:none;border-radius:10px;
+  padding:14px 22px;color:#000;font-family:var(--sans);font-size:12px;font-weight:800;
+  letter-spacing:1px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.gc-search-btn:hover{opacity:.88;box-shadow:0 4px 20px rgba(0,229,176,.3)}
+
+/* Suggestions dropdown */
+.gc-suggestions{position:absolute;top:calc(100% + 6px);left:0;right:0;
+  background:var(--bg2);border:1px solid var(--bd);border-radius:12px;
+  z-index:300;max-height:320px;overflow-y:auto;
+  box-shadow:0 10px 40px rgba(0,0,0,.7);display:none}
+.gc-suggestions.open{display:block;animation:fadeUp .15s ease}
+.gc-sugg-item{display:flex;align-items:center;gap:14px;padding:12px 18px;
+  cursor:pointer;border-bottom:1px solid rgba(23,32,48,.7);transition:background .15s}
+.gc-sugg-item:last-child{border-bottom:none}
+.gc-sugg-item:hover{background:rgba(0,229,176,.06)}
+.gc-sugg-sym{font-family:var(--sans);font-size:15px;font-weight:800;color:var(--tb);min-width:80px}
+.gc-sugg-name{font-size:11px;color:var(--td);flex:1}
+.gc-sugg-price{font-size:12px;font-weight:700;color:var(--ui2);text-align:right}
+
+/* Empty state */
+.gc-empty-state{text-align:center;padding:60px 20px;background:var(--bg2);
+  border:1px solid var(--bd);border-radius:16px}
+.gc-empty-icon{font-size:56px;margin-bottom:16px;display:block}
+.gc-empty-t{font-family:var(--sans);font-size:18px;font-weight:800;color:var(--tb);margin-bottom:8px}
+.gc-empty-s{font-size:12px;color:var(--td);line-height:1.8;max-width:420px;margin:0 auto 24px}
+
+/* Popular chips */
+.gc-popular-t{font-size:9px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.gc-popular-list{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.gc-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+  background:var(--bg3);border:1px solid var(--bd);border-radius:8px;
+  cursor:pointer;transition:all .2s;font-family:var(--sans);font-size:12px;font-weight:700;color:var(--tb)}
+.gc-chip:hover{border-color:var(--ui1);color:var(--ui1);transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(0,229,176,.15)}
+.gc-chip-t{font-size:8px;font-weight:700;padding:2px 5px;border-radius:3px;letter-spacing:.5px}
+.gc-chip-a{background:var(--bld);color:var(--b);border:1px solid rgba(56,189,248,.2)}
+.gc-chip-f{background:var(--ad);color:var(--a);border:1px solid rgba(255,196,0,.2)}
+.gc-chip-e{background:var(--gd);color:var(--g);border:1px solid rgba(0,230,118,.2)}
+
+/* Asset header panel */
+.gc-asset-hdr{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;
+  padding:20px 24px;margin-bottom:14px;display:flex;align-items:flex-start;
+  justify-content:space-between;flex-wrap:wrap;gap:16px;position:relative;overflow:hidden}
+.gc-asset-hdr::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--ui-grd)}
+.gc-ah-left{display:flex;flex-direction:column;gap:3px}
+.gc-ah-sym{font-family:var(--sans);font-size:28px;font-weight:800;color:var(--tb);letter-spacing:-1px}
+.gc-ah-name{font-size:11px;color:var(--td);letter-spacing:.5px}
+.gc-ah-center{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.gc-ah-price{font-family:var(--sans);font-size:30px;font-weight:800;color:var(--tb);letter-spacing:-1.5px}
+.gc-ah-chg{font-size:14px;font-weight:700;padding:4px 14px;border-radius:8px;
+  display:inline-flex;align-items:center;gap:6px}
+.gc-chg-up{background:rgba(0,230,118,.1);color:var(--g);border:1px solid rgba(0,230,118,.25)}
+.gc-chg-dn{background:var(--rd);color:var(--r);border:1px solid rgba(255,61,87,.25)}
+.gc-ah-abs{font-size:11px;opacity:.75}
+.gc-ah-stats{display:flex;gap:20px;flex-wrap:wrap}
+.gc-stat{text-align:center;min-width:65px}
+.gc-stat-l{font-size:8px;color:var(--td);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.gc-stat-v{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--tb)}
+
+/* Controls bar */
+.gc-controls{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;
+  padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;
+  flex-wrap:wrap;gap:8px;justify-content:space-between}
+.gc-ctrl-group{display:flex;align-items:center;gap:4px}
+.gc-ctrl-sep{width:1px;height:24px;background:var(--bd);flex-shrink:0}
+
+/* Period & type & indicator buttons */
+.gcp,.gct,.gci{padding:5px 11px;border-radius:6px;border:1px solid var(--bd);
+  background:transparent;font-family:var(--mono);font-size:10px;font-weight:700;
+  cursor:pointer;transition:all .18s;letter-spacing:.5px;color:var(--td)}
+.gcp:hover{border-color:var(--ui2);color:var(--ui2)}
+.gcp.on{background:rgba(0,176,255,.12);border-color:var(--ui2);color:var(--ui2)}
+.gct:hover{border-color:var(--ui1);color:var(--ui1)}
+.gct.on{background:rgba(0,229,176,.1);border-color:var(--ui1);color:var(--ui1)}
+.gci{font-size:9px;letter-spacing:1px}
+.gci:hover{border-color:var(--a);color:var(--a)}
+.gci.on{background:rgba(255,196,0,.08);border-color:var(--a);color:var(--a)}
+
+/* Legend */
+.gc-legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px;padding:0 2px}
+.gc-leg-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--td);letter-spacing:.5px}
+.gc-leg-dot{width:18px;height:3px;border-radius:2px;flex-shrink:0}
+
+/* Chart wrapper */
+.gc-chart-wrap{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;
+  overflow:hidden;padding:14px;margin-bottom:12px;min-height:160px;
+  position:relative}
+
+/* Loading overlay for chart */
+.gc-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  gap:12px;font-size:11px;letter-spacing:2px;color:var(--td);
+  background:rgba(8,14,24,.85);border-radius:14px;z-index:10}
+
+/* Tooltip */
+.gc-tooltip{position:absolute;background:rgba(8,14,24,.96);border:1px solid var(--bd);
+  border-radius:10px;padding:10px 14px;pointer-events:none;z-index:100;
+  font-family:var(--mono);font-size:11px;min-width:160px;
+  box-shadow:0 6px 24px rgba(0,0,0,.6);display:none}
+.gc-tt-date{font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px;text-transform:uppercase}
+.gc-tt-row{display:flex;justify-content:space-between;gap:16px;font-size:10px;padding:2px 0}
+.gc-tt-l{color:var(--td)}.gc-tt-v{font-weight:700;color:var(--tb)}
+
+/* Mini-stats below chart */
+.gc-mini-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
+  gap:8px;margin-bottom:16px}
+.gc-ms-card{background:var(--bg2);border:1px solid var(--bd);border-radius:9px;
+  padding:10px 13px;text-align:center}
+.gc-ms-l{font-size:8px;color:var(--td);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.gc-ms-v{font-family:var(--sans);font-size:14px;font-weight:800;color:var(--tb)}
+
+/* Improved sparkline (canvas in carteira) */
+.ct-chart-label{font-size:8px;color:var(--td);display:flex;justify-content:space-between;
+  padding:0 4px;margin-top:2px}
+
+/* Responsive */
+@media(max-width:720px){
+  .gc-asset-hdr{flex-direction:column}
+  .gc-ah-stats{display:none}
+  .gc-controls{flex-direction:column;align-items:flex-start}
+  .gc-ctrl-sep{display:none}
+  .gc-hero-t{font-size:16px}
+  .gc-ah-price{font-size:22px}
+  .gc-ah-sym{font-size:22px}
+}
+@media(max-width:480px){
+  .gc-mini-stats{grid-template-columns:repeat(3,1fr)}
+  .gc-chip{padding:5px 10px;font-size:11px}
+}
+
 </style>
 </head>
 <body>
@@ -775,6 +931,7 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
   <div class="tab"     data-tab="carteira"   onclick="goTab(this)">💼 Minha Carteira</div>
   <div class="tab"     data-tab="dividendos" onclick="goTab(this)">💰 Dividendos</div>
   <div class="tab"     data-tab="simulador"  onclick="goTab(this)">🧮 Simulador</div>
+  <div class="tab"     data-tab="graficos"   onclick="goTab(this)">📊 Gráficos</div>
   <div class="tab"     data-tab="noticias"   onclick="goTab(this)">📰 Notícias</div>
   <div class="tab"     data-tab="ri"         onclick="goTab(this)">🏢 RI</div>
 </nav>
@@ -1028,6 +1185,102 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
   <div id="ri-panel-all" style="display:none">
     <div class="ri-filters" id="ri-filters"></div>
     <div class="ri-grid" id="ri-all-grid"><div class="loading"><div class="sp"></div>CARREGANDO…</div></div>
+  </div>
+
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ABA ANÁLISE GRÁFICA
+     ══════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-graficos"><div class="wrap">
+
+  <!-- Hero -->
+  <div class="gc-hero">
+    <div class="gc-hero-t">📊 Análise Gráfica</div>
+    <div class="gc-hero-s">Gráficos profissionais de ações, FIIs e ETFs da B3 · Candlestick, médias móveis, volume e variação histórica com dados reais.</div>
+  </div>
+
+  <!-- Search -->
+  <div class="gc-search-outer">
+    <div class="gc-search-row">
+      <div class="gc-search-rel">
+        <span class="gc-search-ico">🔍</span>
+        <input class="gc-search-inp" id="gc-inp" placeholder="Buscar ativo: PETR4, VALE3, MXRF11, IVVB11, BOVA11..."
+          autocomplete="off" maxlength="10"
+          oninput="gcSearchDebounce()"
+          onkeydown="if(event.key==='Enter'&&this.value.trim())gcLoadAsset(this.value.trim().toUpperCase());if(event.key==='Escape')gcCloseSugg()">
+        <div class="gc-suggestions" id="gc-sugg"></div>
+      </div>
+      <button class="gc-search-btn" onclick="gcLoadAsset(($('gc-inp').value||'').trim().toUpperCase())">BUSCAR</button>
+    </div>
+  </div>
+
+  <!-- Empty / welcome state -->
+  <div class="gc-empty-state" id="gc-empty">
+    <span class="gc-empty-icon">📈</span>
+    <div class="gc-empty-t">Análise Gráfica Profissional</div>
+    <div class="gc-empty-s">Pesquise qualquer ativo acima para ver o gráfico completo com candlestick, volume e indicadores técnicos — tudo com dados reais da B3.</div>
+    <div class="gc-popular-t">Ativos populares</div>
+    <div class="gc-popular-list" id="gc-popular"></div>
+  </div>
+
+  <!-- Chart area (hidden until search) -->
+  <div id="gc-container" style="display:none">
+
+    <!-- Asset header -->
+    <div class="gc-asset-hdr" id="gc-asset-hdr">
+      <div class="gc-ah-left">
+        <div class="gc-ah-sym" id="gc-sym">—</div>
+        <div class="gc-ah-name" id="gc-name">—</div>
+      </div>
+      <div class="gc-ah-center">
+        <div class="gc-ah-price" id="gc-price">—</div>
+        <div id="gc-chg" class="gc-ah-chg">—</div>
+      </div>
+      <div class="gc-ah-stats" id="gc-stats"></div>
+    </div>
+
+    <!-- Controls: periods | chart type | indicators -->
+    <div class="gc-controls">
+      <div class="gc-ctrl-group" id="gc-periods"></div>
+      <div class="gc-ctrl-sep"></div>
+      <div class="gc-ctrl-group">
+        <button class="gct on" data-t="candle" onclick="gcSetType('candle')">🕯 Candle</button>
+        <button class="gct"    data-t="line"   onclick="gcSetType('line')">📈 Linha</button>
+        <button class="gct"    data-t="area"   onclick="gcSetType('area')">📊 Área</button>
+      </div>
+      <div class="gc-ctrl-sep"></div>
+      <div class="gc-ctrl-group">
+        <button class="gci on" data-i="volume" onclick="gcToggleInd('volume')">VOL</button>
+        <button class="gci on" data-i="ma20"   onclick="gcToggleInd('ma20')">MM20</button>
+        <button class="gci on" data-i="ma50"   onclick="gcToggleInd('ma50')">MM50</button>
+        <button class="gci"    data-i="ma200"  onclick="gcToggleInd('ma200')">MM200</button>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="gc-legend">
+      <div class="gc-leg-item"><div class="gc-leg-dot" style="background:#00e676"></div>Alta</div>
+      <div class="gc-leg-item"><div class="gc-leg-dot" style="background:#ff3d57"></div>Baixa</div>
+      <div class="gc-leg-item" id="gc-leg-vol"><div class="gc-leg-dot" style="background:rgba(0,176,255,.5)"></div>Volume</div>
+      <div class="gc-leg-item" id="gc-leg-ma20"><div class="gc-leg-dot" style="background:#ffc400"></div>MM20</div>
+      <div class="gc-leg-item" id="gc-leg-ma50"><div class="gc-leg-dot" style="background:#c084fc"></div>MM50</div>
+      <div class="gc-leg-item" id="gc-leg-ma200" style="display:none"><div class="gc-leg-dot" style="background:#ff6b35"></div>MM200</div>
+    </div>
+
+    <!-- Chart -->
+    <div class="gc-chart-wrap" id="gc-chart-wrap" style="min-height:520px">
+      <div class="gc-loading" id="gc-loading" style="display:none">
+        <div class="sp" style="width:20px;height:20px;border:2px solid var(--bd);border-top-color:var(--ui1)"></div>
+        CARREGANDO GRÁFICO...
+      </div>
+      <div id="gc-chart-el" style="width:100%;height:480px"></div>
+      <div id="gc-vol-el"   style="width:100%;height:100px;margin-top:2px"></div>
+    </div>
+
+    <!-- Mini stat cards -->
+    <div class="gc-mini-stats" id="gc-mini-stats"></div>
+
   </div>
 
 </div></div>
@@ -1801,34 +2054,88 @@ async function ctLoadChart(sym){
   }catch(e){}
 }
 
-function ctDrawSparkline(canvas, values){
+function ctDrawSparkline(canvas, values, dates){
   const ctx = canvas.getContext("2d");
-  const W = canvas.width, H = canvas.height;
+  const W = canvas.offsetWidth || canvas.width;
+  const H = canvas.height;
+  canvas.width = W;
   ctx.clearRect(0,0,W,H);
-  if(values.length < 2) return;
-  const mn = Math.min(...values), mx = Math.max(...values);
-  const rng = mx - mn || 1;
+  if(!values||values.length < 2) return;
+
+  const filtered = values.filter(v=>v>0);
+  if(!filtered.length) return;
+  const mn = Math.min(...filtered), mx = Math.max(...filtered);
+  const rng = mx - mn || mn * 0.02 || 1;
+  const pad = { t:8, b:8, l:6, r:6 };
+  const cW = W - pad.l - pad.r;
+  const cH = H - pad.t - pad.b;
+
   const pts = values.map((v,i)=>({
-    x: (i/(values.length-1))*W,
-    y: H - ((v-mn)/rng)*(H*0.8) - H*0.1
+    x: pad.l + (i/(values.length-1)) * cW,
+    y: pad.t + cH - ((v-mn)/rng)*cH
   }));
+
   const up = values[values.length-1] >= values[0];
-  const col = up ? "#00e676" : "#ff3d57";
-  // Gradiente
-  const grad = ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0, up?"rgba(0,230,118,.25)":"rgba(255,61,87,.25)");
-  grad.addColorStop(1, "rgba(0,0,0,0)");
+  const colMain  = up ? "#00e676" : "#ff3d57";
+  const colFill1 = up ? "rgba(0,230,118,.22)" : "rgba(255,61,87,.22)";
+  const colFill2 = "rgba(0,0,0,0)";
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0,pad.t,0,H);
+  grad.addColorStop(0, colFill1);
+  grad.addColorStop(1, colFill2);
+
+  // Smooth bezier curve fill
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
-  pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-  ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
-  ctx.fillStyle = grad; ctx.fill();
-  // Linha
+  for(let i=1;i<pts.length;i++){
+    const cp1x = (pts[i-1].x + pts[i].x)/2;
+    const cp1y = pts[i-1].y;
+    const cp2x = (pts[i-1].x + pts[i].x)/2;
+    const cp2y = pts[i].y;
+    ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,pts[i].x,pts[i].y);
+  }
+  ctx.lineTo(pts[pts.length-1].x, H);
+  ctx.lineTo(pts[0].x, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line stroke
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
-  pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-  ctx.strokeStyle = col; ctx.lineWidth = 2;
-  ctx.lineJoin = "round"; ctx.stroke();
+  for(let i=1;i<pts.length;i++){
+    const cp1x=(pts[i-1].x+pts[i].x)/2, cp1y=pts[i-1].y;
+    const cp2x=(pts[i-1].x+pts[i].x)/2, cp2y=pts[i].y;
+    ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,pts[i].x,pts[i].y);
+  }
+  ctx.strokeStyle = colMain;
+  ctx.lineWidth   = 1.8;
+  ctx.lineJoin    = "round";
+  ctx.stroke();
+
+  // Current price dot at end
+  const last = pts[pts.length-1];
+  ctx.beginPath();
+  ctx.arc(last.x, last.y, 3, 0, Math.PI*2);
+  ctx.fillStyle = colMain;
+  ctx.fill();
+
+  // Min label at bottom, max at top
+  ctx.font = "8px 'Space Mono',monospace";
+  ctx.textBaseline = "middle";
+  // Min
+  const minIdx = values.indexOf(mn);
+  const minPt  = pts[minIdx];
+  ctx.fillStyle = "rgba(255,61,87,.9)";
+  ctx.textAlign = minIdx < values.length/2 ? "left" : "right";
+  ctx.fillText("R$"+mn.toFixed(2), minPt.x+(minIdx < values.length/2?4:-4), Math.min(minPt.y+8,H-6));
+  // Max
+  const maxIdx = values.indexOf(mx);
+  const maxPt  = pts[maxIdx];
+  ctx.fillStyle = "rgba(0,230,118,.9)";
+  ctx.textAlign = maxIdx < values.length/2 ? "left" : "right";
+  ctx.fillText("R$"+mx.toFixed(2), maxPt.x+(maxIdx < values.length/2?4:-4), Math.max(maxPt.y-8,6));
 }
 
 // ── Renderizar grid de ativos ────────────────────────────────────────────────
@@ -2105,6 +2412,7 @@ function goTab(btn){
   if(tab==="carteira"   &&!Object.keys(carteira).length) initCarteira();
   else if(tab==="carteira") ctRenderGrid();
   if(tab==="ri"&&!_riAllData.length){ initRI(); }
+  if(tab==="graficos"&&!_gcInited){ gcInit(); _gcInited=true; }
   if(tab==="dividendos"){
     divLoaded=false;
     // Limpa cache de dividendos para forçar re-fetch
@@ -2368,6 +2676,407 @@ async function doLogout(){
 }
 
 loadUserInfo();
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ANÁLISE GRÁFICA — PROFESSIONAL CHARTS ENGINE
+   Uses TradingView Lightweight Charts v4 (open-source, MIT)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+let _gcInited     = false;
+let _gcChart      = null;   // main LightweightChart instance
+let _gcVolChart   = null;   // volume chart instance
+let _gcMainSeries = null;   // candle / line / area series
+let _gcVolSeries  = null;
+let _gcMaSeries   = {};     // { ma20, ma50, ma200 }
+let _gcSym        = null;
+let _gcPeriod     = "1mo";
+let _gcType       = "candle";
+let _gcInds       = { volume:true, ma20:true, ma50:true, ma200:false };
+let _gcData       = [];
+let _gcSearchTimer = null;
+let _gcResizeObs  = null;
+
+const GC_PERIODS = [
+  {k:"1d", l:"1D"},
+  {k:"5d", l:"5D"},
+  {k:"1mo",l:"1M"},
+  {k:"3mo",l:"3M"},
+  {k:"6mo",l:"6M"},
+  {k:"1y", l:"1A"},
+  {k:"5y", l:"5A"},
+  {k:"max",l:"MAX"},
+];
+
+const GC_POPULAR = [
+  {s:"PETR4",t:"acao"},{s:"VALE3",t:"acao"},{s:"ITUB4",t:"acao"},
+  {s:"WEGE3",t:"acao"},{s:"BBAS3",t:"acao"},{s:"EMBR3",t:"acao"},
+  {s:"MXRF11",t:"fii"},{s:"HGLG11",t:"fii"},{s:"XPML11",t:"fii"},
+  {s:"BOVA11",t:"etf"},{s:"IVVB11",t:"etf"},
+];
+
+const GC_CHART_OPT = {
+  layout:{
+    background:{type:"solid",color:"transparent"},
+    textColor:"#7a96b4",
+    fontFamily:"'Space Mono',monospace",
+    fontSize:11,
+  },
+  grid:{
+    vertLines:{color:"rgba(23,32,48,0.6)",style:2},
+    horzLines:{color:"rgba(23,32,48,0.6)",style:2},
+  },
+  crosshair:{
+    mode:1, // Normal
+    vertLine:{color:"rgba(0,176,255,0.5)",width:1,style:2,labelBackgroundColor:"#172030"},
+    horzLine:{color:"rgba(0,176,255,0.5)",width:1,style:2,labelBackgroundColor:"#172030"},
+  },
+  timeScale:{
+    borderColor:"#172030",
+    timeVisible:true,
+    secondsVisible:false,
+    rightOffset:8,
+    barSpacing:8,
+    fixLeftEdge:false,
+    lockVisibleTimeRangeOnResize:true,
+  },
+  rightPriceScale:{
+    borderColor:"#172030",
+    scaleMargins:{top:0.08,bottom:0.02},
+  },
+  handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true},
+  handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true},
+};
+
+function gcInit(){
+  // Render period buttons
+  const pbEl = $("gc-periods");
+  if(pbEl) pbEl.innerHTML = GC_PERIODS.map(p=>
+    `<button class="gcp${p.k===_gcPeriod?" on":""}" data-k="${p.k}" onclick="gcSetPeriod('${p.k}')">${p.l}</button>`
+  ).join("");
+
+  // Render popular chips
+  const popEl = $("gc-popular");
+  if(popEl) popEl.innerHTML = GC_POPULAR.map(a=>{
+    const cls = a.t==="fii"?"gc-chip-f":a.t==="etf"?"gc-chip-e":"gc-chip-a";
+    return`<div class="gc-chip" onclick="gcLoadAsset('${a.s}')">
+      ${a.s}<span class="gc-chip-t ${cls}">${a.t.toUpperCase()}</span>
+    </div>`;
+  }).join("");
+
+  // Close suggestions on outside click
+  document.addEventListener("click",e=>{
+    if(!e.target.closest(".gc-search-outer")) gcCloseSugg();
+  });
+}
+
+function gcCloseSugg(){ const el=$("gc-sugg"); if(el) el.classList.remove("open"); }
+
+function gcSearchDebounce(){
+  clearTimeout(_gcSearchTimer);
+  _gcSearchTimer = setTimeout(gcDoSearch, 320);
+}
+
+async function gcDoSearch(){
+  const q = ($("gc-inp")||{}).value;
+  if(!q||q.length<2){ gcCloseSugg(); return; }
+  const sym = q.trim().toUpperCase();
+  const sugg = $("gc-sugg");
+  try{
+    const res = await apiFetch(`/api/search/${sym}`);
+    if(res.found && res.data){
+      const d   = res.data;
+      const up  = (d.regularMarketChangePercent||0) >= 0;
+      sugg.innerHTML = `
+        <div class="gc-sugg-item" onclick="gcLoadAsset('${d.symbol}')">
+          <div>
+            <div class="gc-sugg-sym">${d.symbol}</div>
+            <div class="gc-sugg-name">${d.shortName||"—"}</div>
+          </div>
+          <div class="gc-sugg-price">
+            ${fR(d.regularMarketPrice)}<br>
+            <span style="font-size:10px;color:${up?"var(--g)":"var(--r)"}">${fPct(d.regularMarketChangePercent)}</span>
+          </div>
+        </div>`;
+      sugg.classList.add("open");
+    } else {
+      sugg.innerHTML = `<div class="gc-sugg-item"><span style="color:var(--td)">Ativo "${sym}" não encontrado na B3</span></div>`;
+      sugg.classList.add("open");
+    }
+  }catch(e){ gcCloseSugg(); }
+}
+
+async function gcLoadAsset(sym){
+  if(!sym) return;
+  sym = sym.toUpperCase().replace(/\.SA$/i,"");
+  gcCloseSugg();
+  const inp = $("gc-inp"); if(inp) inp.value = sym;
+  _gcSym = sym;
+
+  // Show container, hide empty
+  const emptyEl = $("gc-empty"), contEl = $("gc-container");
+  if(emptyEl) emptyEl.style.display = "none";
+  if(contEl)  contEl.style.display  = "block";
+
+  // Show loading
+  gcShowLoading(true);
+
+  // Load quote + chart data in parallel
+  const [quoteRes, chartData] = await Promise.allSettled([
+    apiFetch(`/api/index/${sym}`),
+    apiFetch(`/api/chart/${sym}?period=${_gcPeriod}`),
+  ]);
+
+  const quote = quoteRes.status==="fulfilled" ? quoteRes.value : null;
+  const data  = chartData.status==="fulfilled" ? chartData.value : [];
+
+  // Render header
+  gcRenderHeader(sym, quote);
+
+  // Render chart
+  _gcData = Array.isArray(data) ? data : [];
+  gcBuildChart();
+
+  // Render mini stats
+  gcRenderMiniStats(quote, _gcData);
+
+  gcShowLoading(false);
+}
+
+function gcShowLoading(show){
+  const wrap = $("gc-chart-wrap");
+  if(!wrap) return;
+  let ld = $("gc-loading");
+  if(!ld){ ld=document.createElement("div"); ld.id="gc-loading"; ld.className="gc-loading"; ld.style.display="none"; ld.innerHTML='<div class="sp" style="width:20px;height:20px;border:2px solid var(--bd);border-top-color:var(--ui1)"></div> CARREGANDO GRÁFICO...'; wrap.appendChild(ld); }
+  ld.style.display = show ? "flex" : "none";
+}
+
+function gcRenderHeader(sym, q){
+  $("gc-sym").textContent  = sym;
+  $("gc-name").textContent = (q&&q.shortName) || "—";
+  const pr  = q&&q.regularMarketPrice;
+  const chg = q&&q.regularMarketChangePercent;
+  const abs = q&&q.regularMarketChange;
+  $("gc-price").textContent = pr ? fR(pr) : "—";
+  const chgEl = $("gc-chg");
+  if(pr && chg!=null){
+    const up = chg>=0;
+    chgEl.textContent = "";
+    chgEl.className   = "gc-ah-chg "+(up?"gc-chg-up":"gc-chg-dn");
+    chgEl.innerHTML   = `${up?"▲":"▼"} ${fPct(chg)} <span class="gc-ah-abs">(${abs>=0?"+":""}R$${Math.abs(abs||0).toFixed(2)})</span>`;
+  }
+  const statsEl = $("gc-stats");
+  if(statsEl && q){
+    const st = [
+      {l:"ABERTURA",  v:fR(q.regularMarketOpen),   c:"var(--tb)"},
+      {l:"MÍNIMA",    v:fR(q.regularMarketDayLow),  c:"var(--r)"},
+      {l:"MÁXIMA",    v:fR(q.regularMarketDayHigh), c:"var(--g)"},
+      {l:"VOLUME",    v:fVol(q.regularMarketVolume),c:"var(--tb)"},
+      {l:"52S MÍN",   v:fR(q.fiftyTwoWeekLow),      c:"var(--r)"},
+      {l:"52S MÁX",   v:fR(q.fiftyTwoWeekHigh),     c:"var(--g)"},
+      ...(q.dividendYield?[{l:"D.YIELD",v:q.dividendYield.toFixed(2)+"%",c:"var(--a)"}]:[]),
+    ];
+    statsEl.innerHTML = st.map(s=>`<div class="gc-stat"><div class="gc-stat-l">${s.l}</div><div class="gc-stat-v" style="color:${s.c}">${s.v}</div></div>`).join("");
+  }
+}
+
+function gcRenderMiniStats(q, data){
+  const el = $("gc-mini-stats");
+  if(!el) return;
+  if(!data.length){ el.innerHTML=""; return; }
+  const closes  = data.map(d=>d.close);
+  const highs   = data.map(d=>d.high);
+  const lows    = data.map(d=>d.low);
+  const volumes = data.map(d=>d.volume).filter(v=>v>0);
+  const first   = data[0].close, last=data[data.length-1].close;
+  const pctChg  = ((last-first)/first*100);
+  const pctUp   = pctChg>=0;
+  const items = [
+    {l:"Período",    v:`${data.length} candles`,c:"var(--tb)"},
+    {l:"Var. Período",v:`${pctUp?"+":""}${pctChg.toFixed(2)}%`,c:pctUp?"var(--g)":"var(--r)"},
+    {l:"Máx. Período",v:"R$"+Math.max(...highs).toFixed(2),c:"var(--g)"},
+    {l:"Mín. Período",v:"R$"+Math.min(...lows).toFixed(2),c:"var(--r)"},
+    ...(volumes.length?[{l:"Vol. Médio",v:fVol(volumes.reduce((a,b)=>a+b,0)/volumes.length),c:"var(--tb)"}]:[]),
+    ...(q&&q.marketCap?[{l:"Market Cap",v:fVol(q.marketCap),c:"var(--tb)"}]:[]),
+  ];
+  el.innerHTML = items.map(it=>`<div class="gc-ms-card"><div class="gc-ms-l">${it.l}</div><div class="gc-ms-v" style="color:${it.c}">${it.v}</div></div>`).join("");
+}
+
+/* ── Build / Rebuild Chart ─────────────────────────────────────────────────── */
+function gcBuildChart(){
+  // Destroy old instances
+  gcDestroyCharts();
+
+  const data = _gcData;
+  const chartEl = $("gc-chart-el");
+  const volEl   = $("gc-vol-el");
+  if(!chartEl) return;
+
+  if(!data||!data.length){
+    chartEl.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:480px;flex-direction:column;gap:12px;color:var(--td)"><div style="font-size:36px">📊</div><div style="font-family:var(--sans);font-size:14px;color:var(--t)">Dados não disponíveis</div><div style="font-size:11px">Tente outro período ou ativo</div></div>`;
+    if(volEl) volEl.style.display="none";
+    return;
+  }
+
+  if(volEl) volEl.style.display = _gcInds.volume ? "block" : "none";
+
+  // ── Main chart ──
+  const mainH  = _gcInds.volume ? 400 : 480;
+  chartEl.style.height = mainH+"px";
+
+  _gcChart = LightweightCharts.createChart(chartEl, {
+    ...GC_CHART_OPT,
+    width:  chartEl.clientWidth,
+    height: mainH,
+    rightPriceScale:{
+      borderColor:"#172030",
+      scaleMargins:{top:0.08,bottom:0.02},
+    },
+  });
+
+  // Main series
+  if(_gcType==="candle"){
+    _gcMainSeries = _gcChart.addCandlestickSeries({
+      upColor:"#00e676",downColor:"#ff3d57",
+      borderUpColor:"#00e676",borderDownColor:"#ff3d57",
+      wickUpColor:"#00e676",wickDownColor:"#ff3d57",
+    });
+    _gcMainSeries.setData(data.map(d=>({time:d.time,open:d.open,high:d.high,low:d.low,close:d.close})));
+  } else if(_gcType==="line"){
+    _gcMainSeries = _gcChart.addLineSeries({
+      color:"#00b0ff",lineWidth:2,
+      crosshairMarkerRadius:5,crosshairMarkerBorderColor:"#fff",crosshairMarkerBackgroundColor:"#00b0ff",
+      priceLineColor:"rgba(0,176,255,.5)",priceLineWidth:1,priceLineStyle:2,
+      lastValueVisible:true,
+    });
+    _gcMainSeries.setData(data.map(d=>({time:d.time,value:d.close})));
+  } else {
+    _gcMainSeries = _gcChart.addAreaSeries({
+      topColor:"rgba(0,176,255,.25)",bottomColor:"rgba(0,176,255,.0)",
+      lineColor:"#00b0ff",lineWidth:2,
+      crosshairMarkerRadius:5,crosshairMarkerBorderColor:"#fff",crosshairMarkerBackgroundColor:"#00b0ff",
+      priceLineColor:"rgba(0,176,255,.4)",priceLineStyle:2,lastValueVisible:true,
+    });
+    _gcMainSeries.setData(data.map(d=>({time:d.time,value:d.close})));
+  }
+
+  // Moving averages on main chart
+  const maConfigs = [
+    {key:"ma20",  period:20,  color:"#ffc400",  title:"MM20"},
+    {key:"ma50",  period:50,  color:"#c084fc",  title:"MM50"},
+    {key:"ma200", period:200, color:"#ff6b35",  title:"MM200"},
+  ];
+  _gcMaSeries = {};
+  maConfigs.forEach(cfg=>{
+    if(_gcInds[cfg.key] && data.length >= cfg.period){
+      const s = _gcChart.addLineSeries({
+        color:cfg.color, lineWidth:1,
+        crosshairMarkerVisible:false, lastValueVisible:true,
+        title:cfg.title, priceLineVisible:false,
+      });
+      s.setData(gcCalcMA(data, cfg.period));
+      _gcMaSeries[cfg.key] = s;
+    }
+    // Update legend visibility
+    const legEl = $("gc-leg-"+cfg.key);
+    if(legEl) legEl.style.display = _gcInds[cfg.key]?"flex":"none";
+  });
+
+  // Volume on main chart (overlay, bottom portion)
+  const legVol = $("gc-leg-vol");
+  if(_gcInds.volume && data.some(d=>d.volume>0)){
+    if(legEl) {};
+    if(legVol) legVol.style.display="flex";
+
+    if(volEl && volEl.style.display!=="none"){
+      volEl.style.height = "100px";
+      _gcVolChart = LightweightCharts.createChart(volEl, {
+        ...GC_CHART_OPT,
+        width:  volEl.clientWidth,
+        height: 100,
+        rightPriceScale:{
+          borderColor:"#172030",
+          scaleMargins:{top:0.05,bottom:0},
+        },
+        timeScale:{...GC_CHART_OPT.timeScale,visible:false},
+        crosshair:{...GC_CHART_OPT.crosshair,horzLine:{visible:false}},
+      });
+      _gcVolSeries = _gcVolChart.addHistogramSeries({
+        priceFormat:{type:"volume"},
+        priceScaleId:"right",
+      });
+      _gcVolSeries.setData(data.map(d=>({
+        time:d.time, value:d.volume||0,
+        color: d.close>=d.open?"rgba(0,230,118,.45)":"rgba(255,61,87,.45)",
+      })));
+      _gcVolChart.timeScale().fitContent();
+
+      // Sync time scales
+      _gcChart.timeScale().subscribeVisibleTimeRangeChange(range=>{
+        if(_gcVolChart&&range) try{ _gcVolChart.timeScale().setVisibleRange(range); }catch(e){}
+      });
+    }
+  } else {
+    if(legVol) legVol.style.display="none";
+  }
+
+  _gcChart.timeScale().fitContent();
+
+  // Responsive resize
+  if(_gcResizeObs){ try{_gcResizeObs.disconnect();}catch(e){} }
+  _gcResizeObs = new ResizeObserver(()=>{
+    const w = chartEl.clientWidth;
+    if(_gcChart && w>0) _gcChart.applyOptions({width:w});
+    if(_gcVolChart && volEl) _gcVolChart.applyOptions({width:volEl.clientWidth});
+  });
+  _gcResizeObs.observe(chartEl.parentElement||chartEl);
+}
+
+function gcDestroyCharts(){
+  if(_gcResizeObs){ try{_gcResizeObs.disconnect();}catch(e){} _gcResizeObs=null; }
+  if(_gcVolChart){ try{_gcVolChart.remove();}catch(e){} _gcVolChart=null; }
+  if(_gcChart){    try{_gcChart.remove();}catch(e){}    _gcChart=null; }
+  _gcMainSeries=null; _gcVolSeries=null; _gcMaSeries={};
+}
+
+/* ── Helpers ───────────────────────────────────────────────────────────────── */
+function gcCalcMA(data, period){
+  const out=[];
+  for(let i=period-1;i<data.length;i++){
+    let s=0; for(let j=i-period+1;j<=i;j++) s+=data[j].close;
+    out.push({time:data[i].time, value:parseFloat((s/period).toFixed(4))});
+  }
+  return out;
+}
+
+async function gcSetPeriod(period){
+  _gcPeriod = period;
+  // Update period buttons
+  document.querySelectorAll(".gcp").forEach(b=>{
+    b.classList.toggle("on", b.dataset.k===period);
+  });
+  if(!_gcSym) return;
+  gcShowLoading(true);
+  try{
+    const data = await apiFetch(`/api/chart/${_gcSym}?period=${period}`);
+    _gcData = Array.isArray(data)?data:[];
+    gcBuildChart();
+    gcRenderMiniStats(null, _gcData);
+  }catch(e){ console.error("gcSetPeriod:",e); }
+  gcShowLoading(false);
+}
+
+function gcSetType(type){
+  _gcType = type;
+  document.querySelectorAll(".gct").forEach(b=>b.classList.toggle("on",b.dataset.t===type));
+  if(_gcSym && _gcData.length) gcBuildChart();
+}
+
+function gcToggleInd(ind){
+  _gcInds[ind] = !_gcInds[ind];
+  document.querySelectorAll(`.gci[data-i="${ind}"]`).forEach(b=>b.classList.toggle("on",_gcInds[ind]));
+  if(_gcSym && _gcData.length) gcBuildChart();
+}
+
 </script>
 </body>
 </html>
