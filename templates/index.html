@@ -978,7 +978,7 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 
 /* Floating trigger button — icon only */
 #joao-btn{
-  position:fixed;top:11px;right:76px;z-index:200;
+  position:fixed;top:11px;right:130px;z-index:200;
   width:34px;height:34px;
   background:var(--bg2);border:1.5px solid rgba(0,229,176,.45);border-radius:50%;
   cursor:pointer;display:grid;place-items:center;
@@ -3363,6 +3363,13 @@ function gcDestroyCharts(){
   if(_gcVolChart){ try{_gcVolChart.remove();}catch(e){} _gcVolChart=null; }
   if(_gcChart){    try{_gcChart.remove();}catch(e){}    _gcChart=null; }
   _gcMainSeries=null; _gcVolSeries=null; _gcMaSeries={};
+  // BUG FIX: limpar o innerHTML do container após destruir
+  // sem isso o LightweightCharts deixa divs órfãs que causam
+  // "Dados não disponíveis" em trocas rápidas de período
+  const chartEl = $("gc-chart-el");
+  const volEl   = $("gc-vol-el");
+  if(chartEl) chartEl.innerHTML = "";
+  if(volEl)   volEl.innerHTML   = "";
 }
 
 /* ── Helpers ───────────────────────────────────────────────────────────────── */
@@ -3375,21 +3382,33 @@ function gcCalcMA(data, period){
   return out;
 }
 
+let _gcPeriodLock = false;
 async function gcSetPeriod(period){
+  // BUG FIX: debounce — ignora clique se já está carregando
+  if(_gcPeriodLock) return;
+  _gcPeriodLock = true;
+
   _gcPeriod = period;
-  // Update period buttons
   document.querySelectorAll(".gcp").forEach(b=>{
     b.classList.toggle("on", b.dataset.k===period);
   });
-  if(!_gcSym) return;
+  if(!_gcSym){ _gcPeriodLock=false; return; }
   gcShowLoading(true);
   try{
     const data = await apiFetch(`/api/chart/${_gcSym}?period=${period}`);
     _gcData = Array.isArray(data)?data:[];
     gcBuildChart();
     gcRenderMiniStats(null, _gcData);
-  }catch(e){ console.error("gcSetPeriod:",e); }
-  gcShowLoading(false);
+  }catch(e){
+    console.error("gcSetPeriod:",e);
+    // Mostrar estado de erro no chart
+    const chartEl = $("gc-chart-el");
+    if(chartEl) chartEl.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:400px;flex-direction:column;gap:12px;color:var(--td)"><div style="font-size:32px">⚠️</div><div style="font-size:13px;color:var(--t)">Erro ao carregar período</div></div>`;
+  } finally {
+    gcShowLoading(false);
+    // BUG FIX: liberar lock após pequeno delay para evitar double-click
+    setTimeout(()=>{ _gcPeriodLock=false; }, 300);
+  }
 }
 
 function gcSetType(type){
