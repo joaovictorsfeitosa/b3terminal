@@ -968,6 +968,142 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
   .gc-chip{padding:5px 10px;font-size:11px}
 }
 
+/* ══════════════════════════════════════════════════════════
+   JOÃO — AI Financial Assistant Chat Widget
+══════════════════════════════════════════════════════════ */
+@keyframes joaoSlideIn{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes joaoBounce{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes joaoTyping{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+@keyframes joaoMsgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* Floating trigger button */
+#joao-btn{
+  position:fixed;top:10px;right:70px;z-index:200;
+  display:flex;align-items:center;gap:7px;
+  background:var(--ui-grd);border:none;border-radius:20px;
+  padding:7px 13px 7px 10px;cursor:pointer;
+  font-family:var(--sans);font-size:11px;font-weight:700;color:#000;
+  box-shadow:0 2px 16px rgba(0,229,176,.35);
+  transition:all .25s cubic-bezier(.34,1.56,.64,1);
+  letter-spacing:.5px;
+}
+#joao-btn:hover{transform:scale(1.06);box-shadow:0 4px 24px rgba(0,229,176,.5)}
+#joao-btn.open{background:rgba(23,32,48,.95);color:var(--ui1);border:1px solid var(--ui1);box-shadow:0 2px 16px rgba(0,229,176,.2)}
+#joao-btn-dot{width:7px;height:7px;background:var(--ui1);border-radius:50%;animation:pulse 2s infinite;flex-shrink:0}
+#joao-btn.open #joao-btn-dot{background:var(--r);animation:none}
+
+/* Chat panel */
+#joao-panel{
+  position:fixed;top:56px;right:12px;z-index:199;
+  width:360px;max-width:calc(100vw - 24px);
+  background:var(--bg2);border:1px solid var(--bd);border-radius:16px;
+  box-shadow:0 8px 48px rgba(0,0,0,.7),0 0 0 1px rgba(0,229,176,.06);
+  display:flex;flex-direction:column;overflow:hidden;
+  max-height:calc(100vh - 80px);
+  opacity:0;transform:translateY(16px) scale(.96);
+  pointer-events:none;transition:all .28s cubic-bezier(.34,1.56,.64,1);
+}
+#joao-panel.open{opacity:1;transform:translateY(0) scale(1);pointer-events:all;animation:joaoSlideIn .28s ease both}
+
+/* Panel header */
+#joao-hdr{
+  display:flex;align-items:center;gap:10px;padding:14px 16px;
+  background:linear-gradient(135deg,rgba(0,229,176,.08),rgba(0,176,255,.05));
+  border-bottom:1px solid var(--bd);flex-shrink:0;
+}
+#joao-avatar{
+  width:36px;height:36px;background:var(--ui-grd);border-radius:50%;
+  display:grid;place-items:center;font-size:16px;flex-shrink:0;
+  box-shadow:0 0 12px rgba(0,229,176,.4);font-family:var(--sans);font-weight:800;color:#000;
+}
+#joao-hdr-info{flex:1;min-width:0}
+#joao-hdr-name{font-family:var(--sans);font-size:13px;font-weight:800;color:var(--tb);letter-spacing:.5px}
+#joao-hdr-sub{font-size:9px;color:var(--ui1);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+#joao-close{background:none;border:none;color:var(--td);cursor:pointer;padding:4px 6px;border-radius:6px;font-size:14px;transition:all .15s;line-height:1}
+#joao-close:hover{background:var(--bd);color:var(--tb)}
+
+/* Messages area */
+#joao-msgs{
+  flex:1;overflow-y:auto;padding:14px 14px 8px;
+  display:flex;flex-direction:column;gap:10px;
+  scrollbar-width:thin;scrollbar-color:var(--bd) transparent;
+  scroll-behavior:smooth;
+}
+#joao-msgs::-webkit-scrollbar{width:3px}
+#joao-msgs::-webkit-scrollbar-track{background:transparent}
+#joao-msgs::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+
+/* Message bubbles */
+.jmsg{display:flex;gap:8px;animation:joaoMsgIn .22s ease both;max-width:100%}
+.jmsg-ai{flex-direction:row}.jmsg-user{flex-direction:row-reverse}
+.jmsg-av{width:26px;height:26px;background:var(--ui-grd);border-radius:50%;
+  display:grid;place-items:center;font-family:var(--sans);font-size:9px;font-weight:800;color:#000;flex-shrink:0;margin-top:2px}
+.jbubble{
+  max-width:calc(100% - 40px);padding:9px 12px;border-radius:12px;
+  font-size:12px;line-height:1.65;word-break:break-word;
+}
+.jmsg-ai .jbubble{
+  background:var(--bg3);border:1px solid var(--bd);color:var(--t);
+  border-bottom-left-radius:4px;
+}
+.jmsg-user .jbubble{
+  background:linear-gradient(135deg,rgba(0,229,176,.15),rgba(0,176,255,.12));
+  border:1px solid rgba(0,229,176,.25);color:var(--tb);
+  border-bottom-right-radius:4px;text-align:right;
+}
+.jbubble strong{color:var(--tb);font-weight:700}
+.jbubble em{color:var(--ui2);font-style:normal}
+
+/* Typing indicator */
+#joao-typing{display:none;gap:8px;align-items:flex-end;padding:0 0 4px}
+#joao-typing.show{display:flex;animation:joaoMsgIn .2s ease both}
+.jtyping-av{width:26px;height:26px;background:var(--ui-grd);border-radius:50%;display:grid;place-items:center;font-family:var(--sans);font-size:9px;font-weight:800;color:#000;flex-shrink:0}
+.jtyping-bubble{background:var(--bg3);border:1px solid var(--bd);border-radius:12px;border-bottom-left-radius:4px;padding:10px 14px;display:flex;gap:4px;align-items:center}
+.jtyping-dot{width:5px;height:5px;background:var(--ui1);border-radius:50%;animation:joaoTyping 1.2s ease infinite}
+.jtyping-dot:nth-child(2){animation-delay:.2s}
+.jtyping-dot:nth-child(3){animation-delay:.4s}
+
+/* Quick suggestions */
+#joao-chips{padding:0 12px 10px;display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0}
+.jchip{
+  background:rgba(23,32,48,.8);border:1px solid var(--bd);border-radius:20px;
+  padding:4px 10px;font-size:10px;color:var(--td);cursor:pointer;
+  transition:all .15s;white-space:nowrap;font-family:var(--mono);
+}
+.jchip:hover{border-color:var(--ui1);color:var(--ui1);background:rgba(0,229,176,.06)}
+
+/* Input area */
+#joao-input-area{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  border-top:1px solid var(--bd);background:var(--bg);flex-shrink:0;
+}
+#joao-inp{
+  flex:1;background:var(--bg2);border:1.5px solid var(--bd);border-radius:10px;
+  padding:9px 12px;font-family:var(--mono);font-size:12px;color:var(--tb);
+  outline:none;transition:border-color .15s;resize:none;
+}
+#joao-inp:focus{border-color:var(--ui1)}
+#joao-inp::placeholder{color:var(--td)}
+#joao-send{
+  width:36px;height:36px;background:var(--ui-grd);border:none;border-radius:10px;
+  cursor:pointer;display:grid;place-items:center;flex-shrink:0;
+  color:#000;font-size:15px;transition:all .2s;font-weight:700;
+}
+#joao-send:hover{transform:scale(1.08);box-shadow:0 2px 12px rgba(0,229,176,.4)}
+#joao-send:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* Welcome banner inside chat */
+.joao-welcome{
+  background:linear-gradient(135deg,rgba(0,229,176,.07),rgba(0,176,255,.05));
+  border:1px solid rgba(0,229,176,.15);border-radius:10px;
+  padding:12px;font-size:11px;line-height:1.7;color:var(--t);margin-bottom:4px;
+}
+.joao-welcome strong{color:var(--ui1);font-family:var(--sans);font-size:12px}
+
+@media(max-width:480px){
+  #joao-panel{top:auto;bottom:70px;right:8px;left:8px;width:auto;max-height:calc(100vh - 140px)}
+  #joao-btn{right:12px;padding:6px 10px}
+}
 </style>
 </head>
 <body>
@@ -981,6 +1117,11 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
     <div class="live"><div class="dot"></div>AO VIVO</div>
     <div id="clock">--:--:--</div>
     <div id="eta">↺ --s</div>
+    <!-- João AI Button -->
+    <button id="joao-btn" onclick="joaoToggle()" title="Assistente IA João">
+      <div id="joao-btn-dot"></div>
+      <span>João IA</span>
+    </button>
     <div id="user-info" style="display:flex;align-items:center;gap:10px;border-left:1px solid var(--bd);padding-left:14px">
       <div>
         <div style="font-size:10px;color:var(--tb);font-weight:700" id="user-nome">—</div>
@@ -2951,10 +3092,13 @@ async function gcLoadAsset(sym){
   const inp = $("gc-inp"); if(inp) inp.value = sym;
   _gcSym = sym;
 
-  // Show container, hide empty
+  // Show container, hide empty — then flush layout before touching clientWidth
   const emptyEl = $("gc-empty"), contEl = $("gc-container");
   if(emptyEl) emptyEl.style.display = "none";
   if(contEl)  contEl.style.display  = "block";
+
+  // Wait for next paint so offsetWidth is non-zero
+  await new Promise(r => requestAnimationFrame(r));
 
   gcShowLoading(true);
 
@@ -3079,9 +3223,12 @@ function gcBuildChart(){
   const mainH  = _gcInds.volume ? 400 : 480;
   chartEl.style.height = mainH+"px";
 
+  // Force layout flush so clientWidth is correct after display:block
+  const chartW = chartEl.offsetWidth || chartEl.parentElement?.offsetWidth || 800;
+
   _gcChart = LightweightCharts.createChart(chartEl, {
     ...GC_CHART_OPT,
-    width:  chartEl.clientWidth,
+    width:  chartW,
     height: mainH,
     rightPriceScale:{
       borderColor:"#172030",
@@ -3140,14 +3287,14 @@ function gcBuildChart(){
   // Volume on main chart (overlay, bottom portion)
   const legVol = $("gc-leg-vol");
   if(_gcInds.volume && data.some(d=>d.volume>0)){
-    if(legEl) {};
     if(legVol) legVol.style.display="flex";
 
     if(volEl && volEl.style.display!=="none"){
       volEl.style.height = "100px";
+      const volW = volEl.offsetWidth || chartW;
       _gcVolChart = LightweightCharts.createChart(volEl, {
         ...GC_CHART_OPT,
-        width:  volEl.clientWidth,
+        width:  volW,
         height: 100,
         rightPriceScale:{
           borderColor:"#172030",
@@ -3177,14 +3324,26 @@ function gcBuildChart(){
 
   _gcChart.timeScale().fitContent();
 
-  // Responsive resize
+  // Responsive resize — use offsetWidth to avoid 0-width
   if(_gcResizeObs){ try{_gcResizeObs.disconnect();}catch(e){} }
-  _gcResizeObs = new ResizeObserver(()=>{
-    const w = chartEl.clientWidth;
-    if(_gcChart && w>0) _gcChart.applyOptions({width:w});
-    if(_gcVolChart && volEl) _gcVolChart.applyOptions({width:volEl.clientWidth});
+  _gcResizeObs = new ResizeObserver(entries=>{
+    for(const entry of entries){
+      const w = entry.contentRect.width || chartEl.offsetWidth;
+      if(w>0){
+        if(_gcChart) try{ _gcChart.applyOptions({width:w}); }catch(e){}
+        if(_gcVolChart && volEl) try{ _gcVolChart.applyOptions({width:w}); }catch(e){}
+      }
+    }
   });
   _gcResizeObs.observe(chartEl.parentElement||chartEl);
+  // Force an immediate resize after paint
+  requestAnimationFrame(()=>{
+    const w = chartEl.offsetWidth;
+    if(w>0){
+      if(_gcChart) try{ _gcChart.applyOptions({width:w}); }catch(e){}
+      if(_gcVolChart) try{ _gcVolChart.applyOptions({width:w}); }catch(e){}
+    }
+  });
 }
 
 function gcDestroyCharts(){
@@ -3231,6 +3390,158 @@ function gcToggleInd(ind){
   _gcInds[ind] = !_gcInds[ind];
   document.querySelectorAll(`.gci[data-i="${ind}"]`).forEach(b=>b.classList.toggle("on",_gcInds[ind]));
   if(_gcSym && _gcData.length) gcBuildChart();
+}
+
+/* ══════════════════════════════════════════════════════════
+   JOÃO — AI Financial Assistant
+══════════════════════════════════════════════════════════ */
+let _joaoOpen = false;
+let _joaoMsgs = [];  // [{role:"user"|"assistant", content:"..."}]
+let _joaoLoading = false;
+
+const JOAO_CHIPS = [
+  "O que é um FII?",
+  "Como calcular DY?",
+  "O que é P/L?",
+  "BOVA11 x IVVB11",
+  "Como diversificar?",
+  "O que são BDRs?",
+  "Explique P/VP",
+  "O que é preço médio?",
+];
+
+function joaoInit(){
+  // Build panel HTML if not yet injected
+  if($("joao-panel")) return;
+  const panel = document.createElement("div");
+  panel.id = "joao-panel";
+  panel.innerHTML = `
+    <div id="joao-hdr">
+      <div id="joao-avatar">J</div>
+      <div id="joao-hdr-info">
+        <div id="joao-hdr-name">João</div>
+        <div id="joao-hdr-sub">● Assistente Financeiro IA</div>
+      </div>
+      <button id="joao-close" onclick="joaoToggle()" title="Fechar">✕</button>
+    </div>
+    <div id="joao-msgs">
+      <div class="joao-welcome">
+        <strong>👋 Olá! Sou o João</strong><br>
+        Seu assistente especializado no mercado financeiro brasileiro. Posso ajudar com ações, FIIs, ETFs, dividendos, indicadores e muito mais.<br><br>
+        <span style="color:var(--td);font-size:10px">Use as sugestões abaixo ou faça sua pergunta.</span>
+      </div>
+    </div>
+    <div id="joao-typing">
+      <div class="jtyping-av">J</div>
+      <div class="jtyping-bubble">
+        <div class="jtyping-dot"></div>
+        <div class="jtyping-dot"></div>
+        <div class="jtyping-dot"></div>
+      </div>
+    </div>
+    <div id="joao-chips">${JOAO_CHIPS.map(c=>`<div class="jchip" onclick="joaoChip(this,'${c.replace(/'/g,"\\'")}')">${c}</div>`).join("")}</div>
+    <div id="joao-input-area">
+      <input id="joao-inp" placeholder="Pergunte sobre investimentos..." maxlength="500"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();joaoSend()}">
+      <button id="joao-send" onclick="joaoSend()">➤</button>
+    </div>
+  `;
+  document.body.appendChild(panel);
+}
+
+function joaoToggle(){
+  joaoInit();
+  _joaoOpen = !_joaoOpen;
+  const panel = $("joao-panel");
+  const btn   = $("joao-btn");
+  panel.classList.toggle("open", _joaoOpen);
+  btn.classList.toggle("open",   _joaoOpen);
+  if(_joaoOpen){
+    setTimeout(()=>{ const inp=$("joao-inp"); if(inp) inp.focus(); }, 320);
+  }
+}
+
+function joaoChip(el, text){
+  const inp = $("joao-inp");
+  if(inp){ inp.value = text; }
+  // Hide chips after first use
+  el.closest("#joao-chips")?.querySelectorAll(".jchip").forEach(c=>c.style.opacity="0.4");
+  joaoSend();
+}
+
+function joaoScrollBottom(){
+  const msgs = $("joao-msgs");
+  if(msgs) msgs.scrollTop = msgs.scrollHeight;
+}
+
+function joaoAddMsg(role, text){
+  _joaoMsgs.push({role, content: text});
+  const msgs = $("joao-msgs");
+  if(!msgs) return;
+  const wrap = document.createElement("div");
+  wrap.className = `jmsg jmsg-${role==="user"?"user":"ai"}`;
+  const av = document.createElement("div");
+  av.className = "jmsg-av";
+  av.textContent = role==="user" ? "EU" : "J";
+  const bubble = document.createElement("div");
+  bubble.className = "jbubble";
+  // Basic markdown: **bold**, *em*, \n→<br>
+  bubble.innerHTML = joaoFormatText(text);
+  wrap.appendChild(av);
+  wrap.appendChild(bubble);
+  msgs.appendChild(wrap);
+  joaoScrollBottom();
+}
+
+function joaoFormatText(text){
+  return text
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g,"<em>$1</em>")
+    .replace(/`(.+?)`/g,"<code style='background:var(--bd);padding:1px 4px;border-radius:3px;font-family:var(--mono);font-size:10px'>$1</code>")
+    .replace(/\n/g,"<br>");
+}
+
+async function joaoSend(){
+  const inp = $("joao-inp");
+  if(!inp || _joaoLoading) return;
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value = "";
+
+  // Disable chips permanently after first real message
+  $("joao-chips")?.querySelectorAll(".jchip").forEach(c=>c.style.pointerEvents="none");
+
+  joaoAddMsg("user", text);
+
+  // Show typing
+  _joaoLoading = true;
+  const send = $("joao-send"); if(send) send.disabled = true;
+  const typing = $("joao-typing"); if(typing) typing.classList.add("show");
+  joaoScrollBottom();
+
+  try {
+    const res = await apiFetch("/api/ai/chat", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({messages: _joaoMsgs.slice(-20)}),
+    });
+    if(typing) typing.classList.remove("show");
+    if(res && res.reply){
+      joaoAddMsg("assistant", res.reply);
+    } else if(res && res.error) {
+      joaoAddMsg("assistant", "❌ " + (res.error||"Erro ao processar. Tente novamente."));
+    } else {
+      joaoAddMsg("assistant", "❌ Não foi possível obter resposta. Verifique se a IA está configurada.");
+    }
+  } catch(e) {
+    if(typing) typing.classList.remove("show");
+    joaoAddMsg("assistant", "❌ Erro de conexão. Tente novamente em instantes.");
+  } finally {
+    _joaoLoading = false;
+    if(send) send.disabled = false;
+    if(inp) inp.focus();
+  }
 }
 
 </script>
