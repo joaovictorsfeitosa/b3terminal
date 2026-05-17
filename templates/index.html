@@ -3498,6 +3498,9 @@ function joaoAddMsg(role, text){
   if(role === "user" || role === "assistant"){
     _joaoMsgs.push({role, content: text});
   }
+  // Hide welcome banner on first real interaction
+  const welcome = document.querySelector(".joao-welcome");
+  if(welcome) welcome.style.display = "none";
   const msgs = $("joao-msgs");
   if(!msgs) return;
   const wrap = document.createElement("div");
@@ -3561,7 +3564,9 @@ async function joaoSend(){
   try {
     // ── Use raw fetch (NOT apiFetch) so we can read the body on any status ──
     const ctrl = new AbortController();
-    const tout = setTimeout(()=>ctrl.abort(), 30000);
+    // BUG FIX: timeout de 60s no frontend (backend leva até 55s no Render free tier)
+    // O timeout de 30s anterior matava a requisição antes do backend responder
+    const tout = setTimeout(()=>ctrl.abort(), 60000);
 
     let response;
     try {
@@ -3600,8 +3605,8 @@ async function joaoSend(){
     _joaoLastError = Date.now();
     if(inp) inp.value = text; // restore so user can retry
 
-    let errText = "⚠️ Sem resposta do servidor.";
-    if(e.name === "AbortError") errText = "⚠️ Tempo de resposta excedido. Tente novamente.";
+    let errText = "⚠️ Sem resposta do servidor. Tente novamente.";
+    if(e.name === "AbortError") errText = "⚠️ O assistente demorou para responder — o servidor pode estar acordando. Aguarde alguns segundos e tente de novo.";
     else if(!navigator.onLine) errText = "⚠️ Sem conexão com a internet.";
     joaoAddError(errText);
   } finally {
