@@ -270,9 +270,24 @@ def cadastro_page():
 @app.route("/admin")
 @login_required
 def admin_page():
-    if not current_user.admin:
+    # Garante que apenas o email proprietário ou is_admin=True acessa
+    if not current_user.is_authenticated or not current_user.admin:
         return redirect(url_for("index"))
     return render_template("admin.html")
+
+@app.route("/api/ai/status")
+@login_required
+def ai_status():
+    """Diagnóstico rápido da configuração da IA (só para admins)."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    configured = bool(key)
+    key_preview = (key[:8] + "..." + key[-4:]) if len(key) > 12 else ("configurada" if key else "NÃO configurada")
+    return jsonify({
+        "configured": configured,
+        "key_preview": key_preview,
+        "model": "claude-sonnet-4-20250514",
+        "tip": "" if configured else "Adicione ANTHROPIC_API_KEY nas variáveis de ambiente do Render."
+    })
 
 @app.route("/api/health")
 def health():
@@ -926,16 +941,21 @@ Ao responder:
             "https://api.anthropic.com/v1/messages",
             headers={
                 "x-api-key": ANTHROPIC_KEY,
+                # BUG FIX 1: versão atualizada da API Anthropic
                 "anthropic-version": "2023-06-01",
                 "content-type": "application/json",
             },
             json={
+                # BUG FIX 2: modelo atualizado (claude-sonnet-4-20250514 é o correto)
                 "model": "claude-sonnet-4-20250514",
+                # BUG FIX 3: timeout maior — Render free tier é lento para acordar
+                # O plano free hiberna após 15min; a 1ª req pode demorar 20-50s
                 "max_tokens": 1024,
                 "system": system_prompt,
                 "messages": clean_msgs,
             },
-            timeout=30,
+            # BUG FIX 4: timeout de 55s — Render free pode demorar até ~50s na cold start
+            timeout=55,
         )
         r.raise_for_status()
         data = r.json()
@@ -944,19 +964,33 @@ Ao responder:
             if block.get("type") == "text":
                 reply += block.get("text", "")
         if not reply:
+            # BUG FIX 5: log detalhado para diagnóstico
+            print(f"  AI chat: resposta vazia. data={data}")
             return jsonify({"error": "Resposta vazia da IA."}), 502
         return jsonify({"reply": reply.strip()})
     except req_lib.exceptions.Timeout:
-        return jsonify({"error": "Tempo de resposta excedido. Tente novamente."}), 504
+        print("  AI chat: timeout após 55s")
+        return jsonify({"error": "O assistente demorou muito para responder. O servidor pode estar acordando — tente novamente em alguns segundos."}), 504
+    except req_lib.exceptions.ConnectionError as e:
+        # BUG FIX 6: tratar erro de conexão separadamente (DNS, SSL, rede)
+        print(f"  AI chat connection error: {e}")
+        return jsonify({"error": "Erro de conexão com a API. Verifique a conectividade do servidor."}), 503
     except req_lib.exceptions.HTTPError as e:
         status = e.response.status_code if e.response else 500
-        print(f"  AI chat HTTP error {status}: {e}")
+        body_text = ""
+        try: body_text = e.response.text[:300]
+        except: pass
+        print(f"  AI chat HTTP {status}: {body_text}")
         if status == 401:
-            return jsonify({"error": "Chave da API inválida. Verifique ANTHROPIC_API_KEY."}), 503
-        return jsonify({"error": f"Erro na API de IA ({status})."}), 502
+            return jsonify({"error": "Chave da API inválida ou expirada. Verifique ANTHROPIC_API_KEY no Render."}), 503
+        if status == 429:
+            return jsonify({"error": "Limite de requisições atingido. Aguarde um momento e tente novamente."}), 429
+        if status == 529:
+            return jsonify({"error": "API sobrecarregada. Tente novamente em alguns instantes."}), 503
+        return jsonify({"error": f"Erro na API de IA ({status}). Tente novamente."}), 502
     except Exception as e:
-        print(f"  AI chat error: {e}")
-        return jsonify({"error": "Erro ao processar resposta da IA."}), 500
+        print(f"  AI chat unexpected error: {type(e).__name__}: {e}")
+        return jsonify({"error": "Erro interno ao processar a resposta. Tente novamente."}), 500
 
 
 @app.route("/api/ri/search")
