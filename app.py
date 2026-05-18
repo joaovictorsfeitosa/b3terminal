@@ -946,10 +946,8 @@ Ao responder:
                 "content-type": "application/json",
             },
             json={
-                # Modelo correto — claude-sonnet-4-6
-                "model": "claude-sonnet-4-6",
-                # BUG FIX 3: timeout maior — Render free tier é lento para acordar
-                # O plano free hiberna após 15min; a 1ª req pode demorar 20-50s
+                # CORRIGIDO: string correto do modelo na API Anthropic
+                "model": "claude-sonnet-4-20250514",
                 "max_tokens": 1024,
                 "system": system_prompt,
                 "messages": clean_msgs,
