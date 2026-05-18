@@ -885,6 +885,46 @@ for item in RI_DB:
             if isinstance(RI_INDEX[f"_n_{word}"], list):
                 RI_INDEX[f"_n_{word}"].append(item["t"])
 
+@app.route("/api/ai/ping")
+@login_required
+def ai_ping():
+    """Testa a conexão com a API Anthropic e retorna diagnóstico detalhado."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        return jsonify({"ok": False, "erro": "ANTHROPIC_API_KEY não configurada"}), 503
+
+    try:
+        r = req_lib.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 10,
+                "messages": [{"role": "user", "content": "ok"}],
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        return jsonify({
+            "ok": True,
+            "status": r.status_code,
+            "modelo": "claude-sonnet-4-20250514",
+            "key_inicio": key[:8] + "...",
+        })
+    except req_lib.exceptions.HTTPError as e:
+        st = e.response.status_code if e.response else 0
+        body = ""
+        try: body = e.response.text[:500]
+        except: pass
+        return jsonify({"ok": False, "http_status": st, "resposta_api": body}), 200
+    except Exception as e:
+        return jsonify({"ok": False, "erro": f"{type(e).__name__}: {str(e)}"}), 200
+
+
 @app.route("/api/ai/chat", methods=["POST"])
 @login_required
 def ai_chat():
