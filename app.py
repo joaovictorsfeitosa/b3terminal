@@ -946,8 +946,8 @@ Ao responder:
                 "content-type": "application/json",
             },
             json={
-                # BUG FIX 2: modelo atualizado (claude-sonnet-4-20250514 é o correto)
-                "model": "claude-sonnet-4-20250514",
+                # Modelo correto — claude-sonnet-4-6
+                "model": "claude-sonnet-4-6",
                 # BUG FIX 3: timeout maior — Render free tier é lento para acordar
                 # O plano free hiberna após 15min; a 1ª req pode demorar 20-50s
                 "max_tokens": 1024,
