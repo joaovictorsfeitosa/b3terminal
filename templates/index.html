@@ -320,45 +320,153 @@ a{text-decoration:none;color:inherit}
 .idx-v{font-family:var(--sans);font-size:18px;font-weight:700;color:var(--tb)}
 .idx-c{font-size:11px;font-weight:700;margin-top:3px}
 
-/* ASSET CARDS */
-.agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:24px}
-.card{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:15px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.05),transparent)}
-.card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;transform:scaleX(0);transform-origin:left;transition:transform .3s}
-.card-up::after{background:linear-gradient(90deg,var(--g),transparent)}.card-dn::after{background:linear-gradient(90deg,var(--r),transparent)}
-.card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}.card-up:hover{border-color:rgba(0,230,118,.25)}.card-dn:hover{border-color:rgba(255,61,87,.25)}
+/* ══════════════════════════════════════════════
+   TEMA CLARO — premium institucional
+══════════════════════════════════════════════ */
+body.light{
+  --bg:#f0f4f8;--bg2:#ffffff;--bg3:#f7f9fc;--bd:#dde3ec;
+  --t:#4a6080;--td:#94a8be;--tb:#0d1e30;
+  --ui1:#00b894;--ui2:#0070f3;
+  --ui-grd:linear-gradient(135deg,#00b894,#0070f3);
+  --g:#00a86b;--gd:rgba(0,168,107,.08);--gb:rgba(0,168,107,.15);
+  --r:#e53e3e;--rd:rgba(229,62,62,.08);
+  --a:#d4810a;--ad:rgba(212,129,10,.08);
+  --b:#0070f3;--bld:rgba(0,112,243,.08);
+  --p:#7c3aed;--pd:rgba(124,58,237,.08);
+  --shadow:0 4px 24px rgba(0,0,0,.1);
+  --glow:0 0 20px rgba(0,112,243,.1);
+}
+body.light{background:var(--bg);color:var(--t)}
+body.light #hdr{background:rgba(255,255,255,.94);border-bottom-color:rgba(0,112,243,.1);box-shadow:0 1px 0 rgba(0,112,243,.08),0 4px 16px rgba(0,0,0,.06)}
+body.light #hdr::before{background:linear-gradient(90deg,transparent,rgba(0,184,148,.5),rgba(0,112,243,.5),transparent)}
+body.light .logo-name{background:linear-gradient(135deg,#0d1e30 60%,rgba(0,184,148,.9));-webkit-background-clip:text;background-clip:text}
+body.light #clock{background:rgba(212,129,10,.06);border-color:rgba(212,129,10,.15);color:var(--a)}
+body.light #tkbar{background:rgba(248,250,253,.96);border-bottom-color:rgba(0,112,243,.1)}
+body.light .tk-item{color:var(--tb)}
+body.light .idx-card{background:#fff;border-color:var(--bd);box-shadow:0 2px 8px rgba(0,0,0,.04)}
+body.light .idx-card:hover{border-color:rgba(0,112,243,.25);box-shadow:0 4px 16px rgba(0,112,243,.08)}
+body.light .card{background:#fff;border-color:var(--bd);box-shadow:0 2px 8px rgba(0,0,0,.04)}
+body.light .card-up:hover{border-color:rgba(0,168,107,.3);box-shadow:0 6px 20px rgba(0,168,107,.08)}
+body.light .card-dn:hover{border-color:rgba(229,62,62,.3);box-shadow:0 6px 20px rgba(229,62,62,.08)}
+body.light #tabs{background:rgba(248,250,253,.97);border-right-color:rgba(0,112,243,.08);border-bottom-color:rgba(0,112,243,.08)}
+body.light .tab{color:var(--td)}
+body.light .tab.on{background:rgba(0,112,243,.07);color:var(--ui2);border-left-color:var(--ui2)}
+body.light .tab:hover:not(.on){background:rgba(0,0,0,.03);color:var(--t)}
+body.light #bottom-nav{background:rgba(255,255,255,.97);border-top-color:rgba(0,112,243,.1)}
+body.light .bnav-item.on{background:rgba(0,112,243,.06);color:var(--ui2)}
+body.light .bnav-item.on::before{background:var(--ui2)}
+body.light #overlay{background:rgba(240,244,248,.92)}
+body.light .modal{background:#fff;border-color:var(--bd);box-shadow:0 16px 48px rgba(0,0,0,.12)}
+body.light .dcard,.body.light .cal-card,.body.light .ncard{background:#fff;border-color:var(--bd)}
+body.light .empty-box{color:var(--td)}
+body.light ::-webkit-scrollbar-track{background:var(--bg2)}
+body.light ::-webkit-scrollbar-thumb{background:var(--bd)}
+
+/* ── Toggle button ────────────────────────────── */
+#theme-toggle{
+  width:36px;height:20px;
+  background:var(--bg3);border:1px solid var(--bd);border-radius:20px;
+  cursor:pointer;position:relative;transition:all .25s;flex-shrink:0;
+  display:flex;align-items:center;padding:2px;
+}
+#theme-toggle::after{
+  content:'';width:14px;height:14px;border-radius:50%;
+  background:var(--ui-grd);transition:transform .25s cubic-bezier(.34,1.3,.64,1);
+  flex-shrink:0;
+}
+body.light #theme-toggle::after{transform:translateX(16px)}
+#theme-toggle-ico{
+  position:absolute;font-size:9px;pointer-events:none;
+  right:4px;top:50%;transform:translateY(-50%);
+  transition:opacity .2s;
+}
+body.light #theme-toggle-ico{right:auto;left:4px}
+
+/* ══════════════════════════════════════════════
+   CARDS DO MERCADO — premium redesign
+══════════════════════════════════════════════ */
+.agrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:12px;margin-bottom:28px;
+}
+.card{
+  background:var(--bg2);border:1px solid var(--bd);border-radius:14px;
+  padding:16px 17px;cursor:pointer;transition:all .22s;
+  position:relative;overflow:hidden;
+  animation:fadeUp .25s ease both;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);
+}
+.card::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  transform:scaleX(0);transform-origin:left;transition:transform .3s;
+}
+.card-up::after{background:linear-gradient(90deg,var(--g),transparent)}
+.card-dn::after{background:linear-gradient(90deg,var(--r),transparent)}
+.card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.card-up:hover{border-color:rgba(0,230,118,.25)}
+.card-dn:hover{border-color:rgba(255,61,87,.25)}
 .card:hover::after{transform:scaleX(1)}
-.del-btn{position:absolute;top:9px;right:9px;width:22px;height:22px;border-radius:50%;background:var(--rd);border:1px solid rgba(255,61,87,.3);color:var(--r);font-size:10px;display:none;align-items:center;justify-content:center;cursor:pointer;transition:.2s;z-index:10;line-height:1}
+.del-btn{
+  position:absolute;top:10px;right:10px;width:22px;height:22px;
+  border-radius:50%;background:var(--rd);border:1px solid rgba(255,61,87,.3);
+  color:var(--r);font-size:10px;display:none;align-items:center;
+  justify-content:center;cursor:pointer;transition:.15s;z-index:10;line-height:1;
+}
 .del-btn:hover{background:var(--r);color:#fff}
 .card:hover .del-btn{display:flex}
-.c-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
-.c-sym{font-family:var(--sans);font-size:15px;font-weight:800;color:var(--tb)}
-.c-name{font-size:8px;color:var(--td);letter-spacing:1px;text-transform:uppercase;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}
-.pill{font-size:8px;padding:2px 7px;border-radius:4px;font-weight:700;letter-spacing:1px;flex-shrink:0}
+.c-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:11px}
+.c-sym{font-family:var(--sans);font-size:16px;font-weight:800;color:var(--tb)}
+.c-name{font-size:8px;color:var(--td);letter-spacing:1px;text-transform:uppercase;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}
+.pill{font-size:8px;padding:3px 8px;border-radius:5px;font-weight:700;letter-spacing:1px;flex-shrink:0}
 .pill-a{background:var(--bld);color:var(--b);border:1px solid rgba(56,189,248,.2)}
 .pill-f{background:var(--ad);color:var(--a);border:1px solid rgba(255,196,0,.2)}
-.c-price{font-size:20px;font-weight:700;color:var(--tb);letter-spacing:-1px;margin-bottom:7px}
-.c-chg{display:flex;align-items:center;gap:6px}
-.pct{font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px}
-.pct-up{background:rgba(0,230,118,.08);color:var(--g);border:1px solid rgba(0,230,118,.2)}.pct-dn{background:var(--rd);color:var(--r);border:1px solid rgba(255,61,87,.2)}
+.c-price{font-family:var(--sans);font-size:22px;font-weight:800;color:var(--tb);letter-spacing:-1px;margin-bottom:7px;line-height:1}
+.c-chg{display:flex;align-items:center;gap:6px;margin-bottom:11px}
+.pct{font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px}
+.pct-up{background:rgba(0,230,118,.09);color:var(--g);border:1px solid rgba(0,230,118,.2)}
+.pct-dn{background:var(--rd);color:var(--r);border:1px solid rgba(255,61,87,.2)}
 .c-abs{font-size:9px;color:var(--td)}
-.c-foot{display:flex;justify-content:space-between;margin-top:10px;padding-top:9px;border-top:1px solid var(--bd)}
-.cs{text-align:center}.cs-l{font-size:8px;color:var(--td);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}.cs-v{font-size:9px;color:var(--t)}
-/* Quick chart shortcut */
-.c-chart-btn{position:absolute;bottom:10px;right:10px;font-size:9px;
-  background:rgba(0,176,255,.08);border:1px solid rgba(0,176,255,.22);color:var(--ui2);
-  padding:2px 7px;border-radius:5px;cursor:pointer;transition:.15s;
-  display:none;font-family:var(--sans);font-weight:700;letter-spacing:.5px;z-index:5}
+.c-foot{display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid var(--bd)}
+.cs{text-align:center;flex:1}
+.cs-l{font-size:7px;color:var(--td);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px}
+.cs-v{font-size:10px;color:var(--t);font-weight:700}
+.c-chart-btn{
+  position:absolute;bottom:11px;right:11px;font-size:8px;
+  background:rgba(0,176,255,.08);border:1px solid rgba(0,176,255,.2);
+  color:var(--ui2);padding:3px 8px;border-radius:5px;cursor:pointer;
+  transition:.15s;display:none;font-family:var(--sans);font-weight:700;
+  letter-spacing:.5px;z-index:5;
+}
 .card:hover .c-chart-btn{display:block}
-.c-chart-btn:hover{background:rgba(0,176,255,.22)}
+.c-chart-btn:hover{background:rgba(0,176,255,.2)}
 
-/* STATES */
-.loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--td);font-size:11px;letter-spacing:2px;grid-column:1/-1}
-.loading .sp{width:15px;height:15px;border:2px solid var(--bd);border-top-color:var(--ui2)}
-.empty-box{text-align:center;padding:48px 20px;color:var(--td);grid-column:1/-1}
-.empty-box .ei{font-size:36px;display:block;margin-bottom:12px}
-.empty-box .et{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--t);display:block;margin-bottom:6px}
-.errmsg{background:var(--rd);border:1px solid rgba(255,61,87,.2);border-radius:9px;padding:12px 16px;color:var(--r);font-size:11px;grid-column:1/-1}
+/* skeleton loading */
+@keyframes skeleton{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.skel{
+  background:linear-gradient(90deg,var(--bg3) 25%,var(--bd) 50%,var(--bg3) 75%);
+  background-size:200% 100%;animation:skeleton 1.5s ease infinite;
+  border-radius:4px;
+}
+.card.loading-card{cursor:default;pointer-events:none}
+.card.loading-card .skel-line{height:11px;margin-bottom:8px}
+.card.loading-card .skel-price{height:26px;width:55%;margin-bottom:10px}
+.card.loading-card .skel-pct{height:20px;width:40%;border-radius:5px}
+
+/* estado vazio melhorado */
+.empty-box{
+  text-align:center;padding:56px 24px;color:var(--td);
+  grid-column:1/-1;
+}
+.empty-box .ei{font-size:40px;display:block;margin-bottom:14px;opacity:.7}
+.empty-box .et{
+  font-family:var(--sans);font-size:14px;font-weight:800;
+  color:var(--t);display:block;margin-bottom:7px;
+}
+.empty-box span:last-child{font-size:11px;line-height:1.6}
 
 /* MODAL */
 #overlay{position:fixed;inset:0;background:rgba(2,4,10,.92);z-index:500;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px)}
@@ -1343,18 +1451,15 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 .joao-welcome strong{color:var(--ui1);font-family:var(--sans);font-size:12px}
 .joao-welcome-hint{font-size:10px;color:var(--td);margin-top:6px;display:block}
 
-/* Remove watermark TradingView Lightweight Charts */
+/* Remove watermark TradingView Lightweight Charts — multicamada */
 .tv-lightweight-charts tr:last-child td:last-child,
 .tv-lightweight-charts canvas + div,
 .tv-lightweight-charts table td[style*="cursor: default"],
-.lc-watermark, [class*="watermark"] { display:none !important; opacity:0 !important; }
-.gr-chart-wrap .gr-watermark-cover {
-  position:absolute;bottom:4px;left:4px;
-  width:52px;height:28px;
-  background:#080e18;
-  z-index:50;border-radius:4px;
-  pointer-events:none;
-}
+.lc-watermark,[class*="watermark"]{display:none!important;opacity:0!important;pointer-events:none!important}
+/* Div de cobertura física posicionada sobre o canto da watermark */
+.gr-wm-cover{position:absolute;bottom:0;left:0;width:64px;height:32px;z-index:99;pointer-events:none;border-radius:0 4px 0 0}
+body:not(.light) .gr-wm-cover{background:#080e18}
+body.light .gr-wm-cover{background:#ffffff}
 
 </style>
 </head>
@@ -1366,32 +1471,19 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
     <div><div class="logo-name">TERMINAL</div><div class="logo-sub">Mercado Brasileiro</div></div>
   </div>
   <div class="hdr-r">
-    <div class="live"><div class="dot"></div>AO VIVO</div>
     <div id="clock">--:--:--</div>
     <div id="eta">↺ --s</div>
+    <button id="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro" aria-label="Alternar tema">
+      <span id="theme-toggle-ico">☀️</span>
+    </button>
     <!-- João AI Button -->
     <button id="joao-btn" onclick="joaoToggle()" title="Vix — Análise de Mercado IA" aria-label="Abrir Vix assistente IA">
       <div id="joao-btn-dot"></div>
-      <!-- Ícone: candlestick + faísca — representa análise de mercado com IA -->
-      <svg id="joao-ico-chat" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-        <!-- candle 1 -->
-        <line x1="4" y1="3" x2="4" y2="5"/>
-        <rect x="2.5" y="5" width="3" height="5" rx=".6" fill="currentColor" stroke="none" opacity=".9"/>
-        <line x1="4" y1="10" x2="4" y2="12"/>
-        <!-- candle 2 (topo mais alto — alta) -->
-        <line x1="10" y1="2" x2="10" y2="4"/>
-        <rect x="8.5" y="4" width="3" height="6" rx=".6" fill="none" stroke="currentColor"/>
-        <line x1="10" y1="10" x2="10" y2="13"/>
-        <!-- candle 3 -->
-        <line x1="16" y1="4" x2="16" y2="6"/>
-        <rect x="14.5" y="6" width="3" height="4" rx=".6" fill="currentColor" stroke="none" opacity=".9"/>
-        <line x1="16" y1="10" x2="16" y2="12"/>
-        <!-- faísca IA (raio) -->
-        <polyline points="11,15 9,18 10.5,18 8.5,21" stroke-width="1.4"/>
+      <svg id="joao-ico-chat" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
       </svg>
-      <!-- Ícone de fechar (X minimalista) -->
-      <svg id="joao-ico-close" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="display:none">
-        <line x1="5" y1="5" x2="15" y2="15"/><line x1="15" y1="5" x2="5" y2="15"/>
+      <svg id="joao-ico-close" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
       <span class="jbtn-label">VIX IA</span>
     </button>
@@ -3589,7 +3681,7 @@ function gcBuildChart(){
 
   _gcChart.timeScale().fitContent();
 
-  // Cobre watermark TradingView
+  // Cobre watermark TradingView (compatível com modo claro e escuro)
   (function(){
     var el=document.getElementById('gc-chart-main');
     if(!el) return;
@@ -3597,7 +3689,6 @@ function gcBuildChart(){
     if(old) old.remove();
     var d=document.createElement('div');
     d.className='gr-wm-cover';
-    d.style.cssText='position:absolute;bottom:0;left:0;width:60px;height:30px;background:#080e18;z-index:99;pointer-events:none;';
     el.appendChild(d);
   })();
 
@@ -3905,6 +3996,27 @@ async function joaoSend(){
     if(inp && !inp.value) inp.focus();
   }
 }
+
+// ── SISTEMA DE TEMA CLARO / ESCURO ─────────────────────────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  const ico = $('theme-toggle-ico');
+  if (ico) ico.textContent = light ? '🌙' : '☀️';
+  try { localStorage.setItem('b3_theme', light ? 'light' : 'dark'); } catch(e){}
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.contains('light');
+  applyTheme(!isLight);
+}
+
+// Aplica tema salvo ao carregar
+(function(){
+  try {
+    const saved = localStorage.getItem('b3_theme');
+    applyTheme(saved === 'light');
+  } catch(e) { applyTheme(false); }
+})();
 
 </script>
 </body>
