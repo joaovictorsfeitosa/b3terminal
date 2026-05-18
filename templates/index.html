@@ -1342,6 +1342,20 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 }
 .joao-welcome strong{color:var(--ui1);font-family:var(--sans);font-size:12px}
 .joao-welcome-hint{font-size:10px;color:var(--td);margin-top:6px;display:block}
+
+/* Remove watermark TradingView Lightweight Charts */
+.tv-lightweight-charts tr:last-child td:last-child,
+.tv-lightweight-charts canvas + div,
+.tv-lightweight-charts table td[style*="cursor: default"],
+.lc-watermark, [class*="watermark"] { display:none !important; opacity:0 !important; }
+.gr-chart-wrap .gr-watermark-cover {
+  position:absolute;bottom:4px;left:4px;
+  width:52px;height:28px;
+  background:#080e18;
+  z-index:50;border-radius:4px;
+  pointer-events:none;
+}
+
 </style>
 </head>
 <body>
@@ -3244,6 +3258,8 @@ const GC_CHART_OPT = {
   },
   handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true},
   handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true},
+  attributionLogo:false,
+  watermark:{visible:false},
 };
 
 function gcInit(){
@@ -3557,6 +3573,18 @@ function gcBuildChart(){
   }
 
   _gcChart.timeScale().fitContent();
+
+  // Cobre watermark TradingView
+  (function(){
+    var el=document.getElementById('gc-chart-main');
+    if(!el) return;
+    var old=el.querySelector('.gr-wm-cover');
+    if(old) old.remove();
+    var d=document.createElement('div');
+    d.className='gr-wm-cover';
+    d.style.cssText='position:absolute;bottom:0;left:0;width:60px;height:30px;background:#080e18;z-index:99;pointer-events:none;';
+    el.appendChild(d);
+  })();
 
   // Responsive resize — use offsetWidth to avoid 0-width
   if(_gcResizeObs){ try{_gcResizeObs.disconnect();}catch(e){} }
