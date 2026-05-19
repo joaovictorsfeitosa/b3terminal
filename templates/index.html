@@ -3988,12 +3988,511 @@ function joaoAddError(text){
 }
 
 function joaoFormatText(text){
-  return text
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  // Escapar HTML perigoso
+  let t = text
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+  // Tabelas markdown simples: | col1 | col2 |
+  t = t.replace(/(\|.+\|\n?)+/g, function(match){
+    const rows = match.trim().split("\n").filter(r => r.includes("|"));
+    let html = '<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:11px">';
+    rows.forEach((row, i) => {
+      if(row.match(/^\|[\s\-|]+\|$/)) return; // linha separadora
+      const cells = row.split("|").filter(c => c.trim() !== "");
+      const tag = i === 0 ? "th" : "td";
+      const style = i === 0
+        ? "padding:5px 8px;background:rgba(0,176,255,.06);color:var(--ui2);font-size:9px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--bd)"
+        : "padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--t)";
+      html += `<tr>${cells.map(c=>`<${tag} style="${style}">${c.trim()}</${tag}>`).join("")}</tr>`;
+    });
+    html += "</table>";
+    return html;
+  });
+
+  // Formatação inline
+  t = t
     .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
     .replace(/\*(.+?)\*/g,"<em>$1</em>")
     .replace(/`(.+?)`/g,"<code style='background:rgba(0,229,176,.08);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:10px;color:var(--ui1)'>$1</code>")
     .replace(/\n/g,"<br>");
+
+  return t;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  VIX — Motor de IA Local (100% frontend, zero API, zero custo)
+//  Sistema de NLP baseado em regras com contexto de conversa
+// ══════════════════════════════════════════════════════════════════
+
+const VIX_KB = [
+  // ── FIIs ────────────────────────────────────────────────────────
+  { k:["o que é fii","o que são fiis","fundo imobiliário","fundos imobiliários","fii"],
+    r:`**FII (Fundo de Investimento Imobiliário)** é um fundo que investe em ativos do setor imobiliário — imóveis físicos, CRIs, LCIs ou cotas de outros fundos.
+
+📌 **Como funciona:**
+- Você compra cotas na bolsa (como ações)
+- O fundo distribui os aluguéis como **dividendos mensais**
+- Isenção de IR nos rendimentos para pessoa física (cotas negociadas em bolsa)
+
+📊 **Tipos principais:**
+- **Tijolo** → imóveis físicos (shoppings, galpões, lajes)
+- **Papel** → CRIs, LCIs, títulos de dívida
+- **Híbrido** → mistura dos dois
+- **FOF (Fund of Funds)** → investe em outros FIIs
+
+💡 Indicadores importantes: **DY** (dividend yield), **P/VP** (preço/valor patrimonial), vacância física e financeira.`
+  },
+  { k:["pvp","p/vp","preço valor patrimonial","p vp"],
+    r:`**P/VP (Preço / Valor Patrimonial)** indica se um ativo está caro ou barato em relação ao seu patrimônio líquido.
+
+📐 **Fórmula:** P/VP = Preço da cota ÷ Valor patrimonial por cota
+
+📊 **Interpretação:**
+- **P/VP < 1,0** → cota sendo negociada abaixo do patrimônio (possível desconto)
+- **P/VP = 1,0** → cota no valor justo patrimonial
+- **P/VP > 1,0** → cota com prêmio sobre o patrimônio
+
+⚠️ **Atenção:** P/VP baixo não significa necessariamente "barato" — pode indicar problemas no fundo. Sempre analise junto com vacância, qualidade dos imóveis e histórico de dividendos.`
+  },
+  { k:["dividend yield","dy","rendimento","dividendo","dividendos"],
+    r:`**Dividend Yield (DY)** mede o retorno em dividendos em relação ao preço atual do ativo.
+
+📐 **Fórmula:** DY = (Dividendos pagos nos últimos 12 meses ÷ Preço atual) × 100
+
+📊 **Exemplos:**
+- Cota a R$ 100 que pagou R$ 8 no ano → DY = **8% ao ano**
+- Ação a R$ 20 que pagou R$ 1,50 no ano → DY = **7,5% ao ano**
+
+💡 **Referências:**
+- DY acima do CDI atual pode ser atrativo
+- Para FIIs, DY entre 8% e 12% ao ano é considerado razoável
+- DY muito alto pode indicar queda no preço da cota — analise o motivo
+
+⚠️ DY passado não garante DY futuro. Sempre verifique a consistência dos pagamentos.`
+  },
+  { k:["vacância","vacancia","imóvel vazio","imóveis vazios"],
+    r:`**Vacância** em FIIs é a porcentagem do imóvel que está desocupada (sem gerar aluguel).
+
+📊 **Dois tipos:**
+- **Vacância Física** → % da área total que está vazia
+- **Vacância Financeira** → % da receita potencial que não está sendo recebida
+
+💡 **Como interpretar:**
+- Vacância **abaixo de 5%** → excelente
+- Entre 5% e 15% → aceitável
+- Acima de 20% → sinal de alerta — pode impactar dividendos
+
+⚠️ Alta vacância = menos receita de aluguel = possível queda nos dividendos.`
+  },
+
+  // ── AÇÕES / ANÁLISE FUNDAMENTALISTA ─────────────────────────────
+  { k:["p/l","pl","preço lucro","price earning"],
+    r:`**P/L (Preço / Lucro)** é um dos indicadores mais usados para avaliar se uma ação está cara ou barata.
+
+📐 **Fórmula:** P/L = Preço da ação ÷ Lucro por ação (LPA)
+
+📊 **Interpretação:**
+- P/L = 10 → o mercado paga 10x o lucro anual da empresa
+- P/L **baixo** → ação possivelmente barata (ou empresa com problemas)
+- P/L **alto** → mercado espera crescimento futuro
+
+💡 **Referências por setor (Brasil):**
+- Bancos: P/L entre 8-12 é razoável
+- Varejo: 15-25 é comum
+- Utilities (energia, saneamento): 12-20
+
+⚠️ Compare sempre com empresas do mesmo setor. P/L isolado não diz muita coisa.`
+  },
+  { k:["roe","retorno sobre patrimônio","return on equity"],
+    r:`**ROE (Return on Equity)** mede a eficiência da empresa em gerar lucro com o capital dos acionistas.
+
+📐 **Fórmula:** ROE = Lucro Líquido ÷ Patrimônio Líquido × 100
+
+📊 **Interpretação:**
+- ROE **acima de 15%** → empresa eficiente, gerando bom retorno
+- ROE **abaixo de 10%** → retorno baixo sobre o capital investido
+- ROE muito alto (>40%) → pode ser alavancagem ou setor específico (bancos)
+
+💡 Empresas com ROE consistentemente alto ao longo dos anos são geralmente mais sólidas. Compare com o custo de capital (WACC) — se ROE > WACC, a empresa cria valor.`
+  },
+  { k:["ebitda","ebit","lucro operacional"],
+    r:`**EBITDA** = Earnings Before Interest, Taxes, Depreciation and Amortization
+Em português: Lucro antes de juros, impostos, depreciação e amortização.
+
+📌 **Para que serve:** Mede a geração de caixa operacional da empresa, sem efeitos contábeis ou financeiros.
+
+📊 **Indicadores derivados:**
+- **EV/EBITDA** → compara valor da empresa com sua geração de caixa. Abaixo de 8x tende a ser barato em setores tradicionais
+- **Dívida Líquida/EBITDA** → mede endividamento. Acima de 3x é preocupante em setores não-regulados
+- **Margem EBITDA** → EBITDA ÷ Receita Líquida. Quanto maior, mais eficiente operacionalmente`
+  },
+  { k:["roic","retorno sobre capital investido"],
+    r:`**ROIC (Return on Invested Capital)** mede quanto a empresa gera de retorno sobre todo o capital investido (próprio + terceiros).
+
+📐 **Fórmula:** ROIC = NOPAT ÷ Capital Investido × 100
+
+💡 **Por que é importante:**
+- Se ROIC > WACC → a empresa **cria valor** para o acionista
+- Se ROIC < WACC → a empresa **destrói valor**, mesmo lucrandok
+
+📊 ROIC acima de 15% de forma consistente é sinal de vantagem competitiva (moat). Empresas como WEGE3 e MXRF11 têm histórico de ROIC elevado.`
+  },
+  { k:["dívida","divida","endividamento","alavancagem"],
+    r:`**Análise de Endividamento** — como avaliar a dívida de uma empresa:
+
+📊 **Indicadores principais:**
+- **Dívida Líquida/EBITDA** → quanto tempo levaria para pagar a dívida com caixa operacional
+  - Abaixo de 2x: saudável | 2-3x: atenção | acima de 3x: risco
+- **Dívida Líquida/PL** → compara dívida com patrimônio
+- **Cobertura de Juros** → EBIT ÷ Despesas Financeiras. Abaixo de 1,5x é preocupante
+
+💡 **Setores tolerantes a mais dívida:** utilities (energia, saneamento), shopping centers, incorporadoras.
+⚠️ **Setores que exigem dívida baixa:** varejo, small caps, empresas cíclicas.`
+  },
+
+  // ── ETFs ─────────────────────────────────────────────────────────
+  { k:["etf","bova11","ivvb11","smal11","divo11","hash11","etfs"],
+    r:`**ETFs (Exchange Traded Funds)** são fundos negociados na bolsa que replicam índices.
+
+📊 **Principais ETFs brasileiros:**
+
+| ETF | O que replica | Foco |
+|-----|--------------|------|
+| BOVA11 | Ibovespa | As maiores empresas do Brasil |
+| IVVB11 | S&P 500 | As 500 maiores dos EUA |
+| SMAL11 | SMLL | Small caps brasileiras |
+| DIVO11 | IDIV | Empresas pagadoras de dividendos |
+| HASH11 | Criptoativos | Carteira diversificada em crypto |
+| SPXI11 | S&P 500 | Similar ao IVVB11 |
+
+💡 **Vantagens:** diversificação automática, baixo custo, simplicidade.
+⚠️ **Tributação:** 15% de IR sobre o lucro na venda (sem isenção de R$20k como ações).`
+  },
+
+  // ── BDRs ─────────────────────────────────────────────────────────
+  { k:["bdr","bdrs","ação americana","ações americanas","apple","amazon","google","microsoft"],
+    r:`**BDRs (Brazilian Depositary Receipts)** são certificados negociados na B3 que representam ações de empresas estrangeiras.
+
+📌 **Como funciona:** Cada BDR representa uma fração de ação estrangeira. Ex: AAPL34 = ações da Apple.
+
+📊 **Características:**
+- Negociados em reais na B3
+- Exposição cambial (dólar/euro)
+- Empresas como Apple, Amazon, Google, Microsoft, Tesla disponíveis
+
+💰 **Tributação:**
+- Dividendos: retido na fonte (geralmente 30% nos EUA)
+- Venda com lucro: 15% de IR (sem isenção de R$20k)
+
+💡 Boa forma de diversificar internacionalmente sem abrir conta no exterior.`
+  },
+
+  // ── ESTRATÉGIAS ─────────────────────────────────────────────────
+  { k:["preço médio","preco medio","custo médio","custo medio","aportar"],
+    r:`**Preço Médio** é a média ponderada do custo de todas as compras de um ativo.
+
+📐 **Fórmula:** PM = Custo Total Investido ÷ Quantidade Total de Cotas/Ações
+
+📊 **Exemplo:**
+- Compra 1: 100 cotas a R$ 10 = R$ 1.000
+- Compra 2: 100 cotas a R$ 8 = R$ 800
+- **Preço Médio = R$ 1.800 ÷ 200 = R$ 9,00**
+
+💡 **Estratégia de aportes regulares (DCA - Dollar Cost Averaging):**
+Aportar mensalmente independente do preço tende a reduzir o preço médio ao longo do tempo, aproveitando as quedas automaticamente.
+
+⚠️ Baixar o preço médio só faz sentido se você acredita no ativo a longo prazo.`
+  },
+  { k:["diversificação","diversificacao","carteira","alocação","alocacao"],
+    r:`**Diversificação** é distribuir os investimentos para reduzir o risco.
+
+📊 **Referência de alocação para iniciantes:**
+
+- **Renda Fixa** (Tesouro, CDB, LCI/LCA): 20-40% — segurança e liquidez
+- **Ações** (BOVA11 ou ações individuais): 30-40% — crescimento
+- **FIIs** (fundos imobiliários): 15-25% — renda passiva mensal
+- **Internacional** (IVVB11, BDRs): 10-20% — proteção cambial
+- **Reserva de emergência**: 6-12 meses de gastos em liquidez diária
+
+💡 **Regra geral:** quanto mais jovem, mais risco pode assumir (mais ações). Quanto mais próximo da aposentadoria, mais conservador (mais renda fixa).`
+  },
+  { k:["rebalancear","rebalanceamento","rebalanciar"],
+    r:`**Rebalanceamento** é o processo de ajustar a carteira para voltar à alocação original.
+
+📌 **Exemplo:** Você definiu 60% ações / 40% renda fixa. As ações subiram muito e foram para 75%. O rebalanceamento seria vender parte das ações e comprar renda fixa.
+
+📊 **Quando rebalancear:**
+- **Por tempo**: a cada 6 ou 12 meses
+- **Por desvio**: quando algum ativo desvia mais de 5-10% da meta
+
+💡 **Vantagem:** Força você a "vender na alta e comprar na baixa" automaticamente.
+⚠️ No Brasil, vendas de ações geram IR — considere fazer o rebalanceamento pelos aportes (comprando mais do que está abaixo da meta).`
+  },
+
+  // ── RENDA FIXA ───────────────────────────────────────────────────
+  { k:["tesouro direto","tesouro selic","tesouro ipca","tesouro prefixado","ntnb","lft"],
+    r:`**Tesouro Direto** — títulos públicos do governo federal, considerados os investimentos mais seguros do Brasil.
+
+📊 **Tipos principais:**
+
+| Título | Rentabilidade | Ideal para |
+|--------|--------------|------------|
+| Tesouro Selic (LFT) | CDI/Selic | Reserva de emergência |
+| Tesouro IPCA+ (NTN-B) | IPCA + taxa fixa | Longo prazo, aposentadoria |
+| Tesouro Prefixado (LTN) | Taxa fixa definida | Quando Selic está alta |
+
+💡 **Tesouro Selic** → liquidez diária, sem risco de marcação a mercado. Melhor que poupança.
+💡 **Tesouro IPCA+** → protege contra inflação. Ótimo para objetivos de longo prazo (5-10+ anos).`
+  },
+  { k:["cdi","cdb","lci","lca","renda fixa","selic"],
+    r:`**Renda Fixa** — principais investimentos:
+
+📊 **CDI** (Certificado de Depósito Interbancário): taxa de referência da renda fixa. Hoje próxima à Selic.
+
+**CDB** (Certificado de Depósito Bancário):
+- Emitido por bancos, coberto pelo FGC até R$ 250k
+- Bons bancos digitais pagam 100-115% do CDI
+- IR regressivo: 22,5% (até 6 meses) → 15% (acima de 2 anos)
+
+**LCI/LCA** (Letras de Crédito Imobiliário/Agronegócio):
+- **Isentas de IR** para pessoa física
+- Geralmente pagam 85-95% do CDI, mas líquido equivale a mais
+- Carência mínima de 90 dias
+
+💡 **Comparação:** LCI a 90% CDI isenta de IR ≈ CDB a ~106% CDI tributado (dependendo do prazo).`
+  },
+
+  // ── TRIBUTAÇÃO ───────────────────────────────────────────────────
+  { k:["imposto","ir","tributação","tributacao","declarar","darf"],
+    r:`**Tributação de Investimentos** no Brasil:
+
+📊 **Ações:**
+- Vendas até R$ 20.000/mês → **isento de IR**
+- Acima de R$ 20.000/mês → **15%** sobre o lucro (swing trade)
+- Day trade → **20%** sobre o lucro (sem isenção)
+- DARF deve ser pago até o último dia útil do mês seguinte
+
+📊 **FIIs:**
+- Rendimentos mensais → **isentos de IR** (PF com cotas em bolsa)
+- Venda com lucro → **20%** sobre o ganho de capital
+
+📊 **ETFs:**
+- Venda com lucro → **15%** sobre o ganho (sem isenção de R$20k)
+
+📊 **Renda Fixa (CDB, Tesouro):**
+- IR regressivo: 22,5% → 20% → 17,5% → 15% (conforme o prazo)
+
+⚠️ Prejuízos em ações podem ser compensados com lucros futuros na mesma categoria.`
+  },
+
+  // ── CONCEITOS BÁSICOS ────────────────────────────────────────────
+  { k:["jcp","juros sobre capital próprio","juros capital"],
+    r:`**JCP (Juros sobre Capital Próprio)** é uma forma de distribuição de lucros para acionistas, similar ao dividendo mas com tratamento fiscal diferente.
+
+📌 **Diferença para dividendo:**
+- **Dividendo** → isento de IR para o acionista
+- **JCP** → tem retenção de 15% de IR na fonte
+
+💡 Para a empresa, o JCP é dedutível do IRPJ/CSLL — por isso muitas empresas optam por distribuir parte como JCP (reduz a carga tributária da empresa, mas o acionista paga 15%).
+
+📊 Na prática: se você receber R$ 1.000 de JCP, receberá R$ 850 líquidos (já retido o IR).`
+  },
+  { k:["bonificação","bonificacao","desdobramento","split","grupamento","inplit"],
+    r:`**Eventos corporativos** que afetam a quantidade de ações:
+
+📊 **Desdobramento (Split):** aumenta a quantidade de ações, reduzindo o preço proporcionalmente.
+- Ex: 1 ação a R$ 100 → vira 10 ações a R$ 10
+- Não muda o valor total do investimento
+- Objetivo: aumentar liquidez e acessibilidade
+
+📊 **Grupamento (Inplit):** reduz a quantidade de ações, aumentando o preço.
+- Ex: 10 ações a R$ 2 → vira 1 ação a R$ 20
+- Objetivo: sair da condição de "penny stock"
+
+📊 **Bonificação:** empresa distribui novas ações ao invés de dividendos em dinheiro.
+- Ex: 10% de bonificação → para cada 10 ações, você recebe 1 nova
+
+💡 Todos esses eventos são tributariamente neutros no momento do recebimento.`
+  },
+  { k:["subscrição","subscricao","direito de subscrição","follow on"],
+    r:`**Subscrição** é o direito de comprar novas ações de uma empresa antes do mercado geral, geralmente a um preço com desconto.
+
+📌 **Como funciona:**
+1. Empresa decide captar recursos emitindo novas ações
+2. Acionistas atuais recebem direitos de subscrição proporcionais à participação
+3. Você pode **exercer** (comprar as novas ações) ou **vender** os direitos na bolsa
+
+💡 **Quando vale exercer:** se o preço de subscrição for menor que o preço de mercado E você acredita na empresa.
+
+⚠️ Se não exercer nem vender os direitos, eles viram pó — fique atento ao prazo.`
+  },
+
+  // ── IBOVESPA / MERCADO ───────────────────────────────────────────
+  { k:["ibovespa","ibov","índice","indice","b3"],
+    r:`**Ibovespa** é o principal índice da bolsa brasileira (B3), composto pelas ações mais negociadas.
+
+📊 **Composição:** ~87 ações com maior volume e frequência de negociação
+**Maiores pesos:** VALE3, PETR4, ITUB4, BBDC4, ABEV3, B3SA3
+
+📌 **Para que serve:**
+- Referência (benchmark) para avaliar carteiras
+- Se sua carteira sobe menos que o Ibovespa, está "perdendo para o índice"
+
+💡 **Alternativas de investir no Ibovespa:**
+- **BOVA11** → ETF que replica o índice, taxa de 0,10% ao ano
+- **Fundos de índice** → gestão passiva, menores custos
+
+📊 **Índices setoriais:** IDIV (dividendos), SMLL (small caps), IFIX (FIIs), UTIL (utilities).`
+  },
+
+  // ── ANÁLISE TÉCNICA ──────────────────────────────────────────────
+  { k:["média móvel","media movel","mm20","mm50","mm200","sma","ema"],
+    r:`**Médias Móveis** suavizam o preço para identificar tendências.
+
+📊 **Tipos:**
+- **MM Simples (SMA):** média dos últimos N preços
+- **MM Exponencial (EMA):** dá mais peso aos preços recentes
+
+📌 **As mais usadas:**
+- **MM20** → curto prazo, sinais rápidos
+- **MM50** → médio prazo
+- **MM200** → longo prazo, define tendência principal
+
+💡 **Sinais comuns:**
+- Preço **acima** da MM200 → tendência de alta
+- Preço **abaixo** da MM200 → tendência de baixa
+- MM20 cruzando acima da MM50 → **Golden Cross** (sinal de compra)
+- MM20 cruzando abaixo da MM50 → **Death Cross** (sinal de venda)
+
+⚠️ Médias móveis são indicadores defasados — confirmam tendências, não as preveem.`
+  },
+  { k:["suporte","resistência","resistencia","análise técnica","analise tecnica","candlestick","candle"],
+    r:`**Suporte e Resistência** são conceitos fundamentais da análise técnica.
+
+📊 **Suporte:** nível de preço onde o ativo tende a parar de cair e reverter
+- O mercado "sustenta" o preço nessa região
+- Quando rompido, pode virar resistência
+
+📊 **Resistência:** nível de preço onde o ativo tende a parar de subir
+- O mercado "resiste" ao avanço do preço
+- Quando rompida, pode virar suporte
+
+💡 **Candlestick:** cada vela representa a abertura, máxima, mínima e fechamento de um período.
+- Vela **verde/branca** → fechou acima da abertura (alta)
+- Vela **vermelha/preta** → fechou abaixo da abertura (queda)
+
+⚠️ Análise técnica funciona melhor combinada com análise fundamentalista.`
+  },
+
+  // ── JUROS COMPOSTOS / CONCEITOS FINANCEIROS ─────────────────────
+  { k:["juros compostos","juro composto","rentabilidade","rendimento"],
+    r:`**Juros Compostos** — o "oitavo maravilha do mundo" segundo Einstein.
+
+📐 **Fórmula:** M = P × (1 + i)^n
+- M = Montante final
+- P = Principal (valor inicial)
+- i = Taxa de juros por período
+- n = Número de períodos
+
+📊 **Exemplo prático:**
+R$ 10.000 a 10% ao ano:
+- 10 anos → R$ 25.937
+- 20 anos → R$ 67.275
+- 30 anos → R$ 174.494
+
+💡 **Regra dos 72:** divida 72 pela taxa de juros para saber em quantos anos o dinheiro dobra.
+- 6% ao ano → dobra em 12 anos
+- 12% ao ano → dobra em 6 anos
+
+⏰ O segredo é **tempo + consistência**. Começar cedo é mais importante que o valor do aporte.`
+  },
+  { k:["reserva de emergência","reserva emergencia","fundo de emergência"],
+    r:`**Reserva de Emergência** — o primeiro passo antes de qualquer investimento.
+
+📌 **Quanto guardar:** 6 a 12 meses dos seus gastos mensais
+- Gastos fixos de R$ 3.000/mês → reserva de R$ 18.000 a R$ 36.000
+
+📊 **Onde guardar:**
+- **Tesouro Selic** → rendimento diário, liquidez D+1
+- **CDB de liquidez diária** (100%+ CDI em bancos digitais)
+- **Conta remunerada** de bancos digitais (Nubank, Inter, C6)
+
+⚠️ **Não use** poupança (rende menos), **não use** CDB sem liquidez diária, **não use** ações ou FIIs para reserva.
+
+💡 Só invista em ativos de maior risco (ações, FIIs) **depois** de ter a reserva completa.`
+  },
+
+  // ── SAUDAÇÕES E META ─────────────────────────────────────────────
+  { k:["olá","ola","oi","hey","bom dia","boa tarde","boa noite","tudo bem","tudo bom"],
+    r:`Olá! Sou o **Vix**, seu assistente de análise do mercado financeiro brasileiro. 📊
+
+Posso te ajudar com:
+- **FIIs** — fundos imobiliários, indicadores, como analisar
+- **Ações** — P/L, ROE, EBITDA, análise fundamentalista
+- **ETFs e BDRs** — diversificação e investimentos internacionais
+- **Renda Fixa** — Tesouro Direto, CDB, LCI/LCA
+- **Análise Técnica** — médias móveis, suporte, resistência
+- **Tributação** — IR sobre cada tipo de investimento
+- **Estratégias** — diversificação, preço médio, reserva de emergência
+
+Como posso te ajudar hoje?`
+  },
+  { k:["obrigado","obrigada","valeu","thanks","grato","grata"],
+    r:`De nada! Fico feliz em ajudar. 😊
+
+Se tiver mais dúvidas sobre o mercado financeiro, é só perguntar!`
+  },
+  { k:["quem é você","quem é vc","o que você é","o que voce é","o que é vix","você é ia","voce é ia"],
+    r:`Sou o **Vix** — assistente especializado no mercado financeiro brasileiro. 📈
+
+Fui desenvolvido para ajudar investidores a entender:
+- Fundos Imobiliários (FIIs)
+- Ações e análise fundamentalista
+- ETFs, BDRs e diversificação
+- Renda Fixa e tributação
+- Estratégias de investimento
+
+Faço análises baseadas em conceitos consolidados do mercado. Para dados em tempo real de cotações, use os gráficos e cards do B3 Terminal ao lado! 😉`
+  },
+];
+
+// ── Motor NLP local ──────────────────────────────────────────────
+function vixResponder(texto) {
+  const q = texto.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")  // remove acentos
+    .replace(/[^\w\s]/g," ").trim();
+
+  // Verificar cada tópico
+  for(const item of VIX_KB){
+    for(const kw of item.k){
+      const kwNorm = kw.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+      if(q.includes(kwNorm)) return item.r;
+    }
+  }
+
+  // Sem resposta específica — fallback inteligente
+  const fallbacks = [
+    `Não tenho uma resposta específica para **"${texto}"** no momento.
+
+Posso te ajudar com estes tópicos:
+📊 FIIs · Ações · ETFs · BDRs · Renda Fixa
+📐 P/L · P/VP · DY · ROE · EBITDA
+💰 Dividendos · JCP · Tributação · IR
+📈 Análise Técnica · Médias Móveis
+🎯 Diversificação · Reserva de Emergência
+
+Tente reformular sua pergunta com um desses temas!`,
+  ];
+  return fallbacks[0];
+}
+
+// Formatar markdown simples para HTML
+function vixFormatar(texto) {
+  return texto
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>')
+    .replace(/---/g,'<hr style="border-color:var(--bd);margin:8px 0">');
 }
 
 async function joaoSend(){
@@ -4001,12 +4500,9 @@ async function joaoSend(){
   if(!inp || _joaoLoading) return;
   const text = inp.value.trim();
   if(!text) return;
-
-  // Basic debounce — avoid double-send
-  if(Date.now() - _joaoLastError < 800) return;
+  if(Date.now() - _joaoLastError < 400) return;
 
   inp.value = "";
-  // Hide chips after use
   const chips = $("joao-chips");
   if(chips) chips.style.display = "none";
 
@@ -4019,64 +4515,18 @@ async function joaoSend(){
   if(typing) typing.classList.add("show");
   joaoScrollBottom();
 
+  // Simular tempo de "digitação" para parecer natural
+  const delay = 600 + Math.random() * 800;
+  await new Promise(r => setTimeout(r, delay));
+
   try {
-    // ── Use raw fetch (NOT apiFetch) so we can read the body on any status ──
-    const ctrl = new AbortController();
-    // BUG FIX: timeout de 60s no frontend (backend leva até 55s no Render free tier)
-    // O timeout de 30s anterior matava a requisição antes do backend responder
-    const tout = setTimeout(()=>ctrl.abort(), 60000);
-
-    let response;
-    try {
-      response = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({messages: _joaoMsgs.slice(-20)}),
-        signal: ctrl.signal,
-        credentials: "same-origin",
-      });
-    } finally {
-      clearTimeout(tout);
-    }
-
     if(typing) typing.classList.remove("show");
-
-    // Always try to parse JSON regardless of HTTP status
-    let data = null;
-    try { data = await response.json(); } catch(parseErr) { /* non-json body */ }
-
-    if(response.ok && data && data.reply){
-      joaoAddMsg("assistant", data.reply);
-    } else {
-      _joaoMsgs.pop();
-      // Mostra o código HTTP exato para diagnóstico
-      const httpCode = response.status;
-      let errMsg = data?.error || `Erro HTTP ${httpCode}`;
-      // Mensagens específicas por código
-      if(httpCode === 500) errMsg = `Erro interno do servidor (500). Verifique os Logs do Render — a causa real está lá.`;
-      else if(httpCode === 503) errMsg = data?.error || "Serviço indisponível (503). API key pode estar inválida.";
-      else if(httpCode === 504) errMsg = "Timeout (504) — servidor demorou demais. Tente novamente.";
-      else if(httpCode === 401) errMsg = "API key inválida ou expirada (401). Verifique ANTHROPIC_API_KEY no Render.";
-      else if(httpCode === 429) errMsg = "Muitas requisições (429). Aguarde alguns segundos.";
-      joaoAddError(`⚠️ ${errMsg}`);
-      _joaoLastError = Date.now();
-      if(inp) inp.value = text;
-    }
-
-  } catch(e){
-    if(typing) typing.classList.remove("show");
-    _joaoMsgs.pop(); // remove unsent user message from history
-    _joaoLastError = Date.now();
-    if(inp) inp.value = text; // restore so user can retry
-
-    let errText = "⚠️ Sem resposta do servidor. Tente novamente.";
-    if(e.name === "AbortError") errText = "⚠️ O assistente demorou para responder — o servidor pode estar acordando. Aguarde alguns segundos e tente de novo.";
-    else if(!navigator.onLine) errText = "⚠️ Sem conexão com a internet.";
-    joaoAddError(errText);
+    const resposta = vixResponder(text);
+    joaoAddMsg("assistant", resposta);
   } finally {
     _joaoLoading = false;
     if(sendBtn) sendBtn.disabled = false;
-    if(inp && !inp.value) inp.focus();
+    if(inp) inp.focus();
   }
 }
 
