@@ -928,107 +928,104 @@ def ai_ping():
 @app.route("/api/ai/chat", methods=["POST"])
 @login_required
 def ai_chat():
-    """João — AI Financial Assistant powered by Claude."""
     ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
     if not ANTHROPIC_KEY:
-        return jsonify({"error": "IA não configurada. Adicione ANTHROPIC_API_KEY nas variáveis de ambiente."}), 503
+        return jsonify({"error": "ANTHROPIC_API_KEY não configurada no Render."}), 503
 
-    body = request.get_json() or {}
+    # Parse body
+    try:
+        body = request.get_json(force=True) or {}
+    except Exception as e:
+        print(f"  AI chat: falha ao parsear JSON do body: {e}")
+        return jsonify({"error": "Payload inválido."}), 400
+
     messages = body.get("messages", [])
     if not messages:
-        return jsonify({"error": "messages obrigatório"}), 400
+        return jsonify({"error": "Campo 'messages' obrigatório."}), 400
 
-    # Validate and sanitize messages
+    # Sanitizar mensagens
     clean_msgs = []
-    for m in messages[-20:]:  # max 20 turns of history
-        role = m.get("role", "")
+    for m in messages[-20:]:
+        role    = str(m.get("role", "")).strip()
         content = str(m.get("content", "")).strip()
         if role in ("user", "assistant") and content:
             clean_msgs.append({"role": role, "content": content[:2000]})
 
     if not clean_msgs:
-        return jsonify({"error": "Nenhuma mensagem válida."}), 400
+        return jsonify({"error": "Nenhuma mensagem válida após sanitização."}), 400
 
-    system_prompt = """Você é Vix, um assistente especializado no mercado financeiro brasileiro (B3).
+    system_prompt = (
+        "Você é Vix, assistente especializado no mercado financeiro brasileiro (B3). "
+        "Responda sempre em português brasileiro, de forma objetiva e profissional. "
+        "Especialidade: ações, FIIs, ETFs, BDRs, dividendos, análise fundamentalista e técnica. "
+        "Nunca faça recomendações definitivas de compra/venda sem mencionar riscos."
+    )
 
-Seu perfil:
-- Nome: Vix
-- Especialidade: Mercado de capitais brasileiro — ações, FIIs, ETFs, BDRs, índices da B3
-- Tom: Objetivo, claro, educativo e amigável. Profissional mas acessível.
-- Idioma: Sempre português brasileiro
+    payload = {
+        "model": "claude-sonnet-4-20250514",
+        "max_tokens": 1024,
+        "system": system_prompt,
+        "messages": clean_msgs,
+    }
 
-Você domina:
-- Análise fundamentalista: P/L, P/VP, EV/EBITDA, ROE, ROIC, Margem EBITDA, Dívida Líquida/EBITDA
-- Análise técnica: médias móveis, suporte/resistência, candlestick, volume
-- FIIs: tipos (tijolo, papel, híbrido, FOF), P/VP, DY, vacância, gestão
-- ETFs brasileiros: BOVA11, IVVB11, SMAL11, DIVO11, HASH11 e outros
-- BDRs: como funcionam, tributação, principais ativos
-- Estratégias: diversificação, rebalanceamento, preço médio, juros compostos
-- Conceitos: dividendos, proventos, JCP, bonificação, subscrição
-- Tributação: IR sobre ações, FIIs, ETFs — isenções e obrigações
+    headers = {
+        "x-api-key": ANTHROPIC_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
 
-Ao responder:
-- Seja direto e objetivo. Evite respostas longas desnecessárias.
-- Use exemplos práticos com números reais quando útil.
-- Para perguntas sobre preços específicos, informe que não tem acesso a cotações em tempo real.
-- Nunca faça recomendações definitivas de compra/venda sem embasamento — sempre mencione riscos.
-- Quando não souber algo, seja honesto.
-- Use marcações simples: **negrito** para termos importantes, linhas separadas para listas.
-"""
+    print(f"  AI chat: chamando Anthropic. model={payload['model']} msgs={len(clean_msgs)} key_prefix={ANTHROPIC_KEY[:12]}...")
 
     try:
         r = req_lib.post(
             "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_KEY,
-                # BUG FIX 1: versão atualizada da API Anthropic
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                # CORRIGIDO: string correto do modelo na API Anthropic
-                "model": "claude-sonnet-4-20250514",
-                "max_tokens": 1024,
-                "system": system_prompt,
-                "messages": clean_msgs,
-            },
-            # BUG FIX 4: timeout de 55s — Render free pode demorar até ~50s na cold start
+            headers=headers,
+            json=payload,
             timeout=55,
         )
+        print(f"  AI chat: resposta HTTP {r.status_code}")
         r.raise_for_status()
+
         data = r.json()
-        reply = ""
-        for block in data.get("content", []):
-            if block.get("type") == "text":
-                reply += block.get("text", "")
+        reply = "".join(
+            block.get("text", "")
+            for block in data.get("content", [])
+            if block.get("type") == "text"
+        )
+
         if not reply:
-            # BUG FIX 5: log detalhado para diagnóstico
-            print(f"  AI chat: resposta vazia. data={data}")
-            return jsonify({"error": "Resposta vazia da IA."}), 502
+            print(f"  AI chat: resposta vazia. stop_reason={data.get('stop_reason')} usage={data.get('usage')}")
+            return jsonify({"error": "A IA não retornou texto. Tente novamente."}), 502
+
         return jsonify({"reply": reply.strip()})
+
     except req_lib.exceptions.Timeout:
-        print("  AI chat: timeout após 55s")
-        return jsonify({"error": "O assistente demorou muito para responder. O servidor pode estar acordando — tente novamente em alguns segundos."}), 504
+        print("  AI chat: timeout 55s")
+        return jsonify({"error": "Tempo esgotado (55s). O servidor pode estar acordando — aguarde e tente novamente."}), 504
+
     except req_lib.exceptions.ConnectionError as e:
-        # BUG FIX 6: tratar erro de conexão separadamente (DNS, SSL, rede)
-        print(f"  AI chat connection error: {e}")
-        return jsonify({"error": "Erro de conexão com a API. Verifique a conectividade do servidor."}), 503
+        print(f"  AI chat: ConnectionError: {e}")
+        return jsonify({"error": "Sem conexão com a API Anthropic. Verifique a rede do Render."}), 503
+
     except req_lib.exceptions.HTTPError as e:
-        status = e.response.status_code if e.response else 500
-        body_text = ""
-        try: body_text = e.response.text[:300]
+        status = e.response.status_code if e.response else 0
+        body_snippet = ""
+        try: body_snippet = e.response.text[:400]
         except: pass
-        print(f"  AI chat HTTP {status}: {body_text}")
-        if status == 401:
-            return jsonify({"error": "Chave da API inválida ou expirada. Verifique ANTHROPIC_API_KEY no Render."}), 503
-        if status == 429:
-            return jsonify({"error": "Limite de requisições atingido. Aguarde um momento e tente novamente."}), 429
-        if status == 529:
-            return jsonify({"error": "API sobrecarregada. Tente novamente em alguns instantes."}), 503
-        return jsonify({"error": f"Erro na API de IA ({status}). Tente novamente."}), 502
+        print(f"  AI chat: HTTPError {status}: {body_snippet}")
+        msgs = {
+            401: "Chave da API inválida ou expirada (401). Verifique ANTHROPIC_API_KEY no Render.",
+            403: "Acesso negado (403). Verifique permissões da chave.",
+            429: "Limite de requisições atingido (429). Aguarde alguns segundos.",
+            529: "API Anthropic sobrecarregada (529). Tente em instantes.",
+        }
+        return jsonify({"error": msgs.get(status, f"Erro HTTP {status} na API Anthropic.")}), 502
+
     except Exception as e:
-        print(f"  AI chat unexpected error: {type(e).__name__}: {e}")
-        return jsonify({"error": "Erro interno ao processar a resposta. Tente novamente."}), 500
+        import traceback
+        tb = traceback.format_exc()
+        print(f"  AI chat: ERRO INESPERADO {type(e).__name__}: {e}\n{tb}")
+        return jsonify({"error": f"Erro interno: {type(e).__name__} — {str(e)[:120]}"}), 500
 
 
 @app.route("/api/ri/search")
