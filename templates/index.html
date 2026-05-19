@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#00e5b0">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e5b0'/%3E%3Cstop offset='1' stop-color='%2300b0ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Arial Black' font-size='14' font-weight='900' fill='black'%3EB3%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -324,43 +324,82 @@ a{text-decoration:none;color:inherit}
    TEMA CLARO — premium institucional
 ══════════════════════════════════════════════ */
 body.light{
-  --bg:#f0f4f8;--bg2:#ffffff;--bg3:#f7f9fc;--bd:#dde3ec;
-  --t:#4a6080;--td:#94a8be;--tb:#0d1e30;
-  --ui1:#00b894;--ui2:#0070f3;
-  --ui-grd:linear-gradient(135deg,#00b894,#0070f3);
-  --g:#00a86b;--gd:rgba(0,168,107,.08);--gb:rgba(0,168,107,.15);
-  --r:#e53e3e;--rd:rgba(229,62,62,.08);
-  --a:#d4810a;--ad:rgba(212,129,10,.08);
-  --b:#0070f3;--bld:rgba(0,112,243,.08);
-  --p:#7c3aed;--pd:rgba(124,58,237,.08);
-  --shadow:0 4px 24px rgba(0,0,0,.1);
-  --glow:0 0 20px rgba(0,112,243,.1);
+  /* Cinza azulado premium — não branco puro */
+  --bg:#e2e8f0;
+  --bg2:#edf2f7;
+  --bg3:#d8e0ea;
+  --bd:#bec8d6;
+  --t:#3d4f63;
+  --td:#7a8fa6;
+  --tb:#0f1e2e;
+  --ui1:#00966d;
+  --ui2:#005fcb;
+  --ui-grd:linear-gradient(135deg,#00966d,#005fcb);
+  --g:#00875a;--gd:rgba(0,135,90,.1);--gb:rgba(0,135,90,.18);
+  --r:#c0222e;--rd:rgba(192,34,46,.09);
+  --a:#a0520a;--ad:rgba(160,82,10,.09);
+  --b:#005fcb;--bld:rgba(0,95,203,.1);
+  --p:#5b21b6;--pd:rgba(91,33,182,.09);
+  --shadow:0 4px 20px rgba(0,0,0,.13);
+  --glow:0 0 20px rgba(0,95,203,.12);
 }
 body.light{background:var(--bg);color:var(--t)}
-body.light #hdr{background:rgba(255,255,255,.94);border-bottom-color:rgba(0,112,243,.1);box-shadow:0 1px 0 rgba(0,112,243,.08),0 4px 16px rgba(0,0,0,.06)}
-body.light #hdr::before{background:linear-gradient(90deg,transparent,rgba(0,184,148,.5),rgba(0,112,243,.5),transparent)}
-body.light .logo-name{background:linear-gradient(135deg,#0d1e30 60%,rgba(0,184,148,.9));-webkit-background-clip:text;background-clip:text}
-body.light #clock{background:rgba(212,129,10,.06);border-color:rgba(212,129,10,.15);color:var(--a)}
-body.light #tkbar{background:rgba(248,250,253,.96);border-bottom-color:rgba(0,112,243,.1)}
+body.light::before{background:radial-gradient(ellipse at 15% 0%,rgba(0,95,203,.06) 0%,transparent 50%),radial-gradient(ellipse at 85% 100%,rgba(0,150,109,.04) 0%,transparent 50%)}
+body.light #hdr{background:rgba(220,228,238,.96);border-bottom-color:rgba(0,95,203,.14);box-shadow:0 1px 0 rgba(0,95,203,.1),0 4px 16px rgba(0,0,0,.09)}
+body.light #hdr::before{background:linear-gradient(90deg,transparent,rgba(0,150,109,.5),rgba(0,95,203,.5),transparent)}
+body.light .logo-name{background:linear-gradient(135deg,#0f1e2e 50%,rgba(0,150,109,.9));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+body.light .logo-box{box-shadow:0 0 14px rgba(0,95,203,.22),0 2px 8px rgba(0,0,0,.18)}
+body.light #clock{background:rgba(160,82,10,.08);border-color:rgba(160,82,10,.2);color:#6b3a08}
+body.light #eta{color:var(--td)}
+body.light #tkbar{background:rgba(210,218,228,.97);border-bottom-color:rgba(0,95,203,.12)}
+body.light .tk-tag{background:rgba(0,95,203,.1);color:var(--ui2);border-color:rgba(0,95,203,.2)}
 body.light .tk-item{color:var(--tb)}
-body.light .idx-card{background:#fff;border-color:var(--bd);box-shadow:0 2px 8px rgba(0,0,0,.04)}
-body.light .idx-card:hover{border-color:rgba(0,112,243,.25);box-shadow:0 4px 16px rgba(0,112,243,.08)}
-body.light .card{background:#fff;border-color:var(--bd);box-shadow:0 2px 8px rgba(0,0,0,.04)}
-body.light .card-up:hover{border-color:rgba(0,168,107,.3);box-shadow:0 6px 20px rgba(0,168,107,.08)}
-body.light .card-dn:hover{border-color:rgba(229,62,62,.3);box-shadow:0 6px 20px rgba(229,62,62,.08)}
-body.light #tabs{background:rgba(248,250,253,.97);border-right-color:rgba(0,112,243,.08);border-bottom-color:rgba(0,112,243,.08)}
+body.light .idx-card{background:var(--bg2);border-color:var(--bd);box-shadow:0 2px 8px rgba(0,0,0,.07)}
+body.light .idx-card:hover{border-color:rgba(0,95,203,.3);box-shadow:0 4px 16px rgba(0,95,203,.1)}
+body.light .idx-v{color:var(--tb)}.body.light .idx-n{color:var(--td)}
+body.light .card{background:var(--bg2);border-color:var(--bd);box-shadow:0 2px 8px rgba(0,0,0,.07)}
+body.light .card:hover{box-shadow:0 6px 20px rgba(0,0,0,.11)}
+body.light .card-up:hover{border-color:rgba(0,135,90,.35)}
+body.light .card-dn:hover{border-color:rgba(192,34,46,.35)}
+body.light .c-sym,.body.light .c-price{color:var(--tb)}
+body.light .c-name,.body.light .cs-l,.body.light .c-abs{color:var(--td)}
+body.light .c-foot{border-top-color:var(--bd)}
+body.light .cs-v{color:var(--t)}
+body.light #tabs{background:rgba(206,215,226,.98);border-right-color:rgba(0,95,203,.1);border-bottom-color:rgba(0,95,203,.1);box-shadow:1px 0 0 rgba(0,95,203,.07),4px 0 16px rgba(0,0,0,.08)}
 body.light .tab{color:var(--td)}
-body.light .tab.on{background:rgba(0,112,243,.07);color:var(--ui2);border-left-color:var(--ui2)}
-body.light .tab:hover:not(.on){background:rgba(0,0,0,.03);color:var(--t)}
-body.light #bottom-nav{background:rgba(255,255,255,.97);border-top-color:rgba(0,112,243,.1)}
-body.light .bnav-item.on{background:rgba(0,112,243,.06);color:var(--ui2)}
+body.light .tab.on{background:rgba(0,95,203,.1);color:var(--ui2);border-left-color:var(--ui2)}
+body.light .tab:hover:not(.on){background:rgba(0,0,0,.04);color:var(--t)}
+body.light #bottom-nav{background:rgba(214,222,232,.98);border-top-color:rgba(0,95,203,.13);box-shadow:0 -4px 16px rgba(0,0,0,.09)}
+body.light .bnav-item.on{background:rgba(0,95,203,.09);color:var(--ui2)}
 body.light .bnav-item.on::before{background:var(--ui2)}
-body.light #overlay{background:rgba(240,244,248,.92)}
-body.light .modal{background:#fff;border-color:var(--bd);box-shadow:0 16px 48px rgba(0,0,0,.12)}
-body.light .dcard,.body.light .cal-card,.body.light .ncard{background:#fff;border-color:var(--bd)}
-body.light .empty-box{color:var(--td)}
+body.light #overlay{background:rgba(196,206,218,.88)}
+body.light .modal{background:var(--bg2);border-color:var(--bd);box-shadow:0 16px 48px rgba(0,0,0,.16)}
+body.light .m-l{color:var(--td)}.body.light .m-v{color:var(--tb)}.body.light .m-t{color:var(--tb)}
+body.light .dcard,.body.light .cal-card,.body.light .ncard,.body.light .ct-card{background:var(--bg2);border-color:var(--bd);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+body.light .empty-box{color:var(--td)}.body.light .empty-box .et{color:var(--t)}
 body.light ::-webkit-scrollbar-track{background:var(--bg2)}
 body.light ::-webkit-scrollbar-thumb{background:var(--bd)}
+body.light ::-webkit-scrollbar-thumb:hover{background:#9aafc4}
+body.light .tblwrap{background:var(--bg2);border-color:var(--bd)}
+body.light table{color:var(--t)}.body.light thead tr{background:var(--bg3)}
+body.light th{color:var(--td);border-bottom-color:var(--bd)}
+body.light td{border-bottom-color:rgba(174,188,208,.45)}
+body.light .inp,.body.light .sim-inp,.body.light .ct-search{background:var(--bg3);border-color:var(--bd);color:var(--tb)}
+body.light .btnadd{background:rgba(0,95,203,.09);border-color:rgba(0,95,203,.28);color:var(--ui2)}
+body.light .btnadd:hover{background:var(--ui-grd);color:#fff;border-color:transparent}
+body.light .gr-wm-cover{background:var(--bg2)}
+body.light #joao-panel{background:var(--bg2);border-color:rgba(0,95,203,.16);box-shadow:0 16px 48px rgba(0,0,0,.18)}
+body.light #joao-hdr{background:linear-gradient(135deg,rgba(0,150,109,.08),rgba(0,95,203,.05))}
+body.light .jmsg-ai .jbubble{background:var(--bg3);border-color:var(--bd);color:var(--t)}
+body.light .jmsg-user .jbubble{background:linear-gradient(135deg,rgba(0,150,109,.1),rgba(0,95,203,.09));border-color:rgba(0,95,203,.2);color:var(--tb)}
+body.light .jtyping-bubble{background:var(--bg3);border-color:var(--bd)}
+body.light .jchip{background:rgba(0,95,203,.07);border-color:rgba(0,95,203,.2);color:var(--td)}
+body.light .jchip:hover{border-color:var(--ui2);color:var(--ui2);background:rgba(0,95,203,.12)}
+body.light #joao-inp{background:var(--bg3);border-color:var(--bd);color:var(--tb)}
+body.light #joao-inp:focus{border-color:rgba(0,95,203,.5);box-shadow:0 0 0 3px rgba(0,95,203,.09)}
+body.light #joao-input-area{background:rgba(200,212,226,.5);border-top-color:var(--bd)}
+body.light #joao-btn{background:rgba(0,150,109,.1);border-color:rgba(0,150,109,.32);color:#005540}
+body.light #joao-btn:hover{background:rgba(0,150,109,.18);box-shadow:0 0 18px rgba(0,150,109,.18)}
 
 /* ── Toggle button ────────────────────────────── */
 #theme-toggle{
@@ -3365,8 +3404,6 @@ const GC_CHART_OPT = {
   },
   handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true},
   handleScale:{axisPressedMouseMove:true,mouseWheel:true,pinch:true},
-  attributionLogo:false,
-  watermark:{visible:false},
 };
 
 function gcInit(){
@@ -3971,12 +4008,18 @@ async function joaoSend(){
     if(response.ok && data && data.reply){
       joaoAddMsg("assistant", data.reply);
     } else {
-      // Remove the user message from history so user can retry
       _joaoMsgs.pop();
-      const errMsg = (data && data.error) ? data.error : `Erro ${response.status} — tente novamente.`;
-      joaoAddError("⚠️ " + errMsg);
+      // Mostra o código HTTP exato para diagnóstico
+      const httpCode = response.status;
+      let errMsg = data?.error || `Erro HTTP ${httpCode}`;
+      // Mensagens específicas por código
+      if(httpCode === 500) errMsg = `Erro interno do servidor (500). Verifique os Logs do Render — a causa real está lá.`;
+      else if(httpCode === 503) errMsg = data?.error || "Serviço indisponível (503). API key pode estar inválida.";
+      else if(httpCode === 504) errMsg = "Timeout (504) — servidor demorou demais. Tente novamente.";
+      else if(httpCode === 401) errMsg = "API key inválida ou expirada (401). Verifique ANTHROPIC_API_KEY no Render.";
+      else if(httpCode === 429) errMsg = "Muitas requisições (429). Aguarde alguns segundos.";
+      joaoAddError(`⚠️ ${errMsg}`);
       _joaoLastError = Date.now();
-      // Restore input so user can retry
       if(inp) inp.value = text;
     }
 
