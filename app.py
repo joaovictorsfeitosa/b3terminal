@@ -1,4 +1,5 @@
-import os, re, threading, time, calendar, requests as req_lib
+import os, re, threading, time, calendar, requests as req_lib, csv
+from io import StringIO
 from datetime import datetime, date, timedelta
 from flask import Flask, jsonify, render_template, request, redirect, url_for
 from flask_cors import CORS
@@ -421,79 +422,159 @@ def get_history(symbol):
     return jsonify(data or [])
 
 # ── Chart endpoint for Análise Gráfica ────────────────────────────────────────
+
+# ── Period config ─────────────────────────────────────────────────────────────
+# interval: "d"=daily  "w"=weekly  "m"=monthly
+# days: how far back to request from today (used to build d1/d2 for Stooq)
+# ttl: cache lifetime in seconds
 CHART_PERIOD_MAP = {
-    "1d":  ("1d",  "30m",  True),
-    "5d":  ("5d",  "1h",   True),
-    "1mo": ("1mo", "1d",   False),
-    "3mo": ("3mo", "1d",   False),
-    "6mo": ("6mo", "1d",   False),
-    "1y":  ("1y",  "1d",   False),
-    "5y":  ("5y",  "1wk",  False),
-    "max": ("max", "1mo",  False),
+    "1mo":  {"days": 35,    "interval": "d", "ttl": 600},
+    "3mo":  {"days": 95,    "interval": "d", "ttl": 600},
+    "6mo":  {"days": 185,   "interval": "d", "ttl": 900},
+    "1y":   {"days": 370,   "interval": "d", "ttl": 1800},
+    "5y":   {"days": 1830,  "interval": "w", "ttl": 3600},
+    "max":  {"days": 10000, "interval": "m", "ttl": 7200},
 }
 
-def brapi_chart(symbol, period="1mo"):
-    sym = symbol.upper().replace(".SA","")
-    range_, interval, intraday = CHART_PERIOD_MAP.get(period, ("1mo","1d",False))
-    ttl = 120 if intraday else 600
-    ck  = f"gc_{sym}_{period}"
-    cached = cache_get(ck, ttl=ttl)
-    if cached: return cached
-    data = brapi_get(f"/quote/{sym}", {"range": range_, "interval": interval})
-    if not data or "results" not in data or not data["results"]: return []
-    hist = data["results"][0].get("historicalDataPrice", [])
+_STOOQ_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,text/csv,application/csv,*/*",
+    "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+    "Referer": "https://stooq.com/",
+}
+
+def _parse_stooq_csv(text):
+    """Parse Stooq CSV → list of OHLCV dicts. Returns [] on any problem."""
+    text = text.strip()
+    if not text or len(text) < 30:
+        return []
+    # Stooq returns 'No data' or similar when symbol unknown
+    first = text.split("\n")[0].lower()
+    if "date" not in first:
+        return []
     out, seen = [], set()
-    for h in hist:
-        ts = h.get("date")
-        if not ts: continue
-        try:
-            cl = float(h.get("close") or 0)
-            op = float(h.get("open")  or 0) or cl
-            hi = float(h.get("high")  or 0) or cl
-            lo = float(h.get("low")   or 0) or cl
-            if cl <= 0: continue
-            if intraday:
-                time_val = int(ts)
-            else:
-                dt = datetime.utcfromtimestamp(ts)
-                time_val = dt.strftime("%Y-%m-%d")
-            if time_val in seen: continue
-            seen.add(time_val)
-            out.append({"time":time_val,"open":round(op,2),"high":round(hi,2),
-                        "low":round(lo,2),"close":round(cl,2),"volume":int(h.get("volume") or 0)})
-        except: pass
-    # If intraday returned no data, fallback to daily
-    if not out and intraday:
-        data2 = brapi_get(f"/quote/{sym}", {"range": range_, "interval": "1d"})
-        if data2 and "results" in data2 and data2["results"]:
-            for h in data2["results"][0].get("historicalDataPrice",[]):
-                ts = h.get("date")
-                if not ts: continue
-                try:
-                    cl = float(h.get("close") or 0)
-                    if cl <= 0: continue
-                    dt = datetime.utcfromtimestamp(ts)
-                    time_val = dt.strftime("%Y-%m-%d")
-                    if time_val in seen: continue
-                    seen.add(time_val)
-                    out.append({"time":time_val,
-                                "open":round(float(h.get("open") or 0) or cl,2),
-                                "high":round(float(h.get("high") or 0) or cl,2),
-                                "low":round(float(h.get("low")  or 0) or cl,2),
-                                "close":cl,"volume":int(h.get("volume") or 0)})
-                except: pass
-    cache_set(ck, out)
+    try:
+        reader = csv.DictReader(StringIO(text))
+        for row in reader:
+            try:
+                date_str = (row.get("Date") or row.get("date") or "").strip()
+                if not date_str or date_str in seen:
+                    continue
+                cl = float(row.get("Close") or row.get("close") or 0)
+                if cl <= 0:
+                    continue
+                op = float(row.get("Open")   or row.get("open")   or 0) or cl
+                hi = float(row.get("High")   or row.get("high")   or 0) or cl
+                lo = float(row.get("Low")    or row.get("low")    or 0) or cl
+                vol = int(float(row.get("Volume") or row.get("volume") or 0))
+                seen.add(date_str)
+                out.append({
+                    "time":   date_str,
+                    "open":   round(op, 2),
+                    "high":   round(hi, 2),
+                    "low":    round(lo, 2),
+                    "close":  round(cl, 2),
+                    "volume": vol,
+                })
+            except (ValueError, TypeError):
+                continue
+    except Exception:
+        return []
+    out.sort(key=lambda x: x["time"])
     return out
+
+def stooq_chart(symbol, period="1mo"):
+    """Fetch historical OHLCV from Stooq. Full history, no token required."""
+    sym = symbol.upper().replace(".SA", "")
+    cfg = CHART_PERIOD_MAP.get(period, CHART_PERIOD_MAP["1mo"])
+
+    ck  = f"stooq_{sym}_{period}"
+    cached = cache_get(ck, ttl=cfg["ttl"])
+    if cached:
+        return cached
+
+    end   = datetime.utcnow()
+    start = end - timedelta(days=cfg["days"])
+    d1    = start.strftime("%Y%m%d")
+    d2    = end.strftime("%Y%m%d")
+
+    # Stooq uses lowercase .sa for Brazilian stocks
+    stooq_sym = f"{sym}.SA".lower()
+    url = (
+        f"https://stooq.com/q/d/l/"
+        f"?s={stooq_sym}&d1={d1}&d2={d2}&i={cfg['interval']}"
+    )
+
+    try:
+        r = req_lib.get(url, headers=_STOOQ_HEADERS, timeout=20)
+        r.raise_for_status()
+        out = _parse_stooq_csv(r.text)
+        if out:
+            cache_set(ck, out)
+            return out
+        print(f"  Stooq returned no data for {sym} ({period}) — will try BRAPI fallback")
+    except Exception as e:
+        print(f"  Stooq error {sym} ({period}): {e}")
+
+    # ── BRAPI fallback ────────────────────────────────────────────────────────
+    # BRAPI free tier only gives ~3mo but is better than nothing
+    brapi_range_map = {
+        "1mo": "1mo", "3mo": "3mo", "6mo": "6mo",
+        "1y": "1y",   "5y": "5y",   "max": "max",
+    }
+    brapi_range = brapi_range_map.get(period, "3mo")
+    brapi_interval = "1mo" if period == "max" else ("1wk" if period == "5y" else "1d")
+    data = brapi_get(f"/quote/{sym}", {"range": brapi_range, "interval": brapi_interval})
+    out, seen = [], set()
+    if data and "results" in data and data["results"]:
+        for h in (data["results"][0].get("historicalDataPrice") or []):
+            ts = h.get("date")
+            if not ts:
+                continue
+            try:
+                cl = float(h.get("close") or 0)
+                if cl <= 0:
+                    continue
+                op = float(h.get("open")  or 0) or cl
+                hi = float(h.get("high")  or 0) or cl
+                lo = float(h.get("low")   or 0) or cl
+                dt = datetime.utcfromtimestamp(int(ts))
+                time_val = dt.strftime("%Y-%m-%d")
+                if time_val in seen:
+                    continue
+                seen.add(time_val)
+                out.append({
+                    "time":   time_val,
+                    "open":   round(op, 2),
+                    "high":   round(hi, 2),
+                    "low":    round(lo, 2),
+                    "close":  round(cl, 2),
+                    "volume": int(h.get("volume") or 0),
+                })
+            except Exception:
+                continue
+    out.sort(key=lambda x: x["time"])
+    if out:
+        # Cache fallback data; Stooq will be retried on next cache miss
+        cache_set(ck, out)
+    return out
+
 
 @app.route("/api/chart/<symbol>")
 @login_required
 def get_chart(symbol):
-    sym    = symbol.upper().strip().replace(".SA","")
-    period = request.args.get("period","1mo")
+    sym    = symbol.upper().strip().replace(".SA", "")
+    period = request.args.get("period", "1mo")
     if period not in CHART_PERIOD_MAP:
         period = "1mo"
-    data = brapi_chart(sym, period)
+    data = stooq_chart(sym, period)
     return jsonify(data or [])
+
+
 
 @app.route("/api/asset/<symbol>")
 @login_required
