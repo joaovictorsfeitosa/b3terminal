@@ -423,54 +423,79 @@ def get_history(symbol):
 
 # ── Chart endpoint for Análise Gráfica ────────────────────────────────────────
 
-# ── Period config ─────────────────────────────────────────────────────────────
-# interval: "d"=daily  "w"=weekly  "m"=monthly
-# days: how far back to request from today (used to build d1/d2 for Stooq)
-# ttl: cache lifetime in seconds
+# ── Chart period config ───────────────────────────────────────────────────────
+# interval : Twelve Data interval string
+# td_out   : outputsize (number of data points to request)
+# ttl      : cache lifetime in seconds
 CHART_PERIOD_MAP = {
-    "1mo":  {"days": 35,    "interval": "d", "ttl": 600},
-    "3mo":  {"days": 95,    "interval": "d", "ttl": 600},
-    "6mo":  {"days": 185,   "interval": "d", "ttl": 900},
-    "1y":   {"days": 370,   "interval": "d", "ttl": 1800},
-    "5y":   {"days": 1830,  "interval": "w", "ttl": 3600},
-    "max":  {"days": 10000, "interval": "m", "ttl": 7200},
+    "1mo":  {"interval": "1day",   "td_out": 35,    "ttl": 600},
+    "3mo":  {"interval": "1day",   "td_out": 95,    "ttl": 600},
+    "6mo":  {"interval": "1day",   "td_out": 185,   "ttl": 900},
+    "1y":   {"interval": "1day",   "td_out": 365,   "ttl": 1800},
+    "5y":   {"interval": "1week",  "td_out": 265,   "ttl": 3600},
+    "max":  {"interval": "1month", "td_out": 5000,  "ttl": 7200},
 }
 
-_STOOQ_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,text/csv,application/csv,*/*",
-    "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-    "Referer": "https://stooq.com/",
-}
+TWELVE_DATA_BASE = "https://api.twelvedata.com"
 
-def _parse_stooq_csv(text):
-    """Parse Stooq CSV → list of OHLCV dicts. Returns [] on any problem."""
-    text = text.strip()
-    if not text or len(text) < 30:
+def twelvedata_chart(symbol, period="1mo"):
+    """
+    Fetch OHLCV history from Twelve Data (primary source).
+    Brazilian stocks use exchange=BVMF.
+    Returns list of {time, open, high, low, close, volume} dicts.
+    """
+    TD_KEY = os.environ.get("TWELVE_DATA_KEY", "")
+    if not TD_KEY:
         return []
-    # Stooq returns 'No data' or similar when symbol unknown
-    first = text.split("\n")[0].lower()
-    if "date" not in first:
-        return []
-    out, seen = [], set()
+
+    sym = symbol.upper().replace(".SA", "")
+    cfg = CHART_PERIOD_MAP.get(period, CHART_PERIOD_MAP["1mo"])
+    ck  = f"td_{sym}_{period}"
+
+    cached = cache_get(ck, ttl=cfg["ttl"])
+    if cached:
+        return cached
+
     try:
-        reader = csv.DictReader(StringIO(text))
-        for row in reader:
+        r = req_lib.get(
+            f"{TWELVE_DATA_BASE}/time_series",
+            params={
+                "symbol":     sym,
+                "exchange":   "BVMF",
+                "interval":   cfg["interval"],
+                "outputsize": cfg["td_out"],
+                "order":      "ASC",
+                "apikey":     TD_KEY,
+            },
+            timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+
+        # Twelve Data returns {"code":400,...} for unknown symbols
+        if data.get("code") or data.get("status") == "error":
+            msg = data.get("message", "unknown")
+            print(f"  TwelveData {sym} ({period}): {msg}")
+            return []
+
+        values = data.get("values") or []
+        if not values:
+            print(f"  TwelveData {sym} ({period}): empty values")
+            return []
+
+        out, seen = [], set()
+        for v in values:
             try:
-                date_str = (row.get("Date") or row.get("date") or "").strip()
+                date_str = (v.get("datetime") or "")[:10]  # keep YYYY-MM-DD
                 if not date_str or date_str in seen:
                     continue
-                cl = float(row.get("Close") or row.get("close") or 0)
+                cl = float(v.get("close") or 0)
                 if cl <= 0:
                     continue
-                op = float(row.get("Open")   or row.get("open")   or 0) or cl
-                hi = float(row.get("High")   or row.get("high")   or 0) or cl
-                lo = float(row.get("Low")    or row.get("low")    or 0) or cl
-                vol = int(float(row.get("Volume") or row.get("volume") or 0))
+                op = float(v.get("open")   or 0) or cl
+                hi = float(v.get("high")   or 0) or cl
+                lo = float(v.get("low")    or 0) or cl
+                vol = int(float(v.get("volume") or 0))
                 seen.add(date_str)
                 out.append({
                     "time":   date_str,
@@ -482,51 +507,25 @@ def _parse_stooq_csv(text):
                 })
             except (ValueError, TypeError):
                 continue
-    except Exception:
-        return []
-    out.sort(key=lambda x: x["time"])
-    return out
 
-def stooq_chart(symbol, period="1mo"):
-    """Fetch historical OHLCV from Stooq. Full history, no token required."""
-    sym = symbol.upper().replace(".SA", "")
-    cfg = CHART_PERIOD_MAP.get(period, CHART_PERIOD_MAP["1mo"])
-
-    ck  = f"stooq_{sym}_{period}"
-    cached = cache_get(ck, ttl=cfg["ttl"])
-    if cached:
-        return cached
-
-    end   = datetime.utcnow()
-    start = end - timedelta(days=cfg["days"])
-    d1    = start.strftime("%Y%m%d")
-    d2    = end.strftime("%Y%m%d")
-
-    # Stooq uses lowercase .sa for Brazilian stocks
-    stooq_sym = f"{sym}.SA".lower()
-    url = (
-        f"https://stooq.com/q/d/l/"
-        f"?s={stooq_sym}&d1={d1}&d2={d2}&i={cfg['interval']}"
-    )
-
-    try:
-        r = req_lib.get(url, headers=_STOOQ_HEADERS, timeout=20)
-        r.raise_for_status()
-        out = _parse_stooq_csv(r.text)
+        out.sort(key=lambda x: x["time"])
         if out:
             cache_set(ck, out)
-            return out
-        print(f"  Stooq returned no data for {sym} ({period}) — will try BRAPI fallback")
-    except Exception as e:
-        print(f"  Stooq error {sym} ({period}): {e}")
+            print(f"  TwelveData {sym} ({period}): {len(out)} candles OK")
+        return out
 
-    # ── BRAPI fallback ────────────────────────────────────────────────────────
-    # BRAPI free tier only gives ~3mo but is better than nothing
-    brapi_range_map = {
-        "1mo": "1mo", "3mo": "3mo", "6mo": "6mo",
-        "1y": "1y",   "5y": "5y",   "max": "max",
-    }
-    brapi_range = brapi_range_map.get(period, "3mo")
+    except Exception as e:
+        print(f"  TwelveData error {sym} ({period}): {e}")
+        return []
+
+
+def brapi_chart_fallback(symbol, period="1mo"):
+    """
+    BRAPI fallback — free tier limited to ~3mo but better than nothing.
+    Only used when Twelve Data fails or key is missing.
+    """
+    sym = symbol.upper().replace(".SA", "")
+    brapi_range    = {"1mo":"1mo","3mo":"3mo","6mo":"6mo","1y":"1y","5y":"5y","max":"max"}.get(period,"3mo")
     brapi_interval = "1mo" if period == "max" else ("1wk" if period == "5y" else "1d")
     data = brapi_get(f"/quote/{sym}", {"range": brapi_range, "interval": brapi_interval})
     out, seen = [], set()
@@ -558,9 +557,6 @@ def stooq_chart(symbol, period="1mo"):
             except Exception:
                 continue
     out.sort(key=lambda x: x["time"])
-    if out:
-        # Cache fallback data; Stooq will be retried on next cache miss
-        cache_set(ck, out)
     return out
 
 
@@ -571,8 +567,17 @@ def get_chart(symbol):
     period = request.args.get("period", "1mo")
     if period not in CHART_PERIOD_MAP:
         period = "1mo"
-    data = stooq_chart(sym, period)
+
+    # 1st — Twelve Data (full history, cloud-IP friendly)
+    data = twelvedata_chart(sym, period)
+
+    # 2nd — BRAPI fallback (limited history but always available)
+    if not data:
+        print(f"  Falling back to BRAPI for {sym} ({period})")
+        data = brapi_chart_fallback(sym, period)
+
     return jsonify(data or [])
+
 
 
 
