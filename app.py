@@ -1064,7 +1064,7 @@ def sec_headers(r):
 
 if __name__=="__main__":
     print("="*50)
-    print("  B3 Terminal — http://localhost:5000")
+    print("  MERIDIAN — http://localhost:5000")
     print(f"  Brapi: {'OK' if BRAPI_TOKEN else 'SEM TOKEN!'}")
     print("="*50)
     app.run(debug=False,host="0.0.0.0",port=5000)
