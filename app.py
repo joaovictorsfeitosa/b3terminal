@@ -11,7 +11,7 @@ from dateutil.relativedelta import relativedelta
 app = Flask(__name__)
 import secrets as _sec
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or _sec.token_hex(32)
-_db_url = os.environ.get("DATABASE_URL", "sqlite:////tmp/b3terminal.db")
+_db_url = os.environ.get("DATABASE_URL", "sqlite:////tmp/meridian.db")
 # Render usa postgres:// mas SQLAlchemy precisa de postgresql://
 if _db_url.startswith("postgres://"):
     _db_url = _db_url.replace("postgres://", "postgresql://", 1)
