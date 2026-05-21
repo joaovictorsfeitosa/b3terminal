@@ -149,113 +149,212 @@ def brapi_history(symbol, range_="1mo"):
         except: pass
     cache_set(ck, out); return out
 
-def brapi_dividends(symbol, cotas=1):
-    sym = symbol.upper().replace(".SA","")
-    ck  = f"bdiv_{sym}"; raw = cache_get(ck, ttl=1800)
-    if raw is None:
-        data = brapi_get(f"/quote/{sym}", {"dividends":"true","modules":"defaultKeyStatistics"})
-        if not data or "results" not in data or not data["results"]: return None
-        res0 = data["results"][0]
-        raw  = res0.get("dividendsData") or {}
-        # Guarda também dados diretos do quote para complementar
-        raw["_quote"] = {
-            "lastDividendValue": res0.get("lastDividendValue"),
-            "lastDividendDate":  res0.get("lastDividendDate"),
-            "dividendYield":     res0.get("dividendYield"),
-            "dividendRate":      res0.get("dividendRate"),
-        }
-        cache_set(ck, raw)
+def _is_fii(symbol):
+    """FIIs brasileiros terminam em 11 (HGLG11, MXRF11, XPML11...)."""
+    return bool(re.match(r'^[A-Z]{4}11$', symbol.upper().replace(".SA","")))
 
-    cash_divs = raw.get("cashDividends") or []
-    quote_data = raw.get("_quote", {})
+def _build_div_result(sym, payments, freq_label, freq_months, cotas=1):
+    """Monta projeção e retorna dict padronizado."""
+    if not payments:
+        return None
 
-    # ── Tenta todos os campos de data/valor possíveis ─────────────────────────
-    payments = []
-    for d in cash_divs:
-        try:
-            # Campos de data — Brapi usa diferentes nomes por tipo de ativo
-            dt_str = (d.get("paymentDate") or
-                      d.get("lastDatePrior") or
-                      d.get("approvedOn") or
-                      d.get("declaredDate") or
-                      d.get("date") or
-                      d.get("dataEx") or "")
-            if not dt_str: continue
-
-            # Normaliza formato da data
-            dt_str = str(dt_str).strip()
-            dt = None
-            for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S", "%d-%m-%Y"]:
-                try: dt = datetime.strptime(dt_str[:10], fmt[:len(dt_str[:10])]); break
-                except: pass
-            if not dt: continue
-
-            # Campos de valor
-            val = float(d.get("rate") or d.get("value") or d.get("adjValue") or
-                        d.get("amount") or d.get("dividendValue") or 0)
-            if val <= 0: continue
-
-            payments.append({"year":dt.year,"month":dt.month,"day":dt.day,
-                             "value":round(val,6),"date_str":dt.strftime("%d/%m/%Y")})
-        except: pass
-
-    # Se não achou dividendos no cashDividends, tenta dados diretos do quote
-    if not payments and quote_data.get("lastDividendValue") and quote_data.get("lastDividendDate"):
-        try:
-            ldd = quote_data["lastDividendDate"]
-            ldv = float(quote_data["lastDividendValue"])
-            if ldv > 0:
-                # lastDividendDate pode ser timestamp unix ou string
-                if isinstance(ldd, (int, float)):
-                    dt = datetime.fromtimestamp(ldd)
-                else:
-                    dt = datetime.strptime(str(ldd)[:10], "%Y-%m-%d")
-                payments.append({"year":dt.year,"month":dt.month,"day":dt.day,
-                                 "value":round(ldv,6),"date_str":dt.strftime("%d/%m/%Y")})
-        except: pass
-
-    if not payments: return None
-    payments.sort(key=lambda x:(x["year"],x["month"],x["day"]))
-
-    # ── Detecta frequência ────────────────────────────────────────────────────
-    recent = payments[-24:]
-    months_paid = sorted(set(p["month"] for p in recent))
-    n = len(months_paid)
-    if   n >= 10: freq_label,freq_months = "Mensal",list(range(1,13))
-    elif n >= 4:  freq_label,freq_months = "Trimestral",[3,6,9,12]
-    elif n >= 2:  freq_label,freq_months = "Semestral",[6,12]
-    else:         freq_label,freq_months = "Anual",months_paid or [12]
-
-    # ── Média por mês ─────────────────────────────────────────────────────────
     month_avgs = {}
     for m in freq_months:
         vals = [p["value"] for p in payments if p["month"] == m]
-        if vals: month_avgs[m] = round(sum(vals)/len(vals), 6)
+        if vals:
+            month_avgs[m] = round(sum(vals) / len(vals), 6)
 
-    avg_value = round(sum(p["value"] for p in payments)/len(payments), 6)
+    avg_value = round(sum(p["value"] for p in payments) / len(payments), 6)
     last_val  = payments[-1]["value"]
 
-    # ── Projeção ──────────────────────────────────────────────────────────────
-    today = date.today(); projected = []
+    today = date.today()
+    projected = []
     for i in range(15):
         future = today + relativedelta(months=i)
-        if future.month in freq_months:
-            proj_val = month_avgs.get(future.month, avg_value)
-            hm = [p for p in payments if p["month"] == future.month]
-            ad = int(sum(p["day"] for p in hm)/len(hm)) if hm else 15
-            ad = min(ad, calendar.monthrange(future.year, future.month)[1])
-            pd = date(future.year, future.month, ad)
-            if pd >= today:
-                projected.append({"date_str": pd.strftime("%d/%m/%Y"),
-                                  "month_name": pd.strftime("%b/%Y"),
-                                  "value_cota": round(proj_val, 6),
-                                  "value_total": round(proj_val * cotas, 2),
-                                  "is_next": len(projected) == 0})
+        if future.month not in freq_months:
+            continue
+        proj_val = month_avgs.get(future.month, avg_value)
+        hm = [p for p in payments if p["month"] == future.month]
+        avg_day = int(sum(p["day"] for p in hm) / len(hm)) if hm else 15
+        avg_day = min(avg_day, calendar.monthrange(future.year, future.month)[1])
+        pd_ = date(future.year, future.month, avg_day)
+        if pd_ >= today:
+            projected.append({
+                "date_str":    pd_.strftime("%d/%m/%Y"),
+                "month_name":  pd_.strftime("%b/%Y"),
+                "value_cota":  round(proj_val, 6),
+                "value_total": round(proj_val * cotas, 2),
+                "is_next":     len(projected) == 0,
+            })
 
-    return {"sym":sym,"freq_label":freq_label,"freq_months":freq_months,
-            "avg_value":avg_value,"last_value":last_val,"months_paid":months_paid,
-            "history":payments[-24:],"projected":projected[:12],
-            "total_pagamentos":len(payments)}
+    return {
+        "sym":              sym,
+        "freq_label":       freq_label,
+        "freq_months":      freq_months,
+        "avg_value":        avg_value,
+        "last_value":       last_val,
+        "months_paid":      sorted(set(p["month"] for p in payments)),
+        "history":          payments[-24:],
+        "projected":        projected[:12],
+        "total_pagamentos": len(payments),
+    }
+
+
+def brapi_dividends(symbol, cotas=1):
+    """
+    Busca histórico de dividendos/rendimentos.
+    Primário : Twelve Data (endpoint /dividends, histórico completo)
+    Fallback : BRAPI (limitado a ~3 meses no plano free)
+    """
+    sym = symbol.upper().replace(".SA", "")
+    fii = _is_fii(sym)
+    ck  = f"div3_{sym}"
+
+    # Cache: guarda apenas payments + meta para reconstruir com qualquer cotas
+    raw_cached = cache_get(ck, ttl=3600)
+    if raw_cached:
+        return _build_div_result(sym,
+                                 raw_cached["payments"],
+                                 raw_cached["freq_label"],
+                                 raw_cached["freq_months"],
+                                 cotas)
+
+    payments     = []
+    td_frequency = None  # frequência informada pela Twelve Data
+    TD_KEY = os.environ.get("TWELVE_DATA_KEY", "")
+
+    # ── 1. Twelve Data ────────────────────────────────────────────────────────
+    if TD_KEY:
+        try:
+            r = req_lib.get(
+                "https://api.twelvedata.com/dividends",
+                params={
+                    "symbol":   sym,
+                    "exchange": "BVMF",
+                    "range":    "5y",
+                    "apikey":   TD_KEY,
+                },
+                timeout=15,
+            )
+            data = r.json()
+            if data.get("status") == "ok":
+                for d in (data.get("dividends") or []):
+                    try:
+                        dt  = datetime.strptime(d["ex_dividend_date"][:10], "%Y-%m-%d")
+                        val = float(d.get("amount") or 0)
+                        if val <= 0:
+                            continue
+                        payments.append({
+                            "year": dt.year, "month": dt.month, "day": dt.day,
+                            "value": round(val, 6),
+                            "date_str": dt.strftime("%d/%m/%Y"),
+                        })
+                    except Exception:
+                        continue
+                # Twelve Data fornece frequency: 1=anual 2=semestral 4=trimestral 12=mensal
+                divs = data.get("dividends") or []
+                if divs and divs[0].get("frequency"):
+                    td_frequency = int(divs[0]["frequency"])
+            else:
+                print(f"  TwelveData dividends {sym}: {data.get('message','no data')}")
+        except Exception as e:
+            print(f"  TwelveData dividends error {sym}: {e}")
+
+    # ── 2. BRAPI fallback ─────────────────────────────────────────────────────
+    if not payments:
+        try:
+            data = brapi_get(f"/quote/{sym}",
+                             {"dividends": "true", "modules": "defaultKeyStatistics"})
+            if data and "results" in data and data["results"]:
+                res0      = data["results"][0]
+                cash_divs = (res0.get("dividendsData") or {}).get("cashDividends") or []
+                for d in cash_divs:
+                    try:
+                        dt_str = (d.get("paymentDate") or d.get("lastDatePrior") or
+                                  d.get("approvedOn")  or d.get("declaredDate") or
+                                  d.get("date") or d.get("dataEx") or "")
+                        if not dt_str:
+                            continue
+                        dt = None
+                        for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S", "%d-%m-%Y"]:
+                            try:
+                                dt = datetime.strptime(str(dt_str)[:10], fmt[:10])
+                                break
+                            except Exception:
+                                pass
+                        if not dt:
+                            continue
+                        val = float(d.get("rate") or d.get("value") or d.get("adjValue") or
+                                    d.get("amount") or d.get("dividendValue") or 0)
+                        if val <= 0:
+                            continue
+                        payments.append({
+                            "year": dt.year, "month": dt.month, "day": dt.day,
+                            "value": round(val, 6), "date_str": dt.strftime("%d/%m/%Y"),
+                        })
+                    except Exception:
+                        pass
+                # Tenta lastDividendValue se cashDividends vazio
+                if not payments:
+                    ldd = res0.get("lastDividendDate")
+                    ldv = float(res0.get("lastDividendValue") or 0)
+                    if ldv > 0 and ldd:
+                        try:
+                            dt = (datetime.fromtimestamp(ldd)
+                                  if isinstance(ldd, (int, float))
+                                  else datetime.strptime(str(ldd)[:10], "%Y-%m-%d"))
+                            payments.append({
+                                "year": dt.year, "month": dt.month, "day": dt.day,
+                                "value": round(ldv, 6), "date_str": dt.strftime("%d/%m/%Y"),
+                            })
+                        except Exception:
+                            pass
+        except Exception as e:
+            print(f"  BRAPI dividends fallback {sym}: {e}")
+
+    if not payments:
+        return None
+
+    # ── Deduplicar e ordenar ──────────────────────────────────────────────────
+    payments.sort(key=lambda x: (x["year"], x["month"], x["day"]))
+    seen_ym, unique = set(), []
+    for p in payments:
+        k = f"{p['year']}-{p['month']:02d}"
+        if k not in seen_ym:
+            seen_ym.add(k)
+            unique.append(p)
+    payments = unique
+
+    # ── Detectar frequência ───────────────────────────────────────────────────
+    if td_frequency:
+        _freq_map = {
+            1:  ("Anual",       [12]),
+            2:  ("Semestral",   [6, 12]),
+            4:  ("Trimestral",  [3, 6, 9, 12]),
+            12: ("Mensal",      list(range(1, 13))),
+        }
+        freq_label, freq_months = _freq_map.get(td_frequency, ("Mensal", list(range(1, 13))))
+    elif fii:
+        # FIIs brasileiros pagam mensalmente por padrão
+        freq_label, freq_months = "Mensal", list(range(1, 13))
+    else:
+        recent       = payments[-24:]
+        months_paid  = sorted(set(p["month"] for p in recent))
+        n            = len(months_paid)
+        if   n >= 10: freq_label, freq_months = "Mensal",      list(range(1, 13))
+        elif n >= 4:  freq_label, freq_months = "Trimestral",  [3, 6, 9, 12]
+        elif n >= 2:  freq_label, freq_months = "Semestral",   [6, 12]
+        else:         freq_label, freq_months = "Anual",       months_paid or [12]
+
+    # Salva cache sem cotas (cotas é por usuário)
+    cache_set(ck, {
+        "payments":    payments,
+        "freq_label":  freq_label,
+        "freq_months": freq_months,
+    })
+
+    return _build_div_result(sym, payments, freq_label, freq_months, cotas)
+
 
 
 @app.route("/login",methods=["GET"])
@@ -600,53 +699,104 @@ def get_asset(symbol):
 @app.route("/api/simulate",methods=["POST"])
 @login_required
 def simulate():
-    body=request.get_json() or {}
-    symbols=body.get("symbols",[]); valor_total=float(body.get("valor_total",0))
-    dist=body.get("distribuicao","igual"); pcts=body.get("pct",{})
-    if not symbols or valor_total<=0: return jsonify({"error":"parâmetros inválidos"}),400
-    alloc={}
-    if dist=="igual":
-        for s in symbols: alloc[s["sym"]]=valor_total/len(symbols)
-    elif dist=="yield":
-        ys={}
+    body        = request.get_json() or {}
+    symbols     = body.get("symbols", [])
+    valor_total = float(body.get("valor_total", 0))
+    dist        = body.get("distribuicao", "igual")
+    pcts        = body.get("pct", {})
+
+    if not symbols or valor_total <= 0:
+        return jsonify({"error": "parâmetros inválidos"}), 400
+
+    # ── Alocação por ativo ────────────────────────────────────────────────────
+    alloc = {}
+    if dist == "igual":
         for s in symbols:
-            c=cache_get(f"quotes_{s['sym']}",ttl=300)
-            ys[s["sym"]]=(c[0].get("dividendYield") or 0.01) if c and isinstance(c,list) and c else 0.01
-        ty=sum(ys.values())
-        for s in symbols: alloc[s["sym"]]=valor_total*(ys[s["sym"]]/ty)
+            alloc[s["sym"]] = valor_total / len(symbols)
+    elif dist == "yield":
+        ys = {}
+        for s in symbols:
+            c = cache_get(f"quotes_{s['sym']}", ttl=300)
+            ys[s["sym"]] = (c[0].get("dividendYield") or 0.01) if (c and isinstance(c, list)) else 0.01
+        ty = sum(ys.values()) or 1
+        for s in symbols:
+            alloc[s["sym"]] = valor_total * (ys[s["sym"]] / ty)
     else:
-        tp=sum(float(pcts.get(s["sym"],0)) for s in symbols)
+        tp = sum(float(pcts.get(s["sym"], 0)) for s in symbols) or 1
         for s in symbols:
-            alloc[s["sym"]]=valor_total*(float(pcts.get(s["sym"],0))/tp) if tp>0 else valor_total/len(symbols)
-    all_syms=[s["sym"].upper().replace(".SA","") for s in symbols]
-    quotes_map={q["symbol"]:q for q in brapi_quotes(all_syms)}
-    results=[]
+            alloc[s["sym"]] = valor_total * (float(pcts.get(s["sym"], 0)) / tp)
+
+    all_syms   = [s["sym"].upper().replace(".SA","") for s in symbols]
+    quotes_map = {q["symbol"]: q for q in (brapi_quotes(all_syms) or [])}
+
+    results = []
     for s in symbols:
-        sym=s["sym"].upper().replace(".SA",""); tipo=s["tipo"]; inv=alloc.get(s["sym"],0)
-        quote=quotes_map.get(sym)
-        if not quote: continue
-        price=quote.get("regularMarketPrice") or 0
-        cotas=int(inv//price) if price>0 else 0; real=round(cotas*price,2)
-        div_h=brapi_dividends(sym,cotas)
+        sym   = s["sym"].upper().replace(".SA", "")
+        tipo  = s.get("tipo", "AÇÃO")
+        inv   = alloc.get(s["sym"], 0)
+        quote = quotes_map.get(sym)
+        if not quote:
+            continue
+
+        price = quote.get("regularMarketPrice") or 0
+        cotas = int(inv // price) if price > 0 else 0
+        real  = round(cotas * price, 2)
+        fii   = _is_fii(sym)
+
+        div_h = brapi_dividends(sym, cotas)
+
         if div_h and div_h.get("projected"):
-            projected=[{**p,"value_total":round(p["value_cota"]*cotas,2)} for p in div_h["projected"]]
-            n_proj=len(projected)
-            men=round(sum(p["value_total"] for p in projected)/n_proj,2) if n_proj>0 else 0
-            anl=round(sum(p["value_total"] for p in projected[:12]),2)
-            freq_label=div_h["freq_label"]; last_value=div_h["last_value"]
+            projected  = [{**p, "value_total": round(p["value_cota"] * cotas, 2)}
+                          for p in div_h["projected"]]
+            freq_label = div_h["freq_label"]
+            last_value = div_h["last_value"]
+            avg_cota   = div_h["avg_value"]
+
+            # Mensal estimado correto por frequência
+            freq_months = div_h["freq_months"]
+            n_freq      = len(freq_months)      # pagamentos por ano
+            anl         = round(avg_cota * cotas * n_freq, 2)
+            men         = round(anl / 12, 2)    # sempre normalizado p/ mês
+
         else:
-            dy=quote.get("dividendYield") or 0; men=round(real*(dy/100)/12,2); anl=round(real*(dy/100),2)
-            freq_label="—"; last_value=0; projected=[]
-        results.append({"sym":sym,"name":quote.get("shortName") or sym,"tipo":tipo,
-                        "price":price,"cotas":cotas,"investido":real,
-                        "div_yield":quote.get("dividendYield") or 0,
-                        "mensal_estimado":men,"anual_estimado":anl,
-                        "freq_label":freq_label,"last_value":last_value,"projected":projected})
-    tM=round(sum(r["mensal_estimado"] for r in results),2)
-    tA=round(sum(r["anual_estimado"] for r in results),2)
-    tI=round(sum(r["investido"] for r in results),2)
-    yM=round((tA/tI*100) if tI>0 else 0,2)
-    return jsonify({"results":results,"total_mensal":tM,"total_anual":tA,"total_inv":tI,"yield_medio":yM})
+            # Sem histórico: usa DY do quote
+            dy         = float(quote.get("dividendYield") or 0)
+            anl        = round(real * (dy / 100), 2)
+            men        = round(anl / 12, 2)
+            freq_label = "Mensal" if fii else "—"
+            last_value = 0
+            avg_cota   = 0
+            projected  = []
+
+        results.append({
+            "sym":              sym,
+            "name":             quote.get("shortName") or sym,
+            "tipo":             "FII" if fii else tipo,
+            "price":            price,
+            "cotas":            cotas,
+            "investido":        real,
+            "div_yield":        quote.get("dividendYield") or 0,
+            "freq_label":       freq_label,
+            "last_value":       last_value,
+            "avg_value_cota":   avg_cota,
+            "mensal_estimado":  men,
+            "anual_estimado":   anl,
+            "projected":        projected,
+        })
+
+    tM  = round(sum(r["mensal_estimado"] for r in results), 2)
+    tA  = round(sum(r["anual_estimado"]  for r in results), 2)
+    tI  = round(sum(r["investido"]        for r in results), 2)
+    yM  = round((tA / tI * 100) if tI > 0 else 0, 2)
+
+    return jsonify({
+        "results":       results,
+        "total_mensal":  tM,
+        "total_anual":   tA,
+        "total_inv":     tI,
+        "yield_medio":   yM,
+    })
+
 
 @app.route("/api/compound",methods=["POST"])
 @login_required
