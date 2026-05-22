@@ -3990,10 +3990,20 @@ async function loadHeatmap(force=false){
   try{
     const data = await apiFetch("/api/heatmap");
     if(!data || !data.sectors){
-      body.innerHTML = '<div class="errmsg">⚠ Erro ao carregar heatmap</div>'; return;
+      body.innerHTML = '<div class="errmsg">⚠ Erro ao carregar heatmap. Tente novamente.</div>'; return;
     }
     const updEl = $("heatmap-upd");
     if(updEl) updEl.textContent = "Atualizado às " + (data.updated||"—");
+
+    if(!data.sectors.length){
+      body.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--td)">
+        <div style="font-size:36px;margin-bottom:12px">📊</div>
+        <div style="font-size:13px;color:var(--t);margin-bottom:6px">Dados indisponíveis no momento</div>
+        <div style="font-size:10px">Mercado pode estar fechado ou a API está sobrecarregada</div>
+        <button onclick="loadHeatmap(true)" style="margin-top:18px;background:var(--bg2);border:1px solid var(--ui1);color:var(--ui1);padding:8px 20px;border-radius:8px;font-family:var(--mono);font-size:10px;cursor:pointer">↺ Tentar novamente</button>
+      </div>`;
+      _hmLoaded = false; return;
+    }
 
     body.innerHTML = data.sectors.map(sec=>`
       <div class="hm-sector">
@@ -4015,7 +4025,8 @@ async function loadHeatmap(force=false){
     `).join("");
     _hmLoaded = true;
   }catch(e){
-    body.innerHTML = `<div class="errmsg">⚠ ${e.message}</div>`;
+    body.innerHTML = `<div class="errmsg">⚠ ${e.message||"Erro desconhecido"} — <button onclick="loadHeatmap(true)" style="background:none;border:none;color:var(--ui2);cursor:pointer;text-decoration:underline;font-family:var(--mono);font-size:10px">Tentar novamente</button></div>`;
+    _hmLoaded = false;
   }
 }
 
@@ -4023,11 +4034,10 @@ async function loadHeatmap(force=false){
    SCORE DE SAÚDE DA CARTEIRA
 ══════════════════════════════════════════════════════════ */
 async function loadPortfolioScore(){
-  const sec = $("score-section");
+  const sec  = $("score-section");
   const cont = $("score-content");
   if(!sec || !cont) return;
 
-  // Only show if carteira has assets
   const keys = Object.keys(carteira);
   if(!keys.length){ sec.style.display="none"; return; }
   sec.style.display = "block";
@@ -4039,37 +4049,58 @@ async function loadPortfolioScore(){
       cont.innerHTML = `<div class="errmsg">⚠ ${d?.error||"Erro ao calcular score"}</div>`; return;
     }
 
-    // Color by score
-    const scoreColor = d.score >= 72 ? "#00e676" : d.score >= 42 ? "#ffc400" : "#ff3d57";
-    const scorePct   = d.score;
+    const scoreColor = d.score >= 75 ? "#00e676" : d.score >= 44 ? "#ffc400" : "#ff3d57";
+    const barColor   = v => v >= 20 ? "#00e676" : v >= 12 ? "#ffc400" : "#ff3d57";
 
-    // Sub-bar color
-    const barColor = v => v >= 20 ? "#00e676" : v >= 12 ? "#ffc400" : "#ff3d57";
-
-    // Sector distribution pills
-    const sectorPills = Object.entries(d.sector_dist||{})
-      .sort((a,b)=>b[1]-a[1])
-      .map(([s,p])=>`<div class="score-sector-pill">
-        <span>${s}</span><span class="score-sector-pct">${p}%</span>
+    // Top ativos breakdown
+    const topHtml = (d.top_ativos||[]).map(a=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:var(--sans);font-size:11px;font-weight:800;color:var(--tb)">${a.sym}</span>
+          <span style="font-size:8px;color:var(--td);letter-spacing:1px">${a.sector}</span>
+          ${a.fii ? '<span style="font-size:7px;background:var(--ad);color:var(--a);padding:1px 5px;border-radius:10px;font-weight:700">FII</span>' : ''}
+        </div>
+        <div style="text-align:right">
+          <span style="font-family:var(--sans);font-size:11px;font-weight:800;color:var(--tb)">${a.pct}%</span>
+          ${a.dy > 0 ? `<span style="font-size:9px;color:var(--g);margin-left:8px">DY ${a.dy}%</span>` : ''}
+        </div>
       </div>`).join("");
 
-    const tipsHtml = (d.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start">
-      <span style="color:var(--ui1);flex-shrink:0">→</span>
-      <span>${t}</span>
-    </div>`).join("");
+    // Sector pills
+    const sectorPills = Object.entries(d.sector_dist||{})
+      .sort((a,b)=>b[1]-a[1])
+      .map(([s,p])=>`<div class="score-sector-pill"><span>${s}</span><span class="score-sector-pct">${p}%</span></div>`)
+      .join("");
+
+    const tipsHtml = (d.tips||[]).map(t=>`
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0">
+        <span style="color:var(--ui1);flex-shrink:0;margin-top:1px">→</span>
+        <span>${t}</span>
+      </div>`).join("");
+
+    const closedNotice = d.mercado_fechado
+      ? `<div style="background:var(--ad);border:1px solid rgba(255,196,0,.2);border-radius:8px;padding:8px 12px;font-size:9px;color:var(--a);margin-bottom:14px;display:flex;gap:6px;align-items:center">
+          <span>⏰</span><span>Mercado fechado — DY será atualizado na abertura (10h)</span>
+        </div>` : "";
+
+    const bonusHtml = d.bonus_fiis > 0
+      ? `<div style="font-size:9px;color:var(--g);margin-top:4px">+${d.bonus_fiis} pts bônus por ${d.n_fiis} FII${d.n_fiis>1?"s":""} na carteira</div>`
+      : "";
 
     cont.innerHTML = `
       <div class="score-wrap">
         <div class="score-gauge-wrap">
-          <div class="score-circle" style="--score-pct:${scorePct};--score-color:${scoreColor}">
+          <div class="score-circle" style="--score-pct:${d.score};--score-color:${scoreColor}">
             <div class="score-inner">
               <div class="score-num" style="color:${scoreColor}">${d.score}</div>
               <div class="score-grade" style="color:${scoreColor}">${d.grade}</div>
             </div>
           </div>
           <div class="score-label">${d.label}</div>
+          ${bonusHtml}
         </div>
         <div>
+          ${closedNotice}
           <div class="score-bars">
             ${Object.values(d.scores).map(s=>`
               <div class="score-bar-item">
@@ -4081,28 +4112,33 @@ async function loadPortfolioScore(){
                   <div class="score-bar-pts" style="color:${barColor(s.value)}">${s.value}/${s.max}</div>
                 </div>
                 <div class="score-bar-track">
-                  <div class="score-bar-fill" style="width:${(s.value/s.max*100).toFixed(0)}%;background:${barColor(s.value)}"></div>
+                  <div class="score-bar-fill" style="width:0%;background:${barColor(s.value)}" data-w="${(s.value/s.max*100).toFixed(0)}%"></div>
                 </div>
-              </div>
-            `).join("")}
+              </div>`).join("")}
           </div>
-          ${sectorPills ? `
-          <div style="margin-top:16px">
+
+          ${topHtml ? `<div style="margin-top:18px">
+            <div style="font-size:8px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Maiores Posições</div>
+            ${topHtml}
+          </div>` : ""}
+
+          ${sectorPills ? `<div style="margin-top:14px">
             <div style="font-size:8px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Distribuição Setorial</div>
             <div class="score-sector-grid">${sectorPills}</div>
           </div>` : ""}
+
           <div class="score-tips">
-            <strong>Análise</strong><br>
-            <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${tipsHtml}</div>
+            <strong>Análise Personalizada</strong>
+            <div style="display:flex;flex-direction:column;margin-top:8px">${tipsHtml}</div>
           </div>
         </div>
-      </div>
-    `;
-    // Animate bars after render
+      </div>`;
+
+    // Animate bars
     requestAnimationFrame(()=>{
       cont.querySelectorAll(".score-bar-fill").forEach(el=>{
-        const w = el.style.width; el.style.width="0"; 
-        requestAnimationFrame(()=>{ el.style.width=w; });
+        const w = el.dataset.w;
+        requestAnimationFrame(()=>{ el.style.width = w; });
       });
     });
   }catch(e){
