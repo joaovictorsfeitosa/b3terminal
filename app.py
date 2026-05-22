@@ -1267,10 +1267,10 @@ def ai_chat():
 
 
 
-# ── Heatmap — 30 símbolos em 1 chamada BRAPI (funciona no free tier) ─────────
+# ── Heatmap — símbolos validados, lotes de 10 ────────────────────────────────
 HEATMAP_SECTORS = {
     "Bancos & Financeiro": ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11"],
-    "Petróleo & Gás":      ["PETR4","PRIO3","RRRP3","UGPA3"],
+    "Petróleo & Gás":      ["PETR4","PRIO3","RECV3","UGPA3"],
     "Mineração & Sider.":  ["VALE3","GGBR4","CSNA3"],
     "Energia Elétrica":    ["EGIE3","TAEE11","CPFE3","CMIG4"],
     "Varejo & Consumo":    ["LREN3","MGLU3","NTCO3"],
@@ -1280,16 +1280,16 @@ HEATMAP_SECTORS = {
 }
 
 def _td_batch_quotes(symbols):
-    """Mantido para compatibilidade — não usado no heatmap."""
+    """Mantido para compatibilidade."""
     return {}
 
 def _heatmap_quotes(symbols):
     """
-    Busca cotações leves para o heatmap — SEM fundamental=true.
-    Resposta menor, mais rápida, funciona com listas maiores no BRAPI.
-    Faz 2 batches de 15 para segurança.
+    Busca cotações leves para o heatmap.
+    Lotes de 10 (BRAPI rejeita listas maiores sem token premium).
+    Sem fundamental=true — só preço e variação.
     """
-    BATCH = 15
+    BATCH = 10
     result = {}
     for i in range(0, len(symbols), BATCH):
         batch    = [s.upper().replace(".SA","") for s in symbols[i:i+BATCH]]
@@ -1299,27 +1299,33 @@ def _heatmap_quotes(symbols):
         if cached:
             result.update(cached)
             continue
-        # Sem fundamental=true — só precisa de preço e variação
         data = brapi_get(f"/quote/{syms_str}")
-        if not data or "results" not in data:
-            print(f"  Heatmap BRAPI falhou para batch {i//BATCH+1}: {data}")
+        if not data:
+            print(f"  [Heatmap] BRAPI retornou None para: {syms_str}")
+            continue
+        if "results" not in data:
+            print(f"  [Heatmap] BRAPI sem 'results' para: {syms_str} → {str(data)[:200]}")
             continue
         batch_result = {}
-        for r in data["results"]:
-            sym    = r.get("symbol","")
+        for r in (data["results"] or []):
+            sym = r.get("symbol","")
+            if not sym:
+                continue
             price  = float(r.get("regularMarketPrice")         or 0)
             change = float(r.get("regularMarketChangePercent") or 0)
             name   = (r.get("shortName") or r.get("longName") or sym)[:22]
-            if sym:
-                batch_result[sym] = {
-                    "symbol": sym,
-                    "price":  round(price,  2),
-                    "change": round(change, 2),
-                    "name":   name,
-                    "volume": int(r.get("regularMarketVolume") or 0),
-                }
-        cache_set(ck, batch_result)
+            batch_result[sym] = {
+                "symbol": sym,
+                "price":  round(price,  2),
+                "change": round(change, 2),
+                "name":   name,
+                "volume": int(r.get("regularMarketVolume") or 0),
+            }
+        print(f"  [Heatmap] Batch {i//BATCH+1}: {len(batch_result)}/{len(batch)} símbolos OK")
+        if batch_result:
+            cache_set(ck, batch_result)
         result.update(batch_result)
+        time.sleep(0.3)   # pequena pausa entre lotes
     return result
 
 
@@ -1351,7 +1357,11 @@ def get_heatmap():
         if cells:
             sectors.append({"sector": sector_name, "cells": cells})
 
-    result = {"sectors": sectors, "updated": datetime.utcnow().strftime("%H:%M")}
+    result = {
+        "sectors": sectors,
+        "updated": datetime.utcnow().strftime("%H:%M"),
+        "total":   sum(len(s["cells"]) for s in sectors),
+    }
     if sectors:
         cache_set(ck, result)
     return jsonify(result)
