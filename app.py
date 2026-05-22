@@ -1264,6 +1264,198 @@ def ai_chat():
         return jsonify({"error": f"Erro interno: {type(e).__name__} — {str(e)[:120]}"}), 500
 
 
+
+# ── Heatmap da B3 ─────────────────────────────────────────────────────────────
+HEATMAP_SECTORS = {
+    "Bancos & Financeiro": ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11","B3SA3","CIEL3","IRBR3","BMGB4"],
+    "Petróleo & Gás":      ["PETR4","PETR3","PRIO3","RRRP3","RECV3","UGPA3","CSAN3"],
+    "Mineração & Sider.":  ["VALE3","CSNA3","GGBR4","USIM5","BRAP4","CMIN3"],
+    "Energia Elétrica":    ["EGIE3","ENGI11","CPFE3","TAEE11","CMIG4","AURE3","CPLE6","NEOE3"],
+    "Varejo & Consumo":    ["MGLU3","NTCO3","SOMA3","LREN3","ARZZ3","PETZ3","VIVA3","LWSA3"],
+    "Construção Civil":    ["MRVE3","EZTC3","CYRE3","DIRR3","TEND3","EVEN3"],
+    "Saúde":               ["RDOR3","HAPV3","FLRY3","DASA3","ONCO3","PARD3"],
+    "Telecom":             ["VIVT3","TIMS3"],
+    "Agronegócio":         ["AGRO3","SLCE3","CAML3","JBSS3","MRFG3","BEEF3","SMTO3"],
+    "Tecnologia":          ["TOTVS3","POSI3","CASH3","IFCM3"],
+    "FIIs Destaque":       ["HGLG11","MXRF11","XPML11","KNRI11","VISC11","MALL11","BTLG11","RBVA11","BRCO11","HCTR11"],
+}
+
+@app.route("/api/heatmap")
+@login_required
+def get_heatmap():
+    ck = "heatmap_all"
+    cached = cache_get(ck, ttl=120)
+    if cached:
+        return jsonify(cached)
+
+    all_syms = [s for syms in HEATMAP_SECTORS.values() for s in syms]
+    quotes   = brapi_quotes(all_syms) or []
+    qmap     = {q["symbol"]: q for q in quotes}
+
+    sectors = []
+    for sector_name, syms in HEATMAP_SECTORS.items():
+        cells = []
+        for sym in syms:
+            q = qmap.get(sym)
+            if not q:
+                continue
+            cells.append({
+                "symbol":  sym,
+                "price":   round(q.get("regularMarketPrice") or 0, 2),
+                "change":  round(q.get("regularMarketChangePercent") or 0, 2),
+                "volume":  q.get("regularMarketVolume") or 0,
+                "name":    (q.get("shortName") or sym)[:22],
+            })
+        if cells:
+            sectors.append({"sector": sector_name, "cells": cells})
+
+    result = {"sectors": sectors, "updated": datetime.utcnow().strftime("%H:%M")}
+    cache_set(ck, result)
+    return jsonify(result)
+
+
+# ── Score de Saúde da Carteira ────────────────────────────────────────────────
+_SECTOR_MAP = {
+    # Bancos & Financeiro
+    "ITUB4":"Bancos","BBDC4":"Bancos","BBAS3":"Bancos","SANB11":"Bancos",
+    "BPAC11":"Bancos","B3SA3":"Financeiro","CIEL3":"Financeiro","IRBR3":"Financeiro","BMGB4":"Bancos",
+    # Energia
+    "PETR4":"Petróleo","PETR3":"Petróleo","PRIO3":"Petróleo","RRRP3":"Petróleo",
+    "RECV3":"Petróleo","UGPA3":"Petróleo","EGIE3":"Energia","ENGI11":"Energia",
+    "CPFE3":"Energia","TAEE11":"Energia","CMIG4":"Energia","AURE3":"Energia","CPLE6":"Energia",
+    # Mineração
+    "VALE3":"Mineração","CSNA3":"Siderurgia","GGBR4":"Siderurgia","USIM5":"Siderurgia","BRAP4":"Mineração",
+    # Varejo/Consumo
+    "MGLU3":"Varejo","NTCO3":"Varejo","SOMA3":"Varejo","LREN3":"Varejo","ARZZ3":"Varejo","PETZ3":"Varejo",
+    # Construção
+    "MRVE3":"Construção","EZTC3":"Construção","CYRE3":"Construção","DIRR3":"Construção","TEND3":"Construção",
+    # Saúde
+    "RDOR3":"Saúde","HAPV3":"Saúde","FLRY3":"Saúde","DASA3":"Saúde",
+    # Telecom
+    "VIVT3":"Telecom","TIMS3":"Telecom",
+    # Agro
+    "AGRO3":"Agro","SLCE3":"Agro","CAML3":"Agro","JBSS3":"Agro","MRFG3":"Agro","BEEF3":"Agro","SMTO3":"Agro",
+    # Tech
+    "TOTVS3":"Tecnologia","POSI3":"Tecnologia","CASH3":"Tecnologia",
+}
+
+@app.route("/api/portfolio-score")
+@login_required
+def portfolio_score():
+    from models import Ativo
+    ativos = Ativo.query.filter_by(user_id=current_user.id).all()
+    if not ativos:
+        return jsonify({"error": "carteira vazia"}), 400
+
+    syms      = [a.symbol for a in ativos]
+    qty_map   = {a.symbol: (a.qty or 0) for a in ativos}
+    pm_map    = {a.symbol: (a.pm  or 0) for a in ativos}
+    quotes    = brapi_quotes(syms) or []
+    qmap      = {q["symbol"]: q for q in quotes}
+
+    # ── Dados por ativo ───────────────────────────────────────────────────────
+    total_valor = 0.0
+    ativos_info = []
+    for sym in syms:
+        q     = qmap.get(sym, {})
+        price = float(q.get("regularMarketPrice") or pm_map.get(sym) or 0)
+        qty   = float(qty_map.get(sym) or 0)
+        valor = price * qty
+        total_valor += valor
+        dy    = float(q.get("dividendYield") or 0)
+        fii   = _is_fii(sym)
+        sector = _SECTOR_MAP.get(sym, "FII" if fii else "Outros")
+        ativos_info.append({
+            "sym": sym, "valor": valor, "dy": dy,
+            "sector": sector, "fii": fii,
+            "has_div": dy > 0,
+        })
+
+    if total_valor <= 0:
+        return jsonify({"error": "sem valores calculáveis"}), 400
+
+    # ── Score 1: Diversificação (0–25) ────────────────────────────────────────
+    sectors = set(a["sector"] for a in ativos_info)
+    n_sec   = len(sectors)
+    if   n_sec >= 6: sc_div = 25
+    elif n_sec == 5: sc_div = 22
+    elif n_sec == 4: sc_div = 18
+    elif n_sec == 3: sc_div = 13
+    elif n_sec == 2: sc_div = 8
+    else:            sc_div = 4
+
+    # ── Score 2: Concentração (0–25) — penaliza ativo dominante ──────────────
+    max_pct = max((a["valor"] / total_valor * 100) for a in ativos_info) if ativos_info else 100
+    if   max_pct < 15: sc_conc = 25
+    elif max_pct < 25: sc_conc = 20
+    elif max_pct < 35: sc_conc = 15
+    elif max_pct < 50: sc_conc = 10
+    elif max_pct < 70: sc_conc = 5
+    else:              sc_conc = 2
+
+    # ── Score 3: Rendimento DY médio ponderado (0–25) ─────────────────────────
+    dy_pond = sum(a["dy"] * a["valor"] for a in ativos_info) / total_valor if total_valor > 0 else 0
+    if   dy_pond >= 12: sc_dy = 25
+    elif dy_pond >= 8:  sc_dy = 22
+    elif dy_pond >= 5:  sc_dy = 17
+    elif dy_pond >= 3:  sc_dy = 12
+    elif dy_pond >= 1:  sc_dy = 7
+    else:               sc_dy = 3
+
+    # ── Score 4: Consistência de dividendos (0–25) ────────────────────────────
+    pct_com_div = len([a for a in ativos_info if a["has_div"]]) / len(ativos_info) * 100 if ativos_info else 0
+    if   pct_com_div >= 90: sc_cons = 25
+    elif pct_com_div >= 70: sc_cons = 20
+    elif pct_com_div >= 50: sc_cons = 14
+    elif pct_com_div >= 25: sc_cons = 8
+    else:                   sc_cons = 3
+
+    total_score = sc_div + sc_conc + sc_dy + sc_cons
+
+    # ── Classificação ──────────────────────────────────────────────────────────
+    if   total_score >= 85: grade, label = "A+", "Excelente"
+    elif total_score >= 72: grade, label = "A",  "Muito Boa"
+    elif total_score >= 58: grade, label = "B",  "Boa"
+    elif total_score >= 42: grade, label = "C",  "Regular"
+    elif total_score >= 28: grade, label = "D",  "Fraca"
+    else:                   grade, label = "F",  "Crítica"
+
+    # ── Dicas automáticas ──────────────────────────────────────────────────────
+    tips = []
+    if sc_div < 15:
+        tips.append(f"Você está concentrado em {n_sec} setor{'es' if n_sec>1 else ''}. Diversificar em mais setores reduz risco.")
+    if sc_conc < 15:
+        tips.append(f"O ativo mais pesado ocupa {max_pct:.0f}% da carteira. Ideal é manter abaixo de 25%.")
+    if sc_dy < 15:
+        tips.append(f"DY médio de {dy_pond:.1f}%. FIIs mensais e ações com histórico longo costumam melhorar esse número.")
+    if sc_cons < 15:
+        tips.append(f"Apenas {pct_com_div:.0f}% dos ativos pagam dividendos. Ativos com DY > 0 fortalecem a renda passiva.")
+    if not tips:
+        tips.append("Carteira saudável! Continue acompanhando os fundamentos e reinvesta os dividendos.")
+
+    # Distribuição setorial para o gráfico
+    sector_dist = {}
+    for a in ativos_info:
+        s = a["sector"]
+        sector_dist[s] = round(sector_dist.get(s, 0) + a["valor"] / total_valor * 100, 1)
+
+    return jsonify({
+        "score":       total_score,
+        "grade":       grade,
+        "label":       label,
+        "scores": {
+            "diversificacao": {"value": sc_div,  "max": 25, "label": "Diversificação",  "detail": f"{n_sec} setor{'es' if n_sec!=1 else ''}"},
+            "concentracao":   {"value": sc_conc, "max": 25, "label": "Concentração",    "detail": f"Maior posição: {max_pct:.0f}%"},
+            "rendimento":     {"value": sc_dy,   "max": 25, "label": "Rendimento (DY)", "detail": f"DY médio: {dy_pond:.1f}%"},
+            "consistencia":   {"value": sc_cons, "max": 25, "label": "Consistência",    "detail": f"{pct_com_div:.0f}% c/ dividendos"},
+        },
+        "tips":         tips,
+        "sector_dist":  sector_dist,
+        "total_ativos": len(ativos_info),
+        "dy_medio":     round(dy_pond, 2),
+    })
+
+
 @app.route("/api/ri/search")
 @login_required
 def ri_search():
