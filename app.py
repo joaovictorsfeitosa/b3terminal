@@ -1282,6 +1282,56 @@ HEATMAP_SECTORS = {
     "FIIs Destaque":       ["HGLG11","MXRF11","XPML11","KNRI11","VISC11","MALL11","BTLG11","RBVA11","BRCO11","HCTR11"],
 }
 
+def _td_batch_quotes(symbols):
+    """
+    Twelve Data batch quote — retorna dict {SYMBOL: {price, change, name}}.
+    Suporta até 120 símbolos por chamada, usa exchange BVMF.
+    """
+    TD_KEY = os.environ.get("TWELVE_DATA_KEY", "")
+    if not TD_KEY or not symbols:
+        return {}
+
+    # TD aceita lista separada por vírgula
+    syms_str = ",".join(s.upper().replace(".SA","") for s in symbols)
+    try:
+        r = req_lib.get(
+            "https://api.twelvedata.com/quote",
+            params={
+                "symbol":   syms_str,
+                "exchange": "BVMF",
+                "apikey":   TD_KEY,
+                "dp":       2,          # casas decimais
+            },
+            timeout=25,
+        )
+        r.raise_for_status()
+        raw = r.json()
+
+        # Resposta única (1 símbolo) → embrulha em dict
+        if isinstance(raw, dict) and raw.get("symbol") and "percent_change" in raw:
+            raw = {raw["symbol"]: raw}
+
+        result = {}
+        for sym, d in raw.items():
+            if not isinstance(d, dict) or d.get("status") == "error":
+                continue
+            try:
+                price  = float(d.get("close")          or d.get("price") or 0)
+                change = float(d.get("percent_change")  or 0)
+                name   = (d.get("name") or sym)[:22]
+                volume = int(float(d.get("volume") or 0))
+                result[sym] = {
+                    "symbol": sym, "price": round(price,2),
+                    "change": round(change,2), "name": name, "volume": volume,
+                }
+            except (ValueError, TypeError):
+                continue
+        return result
+    except Exception as e:
+        print(f"  TD batch quotes error: {e}")
+        return {}
+
+
 @app.route("/api/heatmap")
 @login_required
 def get_heatmap():
@@ -1292,15 +1342,24 @@ def get_heatmap():
 
     all_syms = [s for syms in HEATMAP_SECTORS.values() for s in syms]
 
-    # ── Batch em grupos de 20 — BRAPI free tier rejeita listas maiores ────────
-    BATCH = 20
-    qmap  = {}
-    for i in range(0, len(all_syms), BATCH):
-        batch   = all_syms[i:i+BATCH]
-        results = brapi_quotes(batch) or []
-        for q in results:
-            if q.get("symbol"):
-                qmap[q["symbol"]] = q
+    # ── Twelve Data: 1 chamada com todos os símbolos ─────────────────────────
+    qmap = _td_batch_quotes(all_syms)
+
+    # Fallback BRAPI em lotes de 20 se TD não retornou nada
+    if not qmap:
+        print("  Heatmap: TD falhou, tentando BRAPI em lotes…")
+        BATCH = 20
+        for i in range(0, len(all_syms), BATCH):
+            for q in (brapi_quotes(all_syms[i:i+BATCH]) or []):
+                sym = q.get("symbol","")
+                if sym:
+                    qmap[sym] = {
+                        "symbol": sym,
+                        "price":  round(float(q.get("regularMarketPrice") or 0), 2),
+                        "change": round(float(q.get("regularMarketChangePercent") or 0), 2),
+                        "name":   (q.get("shortName") or sym)[:22],
+                        "volume": q.get("regularMarketVolume") or 0,
+                    }
 
     sectors = []
     for sector_name, syms in HEATMAP_SECTORS.items():
@@ -1309,22 +1368,18 @@ def get_heatmap():
             q = qmap.get(sym)
             if not q:
                 continue
-            price  = q.get("regularMarketPrice") or 0
-            change = q.get("regularMarketChangePercent") or 0
-            if price <= 0:
-                continue
             cells.append({
                 "symbol": sym,
-                "price":  round(float(price), 2),
-                "change": round(float(change), 2),
-                "volume": q.get("regularMarketVolume") or 0,
-                "name":   (q.get("shortName") or sym)[:22],
+                "price":  q["price"],
+                "change": q["change"],
+                "name":   q["name"],
+                "volume": q.get("volume", 0),
             })
         if cells:
             sectors.append({"sector": sector_name, "cells": cells})
 
     result = {"sectors": sectors, "updated": datetime.utcnow().strftime("%H:%M")}
-    if sectors:  # só cacheia se tiver dados
+    if sectors:
         cache_set(ck, result)
     return jsonify(result)
 
@@ -1373,20 +1428,23 @@ def portfolio_score():
     ativos_info = []
     for sym in syms:
         q   = qmap.get(sym, {})
-        # Usa cotação atual; fallback para PM quando mercado fechado
         price = float(q.get("regularMarketPrice") or 0)
         if price <= 0:
             price = pm_map.get(sym, 0)
         qty   = qty_map.get(sym, 0)
         valor = price * qty
         total_valor += valor
-        dy    = float(q.get("dividendYield") or 0)
-        fii   = _is_fii(sym)
-        sector = _SECTOR_MAP.get(sym, "FII" if fii else "Outros")
+        dy        = float(q.get("dividendYield")     or 0)
+        dy_rate   = float(q.get("dividendRate")      or 0)
+        last_div  = float(q.get("lastDividendValue") or 0)
+        fii       = _is_fii(sym)
+        sector    = _SECTOR_MAP.get(sym, "FII" if fii else "Outros")
+        # FIIs sempre pagam rendimentos; ações: usa qualquer campo disponível
+        has_div   = fii or dy > 0 or dy_rate > 0 or last_div > 0
         ativos_info.append({
             "sym": sym, "valor": valor, "dy": dy,
             "sector": sector, "fii": fii,
-            "has_div": dy > 0,
+            "has_div": has_div,
         })
 
     # Se ainda não tiver valor (ativos sem PM e sem cotação), usa qty como peso
@@ -1415,7 +1473,12 @@ def portfolio_score():
     else:              sc_conc = 2
 
     # ── Score 3: Rendimento DY médio ponderado (0–25) ─────────────────────────
+    # Se mercado fechado, BRAPI retorna dy=0 para todos — usa has_div como fallback
     dy_pond = sum(a["dy"] * a["valor"] for a in ativos_info) / total_valor if total_valor > 0 else 0
+    pct_com_div_val = len([a for a in ativos_info if a["has_div"]]) / len(ativos_info) if ativos_info else 0
+    # Quando dy_pond=0 mas todos têm histórico de dividendos, não penaliza
+    if dy_pond <= 0 and pct_com_div_val >= 0.5:
+        dy_pond = 5.0  # valor neutro — mercado fechado, dados temporariamente indisponíveis
     if   dy_pond >= 12: sc_dy = 25
     elif dy_pond >= 8:  sc_dy = 22
     elif dy_pond >= 5:  sc_dy = 17
