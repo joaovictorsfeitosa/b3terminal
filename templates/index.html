@@ -1524,6 +1524,73 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 body:not(.light) .gr-wm-cover{background:#080e18}
 body.light .gr-wm-cover{background:#ffffff}
 
+/* ── HEATMAP ──────────────────────────────────────────────────────── */
+.hm-sector{margin-bottom:24px}
+.hm-sector-title{font-family:var(--sans);font-size:10px;font-weight:800;color:var(--td);letter-spacing:2.5px;text-transform:uppercase;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--bd)}
+.hm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px}
+.hm-cell{
+  border-radius:10px;padding:10px 10px 8px;cursor:pointer;
+  transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden;
+  border:1px solid rgba(255,255,255,.04);
+}
+.hm-cell:hover{transform:scale(1.04);box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:2}
+.hm-sym{font-family:var(--sans);font-size:11px;font-weight:800;color:#fff;margin-bottom:3px;letter-spacing:.3px}
+.hm-chg{font-size:13px;font-weight:800;font-family:var(--sans);line-height:1}
+.hm-price{font-size:8px;margin-top:3px;opacity:.75;font-family:var(--mono)}
+.hm-cell.pos-hi  {background:rgba(0,200,83,.55)}
+.hm-cell.pos-med {background:rgba(0,200,83,.28)}
+.hm-cell.pos-low {background:rgba(0,200,83,.12)}
+.hm-cell.neutral {background:rgba(30,47,68,.9);border-color:var(--bd)}
+.hm-cell.neg-low {background:rgba(255,61,87,.12)}
+.hm-cell.neg-med {background:rgba(255,61,87,.28)}
+.hm-cell.neg-hi  {background:rgba(255,61,87,.55)}
+
+/* ── PORTFOLIO SCORE ──────────────────────────────────────────────── */
+.score-wrap{
+  background:var(--bg2);border:1px solid var(--bd);border-radius:16px;
+  padding:24px;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:start;
+}
+.score-gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:130px}
+.score-circle{
+  width:120px;height:120px;border-radius:50%;
+  display:grid;place-items:center;position:relative;
+  background:conic-gradient(var(--score-color,var(--ui1)) calc(var(--score-pct,0)*1%),var(--bg3) 0);
+  box-shadow:0 0 0 4px var(--bg2),0 0 0 6px var(--bg3);
+}
+.score-inner{
+  width:90px;height:90px;background:var(--bg2);border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.score-num{font-family:var(--sans);font-size:26px;font-weight:900;color:var(--tb);line-height:1}
+.score-grade{font-size:10px;letter-spacing:1px;font-weight:700;margin-top:2px}
+.score-label{font-family:var(--sans);font-size:11px;font-weight:700;color:var(--tb);text-align:center}
+.score-bars{display:flex;flex-direction:column;gap:14px}
+.score-bar-item{display:flex;flex-direction:column;gap:5px}
+.score-bar-header{display:flex;justify-content:space-between;align-items:center}
+.score-bar-name{font-size:10px;color:var(--t);font-weight:700}
+.score-bar-pts{font-size:10px;font-family:var(--sans);font-weight:800;color:var(--tb)}
+.score-bar-detail{font-size:9px;color:var(--td)}
+.score-bar-track{background:var(--bg3);border-radius:20px;height:6px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:20px;transition:width .8s cubic-bezier(.34,1.56,.64,1)}
+.score-tips{
+  background:linear-gradient(135deg,rgba(0,229,176,.05),rgba(0,176,255,.03));
+  border:1px solid rgba(0,229,176,.12);border-radius:10px;
+  padding:14px 16px;margin-top:16px;font-size:11px;line-height:1.8;color:var(--t);
+}
+.score-tips strong{color:var(--ui1)}
+.score-sector-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.score-sector-pill{
+  background:var(--bg3);border:1px solid var(--bd);border-radius:20px;
+  padding:3px 10px;font-size:9px;color:var(--td);display:flex;align-items:center;gap:5px;
+}
+.score-sector-pct{color:var(--tb);font-weight:700;font-family:var(--sans)}
+@media(max-width:560px){
+  .score-wrap{grid-template-columns:1fr}
+  .score-gauge-wrap{flex-direction:row;min-width:auto}
+  .hm-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}
+  .hm-cell{padding:8px 8px 6px}
+  .hm-sym{font-size:10px}
+}
 </style>
 </head>
 <body>
@@ -1572,6 +1639,7 @@ body.light .gr-wm-cover{background:#ffffff}
   <div class="tab"     data-tab="dividendos" onclick="goTab(this)"><span class="tab-ico">💰</span><span class="tab-lbl">Dividendos</span></div>
   <div class="tab"     data-tab="simulador"  onclick="goTab(this)"><span class="tab-ico">🧮</span><span class="tab-lbl">Simulador</span></div>
   <div class="tab"     data-tab="graficos"   onclick="goTab(this)"><span class="tab-ico">📊</span><span class="tab-lbl">Gráficos</span></div>
+  <div class="tab"     data-tab="heatmap"    onclick="goTab(this)"><span class="tab-ico">🔥</span><span class="tab-lbl">Heatmap</span></div>
   <div class="tab"     data-tab="noticias"   onclick="goTab(this)"><span class="tab-ico">📰</span><span class="tab-lbl">Notícias</span></div>
   <div class="tab"     data-tab="ri"         onclick="goTab(this)"><span class="tab-ico">🏢</span><span class="tab-lbl">RI</span></div>
 </nav>
@@ -1680,6 +1748,15 @@ body.light .gr-wm-cover{background:#ffffff}
     <div id="ct-compound-result" style="margin-top:18px"></div>
   </div>
 
+  <!-- Score de Saúde da Carteira -->
+  <div id="score-section" style="display:none;margin-top:28px">
+    <div class="stitle" style="margin-bottom:16px">
+      <div class="sl">🏆 Score de Saúde da Carteira</div>
+      <button onclick="loadPortfolioScore()" style="font-size:9px;color:var(--ui2);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0">↺ Atualizar</button>
+    </div>
+    <div id="score-content"><div class="loading"><div class="sp"></div>ANALISANDO CARTEIRA…</div></div>
+  </div>
+
 </div></div>
 
 <!-- DIVIDENDOS -->
@@ -1700,7 +1777,7 @@ body.light .gr-wm-cover{background:#ffffff}
   <div class="dcards" id="dcards"><div class="loading"><div class="sp"></div>CARREGANDO...</div></div>
   <div class="stitle"><div class="sl" style="font-size:12px">Tabela Completa</div><div class="sr" id="div-tbl-cnt"></div></div>
   <div class="tblwrap">
-    <table><thead><tr><th>Ativo</th><th>Tipo</th><th>Ex-Dividendo</th><th>Último Pago</th><th>Yield</th><th style="text-align:right">R$/Ação</th></tr></thead>
+    <table><thead><tr><th>Ativo</th><th>Tipo</th><th>Próx. Pagamento</th><th>Último Pago</th><th>Yield</th><th style="text-align:right">R$/Ação</th></tr></thead>
     <tbody id="dtbody"><tr><td colspan="6"><div class="loading"><div class="sp"></div></div></td></tr></tbody></table>
   </div>
 </div></div>
@@ -1750,6 +1827,25 @@ body.light .gr-wm-cover{background:#ffffff}
   <div id="sim-calendar"></div>
   <!-- Tabela resumo -->
   <div id="sim-detail"></div>
+</div></div>
+
+<!-- HEATMAP DA B3 -->
+<div class="page" id="page-heatmap"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+    <div>
+      <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--tb);letter-spacing:-0.5px">🔥 Heatmap da B3</div>
+      <div style="font-size:10px;color:var(--td);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px">Variação do dia por setor · atualizado a cada 2 min</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;font-size:9px;color:var(--td)">
+        <div style="width:36px;height:14px;background:linear-gradient(90deg,#ff3d57,#172030,#00e676);border-radius:3px"></div>
+        <span>Negativo → Neutro → Positivo</span>
+      </div>
+      <button onclick="loadHeatmap(true)" style="background:var(--bg2);border:1px solid var(--bd);color:var(--td);padding:7px 14px;border-radius:9px;font-family:var(--mono);font-size:10px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--ui1)';this.style.color='var(--ui1)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--td)'">↺ Atualizar</button>
+      <div id="heatmap-upd" style="font-size:9px;color:var(--td)"></div>
+    </div>
+  </div>
+  <div id="heatmap-body"><div class="loading"><div class="sp"></div>CARREGANDO HEATMAP…</div></div>
 </div></div>
 
 <!-- NOTÍCIAS -->
@@ -2333,16 +2429,34 @@ async function loadDivData(){
 
 function getDivFiltered(){
   let d=[...divData];
-  if(curDivFilt==="acao")d=d.filter(x=>x.tipo==="acao");
-  if(curDivFilt==="fii")d=d.filter(x=>x.tipo==="fii");
-  if(curDivFilt==="prox")d=d.filter(x=>{if(!x.exDate)return false;const df=(new Date(x.exDate*1000)-new Date())/86400000;return df>=0&&df<=60;});
-  return d.sort((a,b)=>{const n=Date.now(),au=a.exDate&&new Date(a.exDate*1000)>n,bu=b.exDate&&new Date(b.exDate*1000)>n;if(au&&!bu)return -1;if(!au&&bu)return 1;if(au&&bu)return a.exDate-b.exDate;return(b.yieldA||0)-(a.yieldA||0);});
+  if(curDivFilt==="acao") d=d.filter(x=>x.tipo==="acao"||x.tipo==="AÇÃO");
+  if(curDivFilt==="fii")  d=d.filter(x=>x.tipo==="fii"||x.tipo==="FII");
+  if(curDivFilt==="prox") d=d.filter(x=>{
+    // Use projected dates from Twelve Data (not exDate unix timestamp)
+    const next=x.projected&&x.projected[0];
+    if(!next) return false;
+    try{
+      const parts=next.date_str.split("/");
+      const dt=new Date(parts[2],parts[1]-1,parts[0]);
+      const diff=(dt-new Date())/86400000;
+      return diff>=0&&diff<=60;
+    }catch(e){return false;}
+  });
+  return d.sort((a,b)=>{
+    const an=a.projected&&a.projected[0], bn=b.projected&&b.projected[0];
+    if(an&&!bn) return -1; if(!an&&bn) return 1;
+    if(an&&bn){
+      const toMs=s=>{const p=s.date_str.split("/");return new Date(p[2],p[1]-1,p[0]).getTime();};
+      return toMs(an)-toMs(bn);
+    }
+    return (b.yieldA||0)-(a.yieldA||0);
+  });
 }
 
 function renderDivData(){
   const data=getDivFiltered();
-  $("div-cnt").textContent=divData.filter(d=>d.yieldA||d.lstVal||d.avgVal).length||"—";
-  $("div-yield").textContent=divData.length?Math.max(0,...divData.map(d=>d.yieldA)).toFixed(2)+"%":"—";
+  $("div-cnt").textContent=divData.filter(d=>d.projected?.length||d.yieldA||d.lstVal||d.avgVal).length||"—";
+  $("div-yield").textContent=divData.length?Math.max(0,...divData.map(d=>d.yieldA||0)).toFixed(2)+"%":"—";
   $("div-tbl-cnt").textContent=data.length+" ativo"+(data.length!==1?"s":"");
   if(!data.length){
     $("dcards").innerHTML='<div class="empty-box"><span class="ei">📅</span><span class="et">Nenhum ativo</span><span>Adicione ativos na aba Minha Carteira</span></div>';
@@ -2352,16 +2466,16 @@ function renderDivData(){
     const nextPay=d.projected&&d.projected[0];
     const hasDate=!!nextPay;
     const val=hasDate?fR(nextPay.value_cota):(d.lstVal?fR(d.lstVal):"—");
-    // Verde com data confirmada, amarelo sem data
     const cardCls=hasDate?"dcard duc":"dcard dcard-pending";
     const proxPays=(d.projected||[]).slice(0,3).map(p=>
       `<div class="drow"><span class="drl">📅 ${p.month_name}</span><span class="drv drv-g">${fR(p.value_cota)}/cota</span></div>`
     ).join("");
     const semData=!hasDate?`<div style="background:var(--ad);border:1px solid rgba(255,196,0,.25);border-radius:6px;padding:7px 10px;font-size:10px;color:var(--a);margin-top:8px">⏳ Data ainda não divulgada</div>`:"";
+    const freqLabel=hasDate?(d.freq||"—"):"—";
     return`<div class="${cardCls}">
       <div class="dc-head"><div><div class="dc-sym">${d.symbol}</div><div class="dc-name">${d.name}</div></div>${pill(d.tipo)}</div>
       <div class="dc-amt">${val}</div>
-      <div class="dc-sub">${hasDate?d.freq+" · por cota":"último valor pago"}</div>
+      <div class="dc-sub">${freqLabel!=="—"?freqLabel+" · por cota":"último valor pago"}</div>
       <div class="drow"><span class="drl">Dividend Yield</span><span class="drv drv-a">${d.yieldA?d.yieldA.toFixed(2)+"%":"—"}</span></div>
       <div class="drow"><span class="drl">Último Pago</span><span class="drv">${d.lstDate?new Date(d.lstDate*1000).toLocaleDateString("pt-BR"):"—"}</span></div>
       ${proxPays}${semData}
@@ -2373,7 +2487,14 @@ function renderDivData(){
       ?`<span class="dbadge dbadge-up">📅 ${nextPay.date_str}</span>`
       :`<span class="dbadge" style="background:var(--ad);color:var(--a);border:1px solid rgba(255,196,0,.25)">⏳ Aguardando</span>`;
     const val=nextPay?fR(nextPay.value_cota):(d.lstVal?fR(d.lstVal):"—");
-    return`<tr><td><div class="td-sym">${d.symbol}</div><div class="td-sub">${d.name}</div></td><td>${pill(d.tipo)}</td><td>${d.lstDate?new Date(d.lstDate*1000).toLocaleDateString("pt-BR"):"—"}</td><td>${proxData}</td><td>${d.yieldA?`<span class="yieldb">${d.yieldA.toFixed(2)}%</span>`:"—"}</td><td style="text-align:right;font-family:var(--sans);font-size:12px;font-weight:700;color:var(--a)">${val}</td></tr>`;
+    return`<tr>
+      <td><div class="td-sym">${d.symbol}</div><div class="td-sub">${d.name}</div></td>
+      <td>${pill(d.tipo)}</td>
+      <td>${proxData}</td>
+      <td>${d.lstDate?new Date(d.lstDate*1000).toLocaleDateString("pt-BR"):"—"}</td>
+      <td>${d.yieldA?`<span class="yieldb">${d.yieldA.toFixed(2)}%</span>`:"—"}</td>
+      <td style="text-align:right;font-family:var(--sans);font-size:12px;font-weight:700;color:var(--a)">${val}</td>
+    </tr>`;
   }).join("");
 }
 
@@ -3094,12 +3215,12 @@ function goTab(btn){
   document.querySelectorAll(`[data-tab="${tab}"]`).forEach(el=>el.classList.add("on"));
   $("page-"+tab).classList.add("on");
   if(tab==="carteira"   &&!Object.keys(carteira).length) initCarteira();
-  else if(tab==="carteira") ctRenderGrid();
+  else if(tab==="carteira"){ ctRenderGrid(); loadPortfolioScore(); }
   if(tab==="ri"&&!_riAllData.length){ initRI(); }
   if(tab==="graficos"&&!_gcInited){ gcInit(); _gcInited=true; }
+  if(tab==="heatmap") loadHeatmap();
   if(tab==="dividendos"){
     divLoaded=false;
-    apiFetch("/api/clear-cache",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({symbol:"bdiv_"}),noRetry:true}).catch(()=>{});
     if(!Object.keys(carteira).length){
       initCarteira().then(()=>loadDivData());
     } else {
@@ -3838,6 +3959,155 @@ function gcToggleInd(ind){
   _gcInds[ind] = !_gcInds[ind];
   document.querySelectorAll(`.gci[data-i="${ind}"]`).forEach(b=>b.classList.toggle("on",_gcInds[ind]));
   if(_gcSym && _gcData.length) gcBuildChart();
+}
+
+/* ══════════════════════════════════════════════════════════
+   HEATMAP DA B3
+══════════════════════════════════════════════════════════ */
+let _hmLoaded = false;
+
+function hmColor(chg){
+  if(chg >=  3) return "pos-hi";
+  if(chg >=  1) return "pos-med";
+  if(chg >   0) return "pos-low";
+  if(chg === 0) return "neutral";
+  if(chg > -1)  return "neg-low";
+  if(chg > -3)  return "neg-med";
+  return "neg-hi";
+}
+
+function hmChgColor(chg){
+  if(chg > 0)  return "#00e676";
+  if(chg < 0)  return "#ff3d57";
+  return "var(--td)";
+}
+
+async function loadHeatmap(force=false){
+  const body = $("heatmap-body");
+  if(!body) return;
+  if(_hmLoaded && !force) return;
+  body.innerHTML = '<div class="loading"><div class="sp"></div>CARREGANDO HEATMAP…</div>';
+  try{
+    const data = await apiFetch("/api/heatmap");
+    if(!data || !data.sectors){
+      body.innerHTML = '<div class="errmsg">⚠ Erro ao carregar heatmap</div>'; return;
+    }
+    const updEl = $("heatmap-upd");
+    if(updEl) updEl.textContent = "Atualizado às " + (data.updated||"—");
+
+    body.innerHTML = data.sectors.map(sec=>`
+      <div class="hm-sector">
+        <div class="hm-sector-title">${sec.sector}</div>
+        <div class="hm-grid">
+          ${sec.cells.map(c=>`
+            <div class="hm-cell ${hmColor(c.change)}"
+              onclick="goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${c.symbol}'),120)"
+              title="${c.name} · R$ ${c.price}">
+              <div class="hm-sym">${c.symbol}</div>
+              <div class="hm-chg" style="color:${hmChgColor(c.change)}">
+                ${c.change>0?"+":""}${c.change.toFixed(2)}%
+              </div>
+              <div class="hm-price">R$ ${c.price.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `).join("");
+    _hmLoaded = true;
+  }catch(e){
+    body.innerHTML = `<div class="errmsg">⚠ ${e.message}</div>`;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   SCORE DE SAÚDE DA CARTEIRA
+══════════════════════════════════════════════════════════ */
+async function loadPortfolioScore(){
+  const sec = $("score-section");
+  const cont = $("score-content");
+  if(!sec || !cont) return;
+
+  // Only show if carteira has assets
+  const keys = Object.keys(carteira);
+  if(!keys.length){ sec.style.display="none"; return; }
+  sec.style.display = "block";
+  cont.innerHTML = '<div class="loading"><div class="sp"></div>ANALISANDO CARTEIRA…</div>';
+
+  try{
+    const d = await apiFetch("/api/portfolio-score");
+    if(!d || d.error){
+      cont.innerHTML = `<div class="errmsg">⚠ ${d?.error||"Erro ao calcular score"}</div>`; return;
+    }
+
+    // Color by score
+    const scoreColor = d.score >= 72 ? "#00e676" : d.score >= 42 ? "#ffc400" : "#ff3d57";
+    const scorePct   = d.score;
+
+    // Sub-bar color
+    const barColor = v => v >= 20 ? "#00e676" : v >= 12 ? "#ffc400" : "#ff3d57";
+
+    // Sector distribution pills
+    const sectorPills = Object.entries(d.sector_dist||{})
+      .sort((a,b)=>b[1]-a[1])
+      .map(([s,p])=>`<div class="score-sector-pill">
+        <span>${s}</span><span class="score-sector-pct">${p}%</span>
+      </div>`).join("");
+
+    const tipsHtml = (d.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start">
+      <span style="color:var(--ui1);flex-shrink:0">→</span>
+      <span>${t}</span>
+    </div>`).join("");
+
+    cont.innerHTML = `
+      <div class="score-wrap">
+        <div class="score-gauge-wrap">
+          <div class="score-circle" style="--score-pct:${scorePct};--score-color:${scoreColor}">
+            <div class="score-inner">
+              <div class="score-num" style="color:${scoreColor}">${d.score}</div>
+              <div class="score-grade" style="color:${scoreColor}">${d.grade}</div>
+            </div>
+          </div>
+          <div class="score-label">${d.label}</div>
+        </div>
+        <div>
+          <div class="score-bars">
+            ${Object.values(d.scores).map(s=>`
+              <div class="score-bar-item">
+                <div class="score-bar-header">
+                  <div>
+                    <div class="score-bar-name">${s.label}</div>
+                    <div class="score-bar-detail">${s.detail}</div>
+                  </div>
+                  <div class="score-bar-pts" style="color:${barColor(s.value)}">${s.value}/${s.max}</div>
+                </div>
+                <div class="score-bar-track">
+                  <div class="score-bar-fill" style="width:${(s.value/s.max*100).toFixed(0)}%;background:${barColor(s.value)}"></div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+          ${sectorPills ? `
+          <div style="margin-top:16px">
+            <div style="font-size:8px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Distribuição Setorial</div>
+            <div class="score-sector-grid">${sectorPills}</div>
+          </div>` : ""}
+          <div class="score-tips">
+            <strong>Análise</strong><br>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${tipsHtml}</div>
+          </div>
+        </div>
+      </div>
+    `;
+    // Animate bars after render
+    requestAnimationFrame(()=>{
+      cont.querySelectorAll(".score-bar-fill").forEach(el=>{
+        const w = el.style.width; el.style.width="0"; 
+        requestAnimationFrame(()=>{ el.style.width=w; });
+      });
+    });
+  }catch(e){
+    cont.innerHTML = `<div class="errmsg">⚠ ${e.message}</div>`;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
