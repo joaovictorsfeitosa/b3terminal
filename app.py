@@ -1283,6 +1283,45 @@ def _td_batch_quotes(symbols):
     """Mantido para compatibilidade — não usado no heatmap."""
     return {}
 
+def _heatmap_quotes(symbols):
+    """
+    Busca cotações leves para o heatmap — SEM fundamental=true.
+    Resposta menor, mais rápida, funciona com listas maiores no BRAPI.
+    Faz 2 batches de 15 para segurança.
+    """
+    BATCH = 15
+    result = {}
+    for i in range(0, len(symbols), BATCH):
+        batch    = [s.upper().replace(".SA","") for s in symbols[i:i+BATCH]]
+        syms_str = ",".join(batch)
+        ck       = f"hq_{syms_str}"
+        cached   = cache_get(ck, ttl=180)
+        if cached:
+            result.update(cached)
+            continue
+        # Sem fundamental=true — só precisa de preço e variação
+        data = brapi_get(f"/quote/{syms_str}")
+        if not data or "results" not in data:
+            print(f"  Heatmap BRAPI falhou para batch {i//BATCH+1}: {data}")
+            continue
+        batch_result = {}
+        for r in data["results"]:
+            sym    = r.get("symbol","")
+            price  = float(r.get("regularMarketPrice")         or 0)
+            change = float(r.get("regularMarketChangePercent") or 0)
+            name   = (r.get("shortName") or r.get("longName") or sym)[:22]
+            if sym:
+                batch_result[sym] = {
+                    "symbol": sym,
+                    "price":  round(price,  2),
+                    "change": round(change, 2),
+                    "name":   name,
+                    "volume": int(r.get("regularMarketVolume") or 0),
+                }
+        cache_set(ck, batch_result)
+        result.update(batch_result)
+    return result
+
 
 @app.route("/api/heatmap")
 @login_required
@@ -1292,10 +1331,8 @@ def get_heatmap():
     if cached:
         return jsonify(cached)
 
-    # Uma única chamada com todos os 30 símbolos — funciona no BRAPI free tier
     all_syms = [s for syms in HEATMAP_SECTORS.values() for s in syms]
-    quotes   = brapi_quotes(all_syms) or []
-    qmap     = {q["symbol"]: q for q in quotes}
+    qmap     = _heatmap_quotes(all_syms)
 
     sectors = []
     for sector_name, syms in HEATMAP_SECTORS.items():
@@ -1304,14 +1341,12 @@ def get_heatmap():
             q = qmap.get(sym)
             if not q:
                 continue
-            price  = float(q.get("regularMarketPrice")         or 0)
-            change = float(q.get("regularMarketChangePercent") or 0)
             cells.append({
                 "symbol": sym,
-                "price":  round(price,  2),
-                "change": round(change, 2),
-                "name":   (q.get("shortName") or sym)[:22],
-                "volume": q.get("regularMarketVolume") or 0,
+                "price":  q["price"],
+                "change": q["change"],
+                "name":   q["name"],
+                "volume": q.get("volume", 0),
             })
         if cells:
             sectors.append({"sector": sector_name, "cells": cells})
@@ -1394,8 +1429,9 @@ def portfolio_score():
             a["valor"] = qty_map.get(a["sym"], 1)
 
     # ── Score 1: Diversificação (0–25) ────────────────────────────────────────
-    sectors = set(a["sector"] for a in ativos_info)
-    n_sec   = len(sectors)
+    sectors_used = set(a["sector"] for a in ativos_info)
+    n_sec        = len(sectors_used)
+    n_ativ       = len(ativos_info)
     if   n_sec >= 6: sc_div = 25
     elif n_sec == 5: sc_div = 22
     elif n_sec == 4: sc_div = 18
@@ -1403,8 +1439,12 @@ def portfolio_score():
     elif n_sec == 2: sc_div = 8
     else:            sc_div = 4
 
-    # ── Score 2: Concentração (0–25) — penaliza ativo dominante ──────────────
-    max_pct = max((a["valor"] / total_valor * 100) for a in ativos_info) if ativos_info else 100
+    # ── Score 2: Concentração (0–25) ─────────────────────────────────────────
+    pcts_ativ = sorted(
+        [(a["sym"], round(a["valor"] / total_valor * 100, 1)) for a in ativos_info],
+        key=lambda x: -x[1]
+    )
+    max_sym, max_pct = pcts_ativ[0] if pcts_ativ else ("—", 100)
     if   max_pct < 15: sc_conc = 25
     elif max_pct < 25: sc_conc = 20
     elif max_pct < 35: sc_conc = 15
@@ -1412,13 +1452,18 @@ def portfolio_score():
     elif max_pct < 70: sc_conc = 5
     else:              sc_conc = 2
 
-    # ── Score 3: Rendimento DY médio ponderado (0–25) ─────────────────────────
-    # Se mercado fechado, BRAPI retorna dy=0 para todos — usa has_div como fallback
-    dy_pond = sum(a["dy"] * a["valor"] for a in ativos_info) / total_valor if total_valor > 0 else 0
-    pct_com_div_val = len([a for a in ativos_info if a["has_div"]]) / len(ativos_info) if ativos_info else 0
-    # Quando dy_pond=0 mas todos têm histórico de dividendos, não penaliza
-    if dy_pond <= 0 and pct_com_div_val >= 0.5:
-        dy_pond = 5.0  # valor neutro — mercado fechado, dados temporariamente indisponíveis
+    # ── Score 3: Rendimento DY médio ponderado (0–25) ────────────────────────
+    dy_pond     = sum(a["dy"] * a["valor"] for a in ativos_info) / total_valor if total_valor > 0 else 0
+    n_has_div   = len([a for a in ativos_info if a["has_div"]])
+    pct_has_div = n_has_div / n_ativ if n_ativ else 0
+    mercado_fechado = dy_pond <= 0 and pct_has_div >= 0.4
+
+    # Quando mercado fechado BRAPI retorna dy=0 — não penaliza
+    dy_display = dy_pond
+    if mercado_fechado:
+        dy_pond    = 5.0   # neutro
+        dy_display = 0.0   # mostra real (0) no detalhe com aviso
+
     if   dy_pond >= 12: sc_dy = 25
     elif dy_pond >= 8:  sc_dy = 22
     elif dy_pond >= 5:  sc_dy = 17
@@ -1427,7 +1472,7 @@ def portfolio_score():
     else:               sc_dy = 3
 
     # ── Score 4: Consistência de dividendos (0–25) ────────────────────────────
-    pct_com_div = len([a for a in ativos_info if a["has_div"]]) / len(ativos_info) * 100 if ativos_info else 0
+    pct_com_div = pct_has_div * 100
     if   pct_com_div >= 90: sc_cons = 25
     elif pct_com_div >= 70: sc_cons = 20
     elif pct_com_div >= 50: sc_cons = 14
@@ -1436,47 +1481,112 @@ def portfolio_score():
 
     total_score = sc_div + sc_conc + sc_dy + sc_cons
 
-    # ── Classificação ──────────────────────────────────────────────────────────
-    if   total_score >= 85: grade, label = "A+", "Excelente"
-    elif total_score >= 72: grade, label = "A",  "Muito Boa"
-    elif total_score >= 58: grade, label = "B",  "Boa"
-    elif total_score >= 42: grade, label = "C",  "Regular"
+    # ── Score 5: Qualidade da carteira (bônus) ────────────────────────────────
+    # FIIs mensais = consistência extra; só melhora, nunca piora
+    n_fiis = len([a for a in ativos_info if a["fii"]])
+    bonus  = min(5, n_fiis * 1)   # até +5 pts por FIIs
+    total_score = min(100, total_score + bonus)
+
+    # ── Classificação ─────────────────────────────────────────────────────────
+    if   total_score >= 88: grade, label = "A+", "Excelente"
+    elif total_score >= 75: grade, label = "A",  "Muito Boa"
+    elif total_score >= 60: grade, label = "B",  "Boa"
+    elif total_score >= 44: grade, label = "C",  "Regular"
     elif total_score >= 28: grade, label = "D",  "Fraca"
     else:                   grade, label = "F",  "Crítica"
 
-    # ── Dicas automáticas ──────────────────────────────────────────────────────
+    # ── Dicas personalizadas ──────────────────────────────────────────────────
     tips = []
     if sc_div < 15:
-        tips.append(f"Você está concentrado em {n_sec} setor{'es' if n_sec>1 else ''}. Diversificar em mais setores reduz risco.")
+        outros = ["Energia", "Saúde", "Agro", "Varejo", "Tecnologia"]
+        sugest = [s for s in outros if s not in sectors_used][:2]
+        dica = f"Você tem {n_sec} setor{'es' if n_sec>1 else ''}."
+        if sugest:
+            dica += f" Considere adicionar {' ou '.join(sugest)} para reduzir risco."
+        tips.append(dica)
     if sc_conc < 15:
-        tips.append(f"O ativo mais pesado ocupa {max_pct:.0f}% da carteira. Ideal é manter abaixo de 25%.")
-    if sc_dy < 15:
-        tips.append(f"DY médio de {dy_pond:.1f}%. FIIs mensais e ações com histórico longo costumam melhorar esse número.")
+        tips.append(
+            f"{max_sym} ocupa {max_pct:.0f}% da carteira — acima do ideal de 25%. "
+            f"Rebalancear gradualmente protege contra eventos específicos do ativo."
+        )
+    if sc_dy < 15 and not mercado_fechado:
+        tips.append(
+            f"DY médio de {dy_display:.1f}%. FIIs como HGLG11, MXRF11 e XPML11 "
+            f"pagam mensalmente e costumam ter DY entre 10–14%."
+        )
     if sc_cons < 15:
-        tips.append(f"Apenas {pct_com_div:.0f}% dos ativos pagam dividendos. Ativos com DY > 0 fortalecem a renda passiva.")
+        pagadores = [a["sym"] for a in ativos_info if a["has_div"]]
+        nao_pagam = [a["sym"] for a in ativos_info if not a["has_div"]]
+        if nao_pagam:
+            tips.append(
+                f"{', '.join(nao_pagam[:3])} não têm histórico de dividendos confirmado. "
+                f"Priorize ativos com pagamentos consistentes para fortalecer renda passiva."
+            )
+    if mercado_fechado:
+        tips.append("⏰ Mercado fechado — DY calculado com base em histórico. Dados de yield serão atualizados na abertura.")
     if not tips:
-        tips.append("Carteira saudável! Continue acompanhando os fundamentos e reinvesta os dividendos.")
+        tips.append(
+            f"Carteira equilibrada com {n_ativ} ativos em {n_sec} setores. "
+            f"Continue reinvestindo os dividendos para acelerar o crescimento patrimonial."
+        )
 
-    # Distribuição setorial para o gráfico
+    # ── Distribuição setorial ─────────────────────────────────────────────────
     sector_dist = {}
     for a in ativos_info:
         s = a["sector"]
         sector_dist[s] = round(sector_dist.get(s, 0) + a["valor"] / total_valor * 100, 1)
 
+    # ── Breakdown por ativo (top 5) ───────────────────────────────────────────
+    top_ativos = [
+        {
+            "sym":    sym,
+            "pct":    pct,
+            "dy":     round(next((a["dy"] for a in ativos_info if a["sym"]==sym), 0), 2),
+            "fii":    next((a["fii"] for a in ativos_info if a["sym"]==sym), False),
+            "sector": next((a["sector"] for a in ativos_info if a["sym"]==sym), "—"),
+        }
+        for sym, pct in pcts_ativ[:6]
+    ]
+
     return jsonify({
-        "score":       total_score,
-        "grade":       grade,
-        "label":       label,
+        "score":           total_score,
+        "grade":           grade,
+        "label":           label,
+        "mercado_fechado": mercado_fechado,
+        "bonus_fiis":      bonus,
         "scores": {
-            "diversificacao": {"value": sc_div,  "max": 25, "label": "Diversificação",  "detail": f"{n_sec} setor{'es' if n_sec!=1 else ''}"},
-            "concentracao":   {"value": sc_conc, "max": 25, "label": "Concentração",    "detail": f"Maior posição: {max_pct:.0f}%"},
-            "rendimento":     {"value": sc_dy,   "max": 25, "label": "Rendimento (DY)", "detail": f"DY médio: {dy_pond:.1f}%"},
-            "consistencia":   {"value": sc_cons, "max": 25, "label": "Consistência",    "detail": f"{pct_com_div:.0f}% c/ dividendos"},
+            "diversificacao": {
+                "value":  sc_div,
+                "max":    25,
+                "label":  "Diversificação",
+                "detail": f"{n_sec} setor{'es' if n_sec!=1 else ''} · {n_ativ} ativos",
+            },
+            "concentracao": {
+                "value":  sc_conc,
+                "max":    25,
+                "label":  "Concentração",
+                "detail": f"Maior posição: {max_sym} {max_pct:.0f}%",
+            },
+            "rendimento": {
+                "value":  sc_dy,
+                "max":    25,
+                "label":  "Rendimento (DY)",
+                "detail": ("⏰ Mercado fechado" if mercado_fechado
+                           else f"DY médio: {dy_display:.1f}%"),
+            },
+            "consistencia": {
+                "value":  sc_cons,
+                "max":    25,
+                "label":  "Consistência",
+                "detail": f"{n_has_div}/{n_ativ} ativos c/ dividendos",
+            },
         },
         "tips":         tips,
         "sector_dist":  sector_dist,
-        "total_ativos": len(ativos_info),
-        "dy_medio":     round(dy_pond, 2),
+        "top_ativos":   top_ativos,
+        "total_ativos": n_ativ,
+        "dy_medio":     round(dy_display, 2),
+        "n_fiis":       n_fiis,
     })
 
 
