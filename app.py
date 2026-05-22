@@ -95,11 +95,13 @@ def brapi_get(path, params=None):
         print(f"  BRAPI {path}: {e}"); return None
 
 def brapi_quotes(symbols):
-    syms   = ",".join(s.upper().replace(".SA","") for s in symbols)
-    ck     = f"bq_{syms}"
+    syms_clean = [s.upper().replace(".SA","") for s in symbols]
+    syms_str   = ",".join(syms_clean)
+    # Cache key: hash long lists to avoid oversized keys
+    ck = f"bq_{syms_str}" if len(syms_str) < 120 else f"bq_{hash(syms_str)}"
     cached = cache_get(ck, ttl=300)
     if cached: return cached
-    data = brapi_get(f"/quote/{syms}", {"fundamental":"true"})
+    data = brapi_get(f"/quote/{syms_str}", {"fundamental":"true"})
     if not data or "results" not in data: return []
     results = []
     for r in data["results"]:
@@ -1289,8 +1291,16 @@ def get_heatmap():
         return jsonify(cached)
 
     all_syms = [s for syms in HEATMAP_SECTORS.values() for s in syms]
-    quotes   = brapi_quotes(all_syms) or []
-    qmap     = {q["symbol"]: q for q in quotes}
+
+    # ── Batch em grupos de 20 — BRAPI free tier rejeita listas maiores ────────
+    BATCH = 20
+    qmap  = {}
+    for i in range(0, len(all_syms), BATCH):
+        batch   = all_syms[i:i+BATCH]
+        results = brapi_quotes(batch) or []
+        for q in results:
+            if q.get("symbol"):
+                qmap[q["symbol"]] = q
 
     sectors = []
     for sector_name, syms in HEATMAP_SECTORS.items():
@@ -1299,18 +1309,23 @@ def get_heatmap():
             q = qmap.get(sym)
             if not q:
                 continue
+            price  = q.get("regularMarketPrice") or 0
+            change = q.get("regularMarketChangePercent") or 0
+            if price <= 0:
+                continue
             cells.append({
-                "symbol":  sym,
-                "price":   round(q.get("regularMarketPrice") or 0, 2),
-                "change":  round(q.get("regularMarketChangePercent") or 0, 2),
-                "volume":  q.get("regularMarketVolume") or 0,
-                "name":    (q.get("shortName") or sym)[:22],
+                "symbol": sym,
+                "price":  round(float(price), 2),
+                "change": round(float(change), 2),
+                "volume": q.get("regularMarketVolume") or 0,
+                "name":   (q.get("shortName") or sym)[:22],
             })
         if cells:
             sectors.append({"sector": sector_name, "cells": cells})
 
     result = {"sectors": sectors, "updated": datetime.utcnow().strftime("%H:%M")}
-    cache_set(ck, result)
+    if sectors:  # só cacheia se tiver dados
+        cache_set(ck, result)
     return jsonify(result)
 
 
@@ -1342,24 +1357,27 @@ _SECTOR_MAP = {
 @app.route("/api/portfolio-score")
 @login_required
 def portfolio_score():
-    from models import Ativo
     ativos = Ativo.query.filter_by(user_id=current_user.id).all()
     if not ativos:
-        return jsonify({"error": "carteira vazia"}), 400
+        return jsonify({"error": "Carteira vazia — adicione ativos na aba Carteira."}), 400
 
-    syms      = [a.symbol for a in ativos]
-    qty_map   = {a.symbol: (a.qty or 0) for a in ativos}
-    pm_map    = {a.symbol: (a.pm  or 0) for a in ativos}
-    quotes    = brapi_quotes(syms) or []
-    qmap      = {q["symbol"]: q for q in quotes}
+    syms    = [a.symbol for a in ativos]
+    qty_map = {a.symbol: float(a.qty or 0) for a in ativos}
+    pm_map  = {a.symbol: float(a.pm  or 0) for a in ativos}
 
-    # ── Dados por ativo ───────────────────────────────────────────────────────
+    quotes = brapi_quotes(syms) or []
+    qmap   = {q["symbol"]: q for q in quotes}
+
+    # ── Dados por ativo ────────────────────────────────────────────────────────
     total_valor = 0.0
     ativos_info = []
     for sym in syms:
-        q     = qmap.get(sym, {})
-        price = float(q.get("regularMarketPrice") or pm_map.get(sym) or 0)
-        qty   = float(qty_map.get(sym) or 0)
+        q   = qmap.get(sym, {})
+        # Usa cotação atual; fallback para PM quando mercado fechado
+        price = float(q.get("regularMarketPrice") or 0)
+        if price <= 0:
+            price = pm_map.get(sym, 0)
+        qty   = qty_map.get(sym, 0)
         valor = price * qty
         total_valor += valor
         dy    = float(q.get("dividendYield") or 0)
@@ -1371,8 +1389,11 @@ def portfolio_score():
             "has_div": dy > 0,
         })
 
+    # Se ainda não tiver valor (ativos sem PM e sem cotação), usa qty como peso
     if total_valor <= 0:
-        return jsonify({"error": "sem valores calculáveis"}), 400
+        total_valor = sum(qty_map.values()) or 1
+        for a in ativos_info:
+            a["valor"] = qty_map.get(a["sym"], 1)
 
     # ── Score 1: Diversificação (0–25) ────────────────────────────────────────
     sectors = set(a["sector"] for a in ativos_info)
