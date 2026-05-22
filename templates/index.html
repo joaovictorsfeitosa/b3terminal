@@ -1834,18 +1834,44 @@ body.light .gr-wm-cover{background:#ffffff}
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px">
     <div>
       <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--tb);letter-spacing:-0.5px">🔥 Heatmap da B3</div>
-      <div style="font-size:10px;color:var(--td);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px">Variação do dia por setor · atualizado a cada 2 min</div>
+      <div style="font-size:10px;color:var(--td);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px">Variação do dia por setor · Ibovespa · Dados em tempo real</div>
     </div>
-    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:10px">
       <div style="display:flex;align-items:center;gap:6px;font-size:9px;color:var(--td)">
         <div style="width:36px;height:14px;background:linear-gradient(90deg,#ff3d57,#172030,#00e676);border-radius:3px"></div>
         <span>Negativo → Neutro → Positivo</span>
       </div>
-      <button onclick="loadHeatmap(true)" style="background:var(--bg2);border:1px solid var(--bd);color:var(--td);padding:7px 14px;border-radius:9px;font-family:var(--mono);font-size:10px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--ui1)';this.style.color='var(--ui1)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--td)'">↺ Atualizar</button>
-      <div id="heatmap-upd" style="font-size:9px;color:var(--td)"></div>
     </div>
   </div>
-  <div id="heatmap-body"><div class="loading"><div class="sp"></div>CARREGANDO HEATMAP…</div></div>
+
+  <!-- TradingView Stock Heatmap Widget -->
+  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden;min-height:520px">
+    <div class="tradingview-widget-container" style="height:520px">
+      <div class="tradingview-widget-container__widget" style="height:520px"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>
+      {
+        "exchanges": [],
+        "dataSource": "IBOV",
+        "grouping": "sector",
+        "blockSize": "market_cap_basic",
+        "blockColor": "change",
+        "locale": "br",
+        "colorTheme": "dark",
+        "hasTopBar": false,
+        "isDataSetEnabled": false,
+        "isZoomEnabled": true,
+        "hasSymbolTooltip": true,
+        "isMonoSize": false,
+        "width": "100%",
+        "height": 520
+      }
+      </script>
+    </div>
+  </div>
+
+  <div style="margin-top:14px;font-size:9px;color:var(--td);text-align:right;letter-spacing:.5px">
+    Dados fornecidos por TradingView · Ibovespa (~90 ações) · Agrupado por setor · Tamanho = market cap
+  </div>
 </div></div>
 
 <!-- NOTÍCIAS -->
@@ -3218,7 +3244,6 @@ function goTab(btn){
   else if(tab==="carteira"){ ctRenderGrid(); loadPortfolioScore(); }
   if(tab==="ri"&&!_riAllData.length){ initRI(); }
   if(tab==="graficos"&&!_gcInited){ gcInit(); _gcInited=true; }
-  if(tab==="heatmap") loadHeatmap();
   if(tab==="dividendos"){
     divLoaded=false;
     if(!Object.keys(carteira).length){
