@@ -1267,99 +1267,35 @@ def ai_chat():
 
 
 
-# ── Heatmap da B3 ─────────────────────────────────────────────────────────────
+# ── Heatmap — 30 símbolos em 1 chamada BRAPI (funciona no free tier) ─────────
 HEATMAP_SECTORS = {
-    "Bancos & Financeiro": ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11","B3SA3","CIEL3","IRBR3","BMGB4"],
-    "Petróleo & Gás":      ["PETR4","PETR3","PRIO3","RRRP3","RECV3","UGPA3","CSAN3"],
-    "Mineração & Sider.":  ["VALE3","CSNA3","GGBR4","USIM5","BRAP4","CMIN3"],
-    "Energia Elétrica":    ["EGIE3","ENGI11","CPFE3","TAEE11","CMIG4","AURE3","CPLE6","NEOE3"],
-    "Varejo & Consumo":    ["MGLU3","NTCO3","SOMA3","LREN3","ARZZ3","PETZ3","VIVA3","LWSA3"],
-    "Construção Civil":    ["MRVE3","EZTC3","CYRE3","DIRR3","TEND3","EVEN3"],
-    "Saúde":               ["RDOR3","HAPV3","FLRY3","DASA3","ONCO3","PARD3"],
-    "Telecom":             ["VIVT3","TIMS3"],
-    "Agronegócio":         ["AGRO3","SLCE3","CAML3","JBSS3","MRFG3","BEEF3","SMTO3"],
-    "Tecnologia":          ["TOTVS3","POSI3","CASH3","IFCM3"],
-    "FIIs Destaque":       ["HGLG11","MXRF11","XPML11","KNRI11","VISC11","MALL11","BTLG11","RBVA11","BRCO11","HCTR11"],
+    "Bancos & Financeiro": ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11"],
+    "Petróleo & Gás":      ["PETR4","PRIO3","RRRP3","UGPA3"],
+    "Mineração & Sider.":  ["VALE3","GGBR4","CSNA3"],
+    "Energia Elétrica":    ["EGIE3","TAEE11","CPFE3","CMIG4"],
+    "Varejo & Consumo":    ["LREN3","MGLU3","NTCO3"],
+    "Saúde":               ["RDOR3","HAPV3","FLRY3"],
+    "Agro & Alimentos":    ["JBSS3","AGRO3","MRFG3"],
+    "FIIs Destaque":       ["HGLG11","MXRF11","XPML11","KNRI11","MALL11"],
 }
 
 def _td_batch_quotes(symbols):
-    """
-    Twelve Data batch quote — retorna dict {SYMBOL: {price, change, name}}.
-    Suporta até 120 símbolos por chamada, usa exchange BVMF.
-    """
-    TD_KEY = os.environ.get("TWELVE_DATA_KEY", "")
-    if not TD_KEY or not symbols:
-        return {}
-
-    # TD aceita lista separada por vírgula
-    syms_str = ",".join(s.upper().replace(".SA","") for s in symbols)
-    try:
-        r = req_lib.get(
-            "https://api.twelvedata.com/quote",
-            params={
-                "symbol":   syms_str,
-                "exchange": "BVMF",
-                "apikey":   TD_KEY,
-                "dp":       2,          # casas decimais
-            },
-            timeout=25,
-        )
-        r.raise_for_status()
-        raw = r.json()
-
-        # Resposta única (1 símbolo) → embrulha em dict
-        if isinstance(raw, dict) and raw.get("symbol") and "percent_change" in raw:
-            raw = {raw["symbol"]: raw}
-
-        result = {}
-        for sym, d in raw.items():
-            if not isinstance(d, dict) or d.get("status") == "error":
-                continue
-            try:
-                price  = float(d.get("close")          or d.get("price") or 0)
-                change = float(d.get("percent_change")  or 0)
-                name   = (d.get("name") or sym)[:22]
-                volume = int(float(d.get("volume") or 0))
-                result[sym] = {
-                    "symbol": sym, "price": round(price,2),
-                    "change": round(change,2), "name": name, "volume": volume,
-                }
-            except (ValueError, TypeError):
-                continue
-        return result
-    except Exception as e:
-        print(f"  TD batch quotes error: {e}")
-        return {}
+    """Mantido para compatibilidade — não usado no heatmap."""
+    return {}
 
 
 @app.route("/api/heatmap")
 @login_required
 def get_heatmap():
     ck = "heatmap_all"
-    cached = cache_get(ck, ttl=120)
+    cached = cache_get(ck, ttl=180)
     if cached:
         return jsonify(cached)
 
+    # Uma única chamada com todos os 30 símbolos — funciona no BRAPI free tier
     all_syms = [s for syms in HEATMAP_SECTORS.values() for s in syms]
-
-    # ── Twelve Data: 1 chamada com todos os símbolos ─────────────────────────
-    qmap = _td_batch_quotes(all_syms)
-
-    # Fallback BRAPI em lotes de 20 se TD não retornou nada
-    if not qmap:
-        print("  Heatmap: TD falhou, tentando BRAPI em lotes…")
-        BATCH = 20
-        for i in range(0, len(all_syms), BATCH):
-            for q in (brapi_quotes(all_syms[i:i+BATCH]) or []):
-                sym = q.get("symbol","")
-                if sym:
-                    qmap[sym] = {
-                        "symbol": sym,
-                        "price":  round(float(q.get("regularMarketPrice") or 0), 2),
-                        "change": round(float(q.get("regularMarketChangePercent") or 0), 2),
-                        "name":   (q.get("shortName") or sym)[:22],
-                        "volume": q.get("regularMarketVolume") or 0,
-                    }
+    quotes   = brapi_quotes(all_syms) or []
+    qmap     = {q["symbol"]: q for q in quotes}
 
     sectors = []
     for sector_name, syms in HEATMAP_SECTORS.items():
@@ -1368,12 +1304,14 @@ def get_heatmap():
             q = qmap.get(sym)
             if not q:
                 continue
+            price  = float(q.get("regularMarketPrice")         or 0)
+            change = float(q.get("regularMarketChangePercent") or 0)
             cells.append({
                 "symbol": sym,
-                "price":  q["price"],
-                "change": q["change"],
-                "name":   q["name"],
-                "volume": q.get("volume", 0),
+                "price":  round(price,  2),
+                "change": round(change, 2),
+                "name":   (q.get("shortName") or sym)[:22],
+                "volume": q.get("regularMarketVolume") or 0,
             })
         if cells:
             sectors.append({"sector": sector_name, "cells": cells})
@@ -1382,6 +1320,8 @@ def get_heatmap():
     if sectors:
         cache_set(ck, result)
     return jsonify(result)
+
+
 
 
 # ── Score de Saúde da Carteira ────────────────────────────────────────────────
