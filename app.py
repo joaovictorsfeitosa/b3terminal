@@ -1269,102 +1269,63 @@ def ai_chat():
 
 # ── Heatmap — símbolos validados, lotes de 10 ────────────────────────────────
 HEATMAP_SECTORS = {
-    "Bancos & Financeiro": ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11"],
-    "Petróleo & Gás":      ["PETR4","PRIO3","RECV3","UGPA3"],
-    "Mineração & Sider.":  ["VALE3","GGBR4","CSNA3"],
-    "Energia Elétrica":    ["EGIE3","TAEE11","CPFE3","CMIG4"],
-    "Varejo & Consumo":    ["LREN3","MGLU3","NTCO3"],
-    "Saúde":               ["RDOR3","HAPV3","FLRY3"],
-    "Agro & Alimentos":    ["JBSS3","AGRO3","MRFG3"],
-    "FIIs Destaque":       ["HGLG11","MXRF11","XPML11","KNRI11","MALL11"],
+    "Bancos":    ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11"],
+    "Petróleo":  ["PETR4","PRIO3","RECV3","UGPA3"],
+    "Mineração": ["VALE3","GGBR4","CSNA3"],
+    "Energia":   ["EGIE3","TAEE11","CPFE3","CMIG4"],
+    "Varejo":    ["LREN3","MGLU3","NTCO3"],
+    "Saúde":     ["RDOR3","HAPV3","FLRY3"],
+    "Agro":      ["JBSS3","AGRO3","MRFG3"],
+    "FIIs":      ["HGLG11","MXRF11","XPML11","KNRI11","MALL11"],
 }
 
 def _td_batch_quotes(symbols):
-    """Mantido para compatibilidade."""
     return {}
 
-def _heatmap_quotes(symbols):
+@app.route("/api/heatmap-sector")
+@login_required
+def heatmap_sector():
     """
-    Busca cotações leves para o heatmap.
-    Lotes de 10 (BRAPI rejeita listas maiores sem token premium).
-    Sem fundamental=true — só preço e variação.
+    Endpoint leve por setor: ?syms=ITUB4,BBDC4,BBAS3 (máx 6)
+    Cacheia cada símbolo individualmente para reutilização entre rotas.
     """
-    BATCH = 10
-    result = {}
-    for i in range(0, len(symbols), BATCH):
-        batch    = [s.upper().replace(".SA","") for s in symbols[i:i+BATCH]]
-        syms_str = ",".join(batch)
-        ck       = f"hq_{syms_str}"
-        cached   = cache_get(ck, ttl=180)
-        if cached:
-            result.update(cached)
-            continue
-        data = brapi_get(f"/quote/{syms_str}")
-        if not data:
-            print(f"  [Heatmap] BRAPI retornou None para: {syms_str}")
-            continue
-        if "results" not in data:
-            print(f"  [Heatmap] BRAPI sem 'results' para: {syms_str} → {str(data)[:200]}")
-            continue
-        batch_result = {}
-        for r in (data["results"] or []):
-            sym = r.get("symbol","")
-            if not sym:
-                continue
-            price  = float(r.get("regularMarketPrice")         or 0)
-            change = float(r.get("regularMarketChangePercent") or 0)
-            name   = (r.get("shortName") or r.get("longName") or sym)[:22]
-            batch_result[sym] = {
-                "symbol": sym,
-                "price":  round(price,  2),
-                "change": round(change, 2),
-                "name":   name,
-                "volume": int(r.get("regularMarketVolume") or 0),
-            }
-        print(f"  [Heatmap] Batch {i//BATCH+1}: {len(batch_result)}/{len(batch)} símbolos OK")
-        if batch_result:
-            cache_set(ck, batch_result)
-        result.update(batch_result)
-        time.sleep(0.3)   # pequena pausa entre lotes
-    return result
+    raw  = request.args.get("syms", "")
+    syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:6]
+    if not syms:
+        return jsonify([])
+
+    result, missing = [], []
+    for sym in syms:
+        hit = cache_get(f"qm_{sym}", ttl=180)
+        if hit:
+            result.append(hit)
+        else:
+            missing.append(sym)
+
+    if missing:
+        data = brapi_get(f"/quote/{','.join(missing)}")
+        if data and "results" in data:
+            for r in (data["results"] or []):
+                sym = r.get("symbol","")
+                if not sym:
+                    continue
+                item = {
+                    "symbol": sym,
+                    "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
+                    "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
+                    "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
+                    "volume": int(r.get("regularMarketVolume") or 0),
+                }
+                cache_set(f"qm_{sym}", item)
+                result.append(item)
+
+    return jsonify(result)
 
 
 @app.route("/api/heatmap")
 @login_required
 def get_heatmap():
-    ck = "heatmap_all"
-    cached = cache_get(ck, ttl=180)
-    if cached:
-        return jsonify(cached)
-
-    all_syms = [s for syms in HEATMAP_SECTORS.values() for s in syms]
-    qmap     = _heatmap_quotes(all_syms)
-
-    sectors = []
-    for sector_name, syms in HEATMAP_SECTORS.items():
-        cells = []
-        for sym in syms:
-            q = qmap.get(sym)
-            if not q:
-                continue
-            cells.append({
-                "symbol": sym,
-                "price":  q["price"],
-                "change": q["change"],
-                "name":   q["name"],
-                "volume": q.get("volume", 0),
-            })
-        if cells:
-            sectors.append({"sector": sector_name, "cells": cells})
-
-    result = {
-        "sectors": sectors,
-        "updated": datetime.utcnow().strftime("%H:%M"),
-        "total":   sum(len(s["cells"]) for s in sectors),
-    }
-    if sectors:
-        cache_set(ck, result)
-    return jsonify(result)
+    return jsonify({"sectors": [], "updated": datetime.utcnow().strftime("%H:%M")})
 
 
 
