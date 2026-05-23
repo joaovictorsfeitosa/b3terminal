@@ -1285,10 +1285,6 @@ def _td_batch_quotes(symbols):
 @app.route("/api/heatmap-sector")
 @login_required
 def heatmap_sector():
-    """
-    Endpoint leve por setor: ?syms=ITUB4,BBDC4,BBAS3 (máx 6)
-    Cacheia cada símbolo individualmente para reutilização entre rotas.
-    """
     raw  = request.args.get("syms", "")
     syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:6]
     if not syms:
@@ -1303,16 +1299,21 @@ def heatmap_sector():
             missing.append(sym)
 
     if missing:
+        # Sem fundamental=true — evita erro 400 no plano gratuito da BRAPI
         data = brapi_get(f"/quote/{','.join(missing)}")
         if data and "results" in data:
             for r in (data["results"] or []):
                 sym = r.get("symbol","")
                 if not sym:
                     continue
+                price  = float(r.get("regularMarketPrice")         or 0)
+                change = float(r.get("regularMarketChangePercent") or 0)
+                if price == 0:
+                    continue
                 item = {
                     "symbol": sym,
-                    "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
-                    "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
+                    "price":  round(price, 2),
+                    "change": round(change, 2),
                     "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
                     "volume": int(r.get("regularMarketVolume") or 0),
                 }
