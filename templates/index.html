@@ -4175,28 +4175,29 @@ function hmFmt(n){
 function hmBuildSectorCard(name, syms, data){
   const cells = syms.map(sym=>{
     const d = data[sym];
-    if(!d) return `<div class="hm-cell skeleton"></div>`;
-    const cls   = hmCellClass(d.change);
+    // Se não tem dado ainda (null/undefined) → skeleton
+    // Se tem dado mas price=0 → mostrar célula neutra (não skeleton)
+    if(d === undefined || d === null) return `<div class="hm-cell skeleton" style="min-height:70px"></div>`;
+    const cls   = d.price > 0 ? hmCellClass(d.change) : "c-n";
     const color = hmChgColor(d.change);
     const sign  = d.change > 0 ? "+" : "";
+    const priceStr = d.price > 0 ? `R$ ${hmFmt(d.price)}` : "—";
+    const chgStr   = d.price > 0 ? `${sign}${d.change.toFixed(2)}%` : "—";
     return `<div class="hm-cell ${cls}"
-      onclick="goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${sym}'),120)"
-      title="${d.name} · R$ ${hmFmt(d.price)} · ${sign}${d.change.toFixed(2)}%">
+      onclick="${d.price > 0 ? `goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${sym}'),120)` : ''}"
+      title="${d.name} · ${priceStr} · ${chgStr}" style="cursor:${d.price>0?'pointer':'default'}">
       <div class="hm-cell-sym">${sym}</div>
-      <div class="hm-cell-chg" style="color:${color}">${sign}${d.change.toFixed(2)}%</div>
-      <div class="hm-cell-price">R$ ${hmFmt(d.price)}</div>
+      <div class="hm-cell-chg" style="color:${d.price>0?color:'var(--td)'}">${chgStr}</div>
+      <div class="hm-cell-price">${priceStr}</div>
     </div>`;
   }).join("");
 
-  // Média do setor
-  const loaded = syms.filter(s=>data[s]);
+  const loaded = syms.filter(s => data[s] && data[s].price > 0);
   const avg = loaded.length
     ? loaded.reduce((s,sym)=>s+data[sym].change,0)/loaded.length
     : null;
-  const avgTxt = avg!==null
-    ? `${avg>=0?"+":""}${avg.toFixed(2)}%`
-    : "…";
-  const avgCls = avg===null?"neu":avg>0.05?"pos":avg<-0.05?"neg":"neu";
+  const avgTxt = avg !== null ? `${avg>=0?"+":""}${avg.toFixed(2)}%` : "—";
+  const avgCls = avg === null ? "neu" : avg > 0.05 ? "pos" : avg < -0.05 ? "neg" : "neu";
 
   return `<div class="hm-sector-card" id="hm-sec-${name.replace(/\s/g,"")}">
     <div class="hm-sector-head">
@@ -4212,12 +4213,21 @@ async function hmFetchSector(name, syms){
   try{
     const results = await apiFetch(`/api/heatmap-sector?syms=${symsStr}`);
     if(Array.isArray(results)){
-      results.forEach(d=>{ if(d.symbol) _hmCache[d.symbol]=d; });
+      // Marcar TODOS os símbolos pedidos — mesmo os que vieram com price=0
+      // Isso garante que o skeleton some independente do resultado
+      syms.forEach(s => {
+        if(!_hmCache[s]) _hmCache[s] = {symbol:s,price:0,change:0,name:s,volume:0};
+      });
+      results.forEach(d=>{ if(d.symbol) _hmCache[d.symbol] = d; });
     }
   }catch(e){
-    console.warn(`Heatmap sector ${name}:`,e.message);
+    console.warn(`Heatmap sector ${name}:`, e.message);
+    // Mesmo com erro: marcar símbolos como "tentado" para sair do skeleton
+    syms.forEach(s => {
+      if(!_hmCache[s]) _hmCache[s] = {symbol:s,price:0,change:0,name:s,volume:0};
+    });
   }
-  // Re-render this sector card with fresh data
+  // Re-render sector card com dados disponíveis
   const card = document.getElementById(`hm-sec-${name.replace(/\s/g,"")}`);
   if(card){
     const tmp = document.createElement("div");
