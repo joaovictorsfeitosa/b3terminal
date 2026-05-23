@@ -1591,6 +1591,106 @@ body.light .gr-wm-cover{background:#ffffff}
   .hm-cell{padding:8px 8px 6px}
   .hm-sym{font-size:10px}
 }
+/* ── CUSTOM HEATMAP ───────────────────────────────────────────────────────── */
+@keyframes hmFadeIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+@keyframes hmPulse{0%,100%{opacity:.4;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+@keyframes hmSkeleton{0%{background-position:-200% 0}100%{background-position:200% 0}}
+
+.hm-header{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  flex-wrap:wrap;gap:14px;margin-bottom:24px;
+}
+.hm-title{
+  font-family:var(--sans);font-size:22px;font-weight:900;
+  color:var(--tb);letter-spacing:-0.5px;
+}
+.hm-sub{font-size:10px;color:var(--td);letter-spacing:1.5px;text-transform:uppercase;margin-top:5px}
+.hm-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hm-legend{
+  display:flex;align-items:center;gap:8px;font-size:9px;color:var(--td);width:120px;
+}
+.hm-leg-bar{
+  flex:1;height:10px;border-radius:20px;
+  background:linear-gradient(90deg,#ff3d57 0%,#2a1a1f 35%,#172030 50%,#0e2a1a 65%,#00e676 100%);
+}
+.hm-status{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--td)}
+.hm-live-dot{width:6px;height:6px;border-radius:50%;background:var(--g);flex-shrink:0;animation:pulse 2s infinite}
+.hm-live-dot.err{background:var(--r);animation:none}
+.hm-refresh-btn{
+  width:28px;height:28px;background:var(--bg2);border:1px solid var(--bd);
+  color:var(--td);border-radius:8px;cursor:pointer;font-size:13px;
+  display:grid;place-items:center;transition:all .2s;
+}
+.hm-refresh-btn:hover{border-color:var(--ui1);color:var(--ui1)}
+
+/* Grid de setores */
+#hm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media(max-width:800px){#hm-grid{grid-template-columns:1fr}}
+
+.hm-sector-card{
+  background:var(--bg2);border:1px solid var(--bd);border-radius:14px;
+  overflow:hidden;transition:border-color .2s;
+}
+.hm-sector-card:hover{border-color:var(--bd2)}
+.hm-sector-head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:11px 16px;border-bottom:1px solid var(--bd);
+}
+.hm-sector-name{
+  font-family:var(--sans);font-size:11px;font-weight:800;
+  color:var(--tb);letter-spacing:.5px;text-transform:uppercase;
+}
+.hm-sector-avg{
+  font-family:var(--sans);font-size:11px;font-weight:800;
+  padding:2px 8px;border-radius:6px;
+}
+.hm-sector-avg.pos{background:rgba(0,230,118,.12);color:var(--g)}
+.hm-sector-avg.neg{background:rgba(255,61,87,.12);color:var(--r)}
+.hm-sector-avg.neu{background:var(--bg3);color:var(--td)}
+
+.hm-cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;padding:10px}
+
+/* Células */
+.hm-cell{
+  border-radius:10px;padding:10px 10px 8px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.04);position:relative;overflow:hidden;
+  transition:transform .15s,box-shadow .15s,filter .15s;min-height:68px;
+  display:flex;flex-direction:column;justify-content:space-between;
+}
+.hm-cell::after{
+  content:'';position:absolute;inset:0;border-radius:10px;
+  background:linear-gradient(135deg,rgba(255,255,255,.06) 0%,transparent 60%);
+  pointer-events:none;
+}
+.hm-cell:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 6px 20px rgba(0,0,0,.4);filter:brightness(1.1)}
+.hm-cell:active{transform:scale(.97)}
+
+/* Cores por variação */
+.hm-cell.c-pp {background:linear-gradient(135deg,rgba(0,200,83,.65),rgba(0,200,83,.45))}
+.hm-cell.c-p  {background:linear-gradient(135deg,rgba(0,200,83,.35),rgba(0,200,83,.22))}
+.hm-cell.c-pl {background:linear-gradient(135deg,rgba(0,200,83,.16),rgba(0,200,83,.08))}
+.hm-cell.c-n  {background:linear-gradient(135deg,rgba(13,21,32,.9),rgba(17,29,44,.8));border-color:var(--bd)}
+.hm-cell.c-nl {background:linear-gradient(135deg,rgba(255,61,87,.12),rgba(255,61,87,.06))}
+.hm-cell.c-m  {background:linear-gradient(135deg,rgba(255,61,87,.30),rgba(255,61,87,.18))}
+.hm-cell.c-mm {background:linear-gradient(135deg,rgba(255,61,87,.60),rgba(255,61,87,.42))}
+
+.hm-cell-sym{
+  font-family:var(--sans);font-size:11px;font-weight:900;
+  color:#fff;letter-spacing:.3px;line-height:1;
+}
+.hm-cell-chg{
+  font-family:var(--sans);font-size:13px;font-weight:800;
+  line-height:1;margin-top:5px;
+}
+.hm-cell-price{font-size:8px;color:rgba(255,255,255,.65);margin-top:4px;font-family:var(--mono)}
+
+/* Skeleton */
+.hm-cell.skeleton{
+  background:linear-gradient(90deg,var(--bg3) 25%,var(--bd) 50%,var(--bg3) 75%);
+  background-size:200% 100%;animation:hmSkeleton 1.4s ease infinite;
+  cursor:default;pointer-events:none;min-height:68px;
+}
+.hm-cell.skeleton::after{display:none}
 </style>
 </head>
 <body>
@@ -1831,47 +1931,36 @@ body.light .gr-wm-cover{background:#ffffff}
 
 <!-- HEATMAP DA B3 -->
 <div class="page" id="page-heatmap"><div class="wrap">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+
+  <!-- Header -->
+  <div class="hm-header">
     <div>
-      <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--tb);letter-spacing:-0.5px">🔥 Heatmap da B3</div>
-      <div style="font-size:10px;color:var(--td);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px">Variação do dia por setor · Ibovespa · Dados em tempo real</div>
+      <div class="hm-title">🔥 Heatmap da B3</div>
+      <div class="hm-sub">Variação do dia · 8 setores · 30 ativos principais</div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <div style="display:flex;align-items:center;gap:6px;font-size:9px;color:var(--td)">
-        <div style="width:36px;height:14px;background:linear-gradient(90deg,#ff3d57,#172030,#00e676);border-radius:3px"></div>
-        <span>Negativo → Neutro → Positivo</span>
+    <div class="hm-controls">
+      <div class="hm-legend">
+        <div class="hm-leg-bar"></div>
+        <span>−5%</span>
+        <span style="margin-left:auto">+5%</span>
       </div>
+      <div class="hm-status">
+        <span class="hm-live-dot" id="hm-live-dot"></span>
+        <span id="hm-status-txt">Carregando…</span>
+      </div>
+      <button class="hm-refresh-btn" onclick="hmLoadAll(true)" title="Atualizar">↺</button>
     </div>
   </div>
 
-  <!-- TradingView Stock Heatmap Widget -->
-  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden;min-height:520px">
-    <div class="tradingview-widget-container" style="height:520px">
-      <div class="tradingview-widget-container__widget" style="height:520px"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>
-      {
-        "exchanges": [],
-        "dataSource": "IBOV",
-        "grouping": "sector",
-        "blockSize": "market_cap_basic",
-        "blockColor": "change",
-        "locale": "br",
-        "colorTheme": "dark",
-        "hasTopBar": false,
-        "isDataSetEnabled": false,
-        "isZoomEnabled": true,
-        "hasSymbolTooltip": true,
-        "isMonoSize": false,
-        "width": "100%",
-        "height": 520
-      }
-      </script>
-    </div>
+  <!-- Grid de setores -->
+  <div id="hm-grid"></div>
+
+  <!-- Rodapé -->
+  <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <div style="font-size:9px;color:var(--td)" id="hm-footer-stats"></div>
+    <div style="font-size:9px;color:var(--td)">Dados: BRAPI · Cache 3 min · Atualiza ao abrir a aba</div>
   </div>
 
-  <div style="margin-top:14px;font-size:9px;color:var(--td);text-align:right;letter-spacing:.5px">
-    Dados fornecidos por TradingView · Ibovespa (~90 ações) · Agrupado por setor · Tamanho = market cap
-  </div>
 </div></div>
 
 <!-- NOTÍCIAS -->
@@ -3244,6 +3333,7 @@ function goTab(btn){
   else if(tab==="carteira"){ ctRenderGrid(); loadPortfolioScore(); }
   if(tab==="ri"&&!_riAllData.length){ initRI(); }
   if(tab==="graficos"&&!_gcInited){ gcInit(); _gcInited=true; }
+  if(tab==="heatmap") hmLoadAll();
   if(tab==="dividendos"){
     divLoaded=false;
     if(!Object.keys(carteira).length){
@@ -3987,72 +4077,150 @@ function gcToggleInd(ind){
 }
 
 /* ══════════════════════════════════════════════════════════
-   HEATMAP DA B3
+   HEATMAP DA B3 — Progressive loading por setor
 ══════════════════════════════════════════════════════════ */
-let _hmLoaded = false;
 
-function hmColor(chg){
-  if(chg >=  3) return "pos-hi";
-  if(chg >=  1) return "pos-med";
-  if(chg >   0) return "pos-low";
-  if(chg === 0) return "neutral";
-  if(chg > -1)  return "neg-low";
-  if(chg > -3)  return "neg-med";
-  return "neg-hi";
+const HM_SECTORS = {
+  "Bancos":    ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11"],
+  "Petróleo":  ["PETR4","PRIO3","RECV3","UGPA3"],
+  "Mineração": ["VALE3","GGBR4","CSNA3"],
+  "Energia":   ["EGIE3","TAEE11","CPFE3","CMIG4"],
+  "Varejo":    ["LREN3","MGLU3","NTCO3"],
+  "Saúde":     ["RDOR3","HAPV3","FLRY3"],
+  "Agro":      ["JBSS3","AGRO3","MRFG3"],
+  "FIIs":      ["HGLG11","MXRF11","XPML11","KNRI11","MALL11"],
+};
+
+const HM_ICONS = {
+  "Bancos":"🏦","Petróleo":"🛢️","Mineração":"⛏️","Energia":"⚡",
+  "Varejo":"🛒","Saúde":"🏥","Agro":"🌾","FIIs":"🏢",
+};
+
+let _hmCache = {};     // {SYMBOL: {price,change,name}}
+let _hmLoading = false;
+
+function hmCellClass(chg){
+  if(chg >=  4) return "c-pp";
+  if(chg >=  1.5) return "c-p";
+  if(chg >   0.1) return "c-pl";
+  if(chg >= -0.1) return "c-n";
+  if(chg >= -1.5) return "c-nl";
+  if(chg >= -4)   return "c-m";
+  return "c-mm";
 }
 
 function hmChgColor(chg){
-  if(chg > 0)  return "#00e676";
-  if(chg < 0)  return "#ff3d57";
-  return "var(--td)";
+  return chg > 0.05 ? "#00e676" : chg < -0.05 ? "#ff3d57" : "var(--td)";
 }
 
-async function loadHeatmap(force=false){
-  const body = $("heatmap-body");
-  if(!body) return;
-  if(_hmLoaded && !force) return;
-  body.innerHTML = '<div class="loading"><div class="sp"></div>CARREGANDO HEATMAP…</div>';
+function hmFmt(n){
+  return n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function hmBuildSectorCard(name, syms, data){
+  const cells = syms.map(sym=>{
+    const d = data[sym];
+    if(!d) return `<div class="hm-cell skeleton"></div>`;
+    const cls   = hmCellClass(d.change);
+    const color = hmChgColor(d.change);
+    const sign  = d.change > 0 ? "+" : "";
+    return `<div class="hm-cell ${cls}"
+      onclick="goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${sym}'),120)"
+      title="${d.name} · R$ ${hmFmt(d.price)} · ${sign}${d.change.toFixed(2)}%">
+      <div class="hm-cell-sym">${sym}</div>
+      <div class="hm-cell-chg" style="color:${color}">${sign}${d.change.toFixed(2)}%</div>
+      <div class="hm-cell-price">R$ ${hmFmt(d.price)}</div>
+    </div>`;
+  }).join("");
+
+  // Média do setor
+  const loaded = syms.filter(s=>data[s]);
+  const avg = loaded.length
+    ? loaded.reduce((s,sym)=>s+data[sym].change,0)/loaded.length
+    : null;
+  const avgTxt = avg!==null
+    ? `${avg>=0?"+":""}${avg.toFixed(2)}%`
+    : "…";
+  const avgCls = avg===null?"neu":avg>0.05?"pos":avg<-0.05?"neg":"neu";
+
+  return `<div class="hm-sector-card" id="hm-sec-${name.replace(/\s/g,"")}">
+    <div class="hm-sector-head">
+      <div class="hm-sector-name">${HM_ICONS[name]||""} ${name}</div>
+      <div class="hm-sector-avg ${avgCls}">${avgTxt}</div>
+    </div>
+    <div class="hm-cells">${cells}</div>
+  </div>`;
+}
+
+async function hmFetchSector(name, syms){
+  const symsStr = syms.join(",");
   try{
-    const data = await apiFetch("/api/heatmap");
-    if(!data || !data.sectors){
-      body.innerHTML = '<div class="errmsg">⚠ Erro ao carregar heatmap. Tente novamente.</div>'; return;
+    const results = await apiFetch(`/api/heatmap-sector?syms=${symsStr}`);
+    if(Array.isArray(results)){
+      results.forEach(d=>{ if(d.symbol) _hmCache[d.symbol]=d; });
     }
-    const updEl = $("heatmap-upd");
-    if(updEl) updEl.textContent = "Atualizado às " + (data.updated||"—");
-
-    if(!data.sectors.length){
-      body.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--td)">
-        <div style="font-size:36px;margin-bottom:12px">📊</div>
-        <div style="font-size:13px;color:var(--t);margin-bottom:6px">Dados indisponíveis no momento</div>
-        <div style="font-size:10px">Mercado pode estar fechado ou a API está sobrecarregada</div>
-        <button onclick="loadHeatmap(true)" style="margin-top:18px;background:var(--bg2);border:1px solid var(--ui1);color:var(--ui1);padding:8px 20px;border-radius:8px;font-family:var(--mono);font-size:10px;cursor:pointer">↺ Tentar novamente</button>
-      </div>`;
-      _hmLoaded = false; return;
-    }
-
-    body.innerHTML = data.sectors.map(sec=>`
-      <div class="hm-sector">
-        <div class="hm-sector-title">${sec.sector}</div>
-        <div class="hm-grid">
-          ${sec.cells.map(c=>`
-            <div class="hm-cell ${hmColor(c.change)}"
-              onclick="goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${c.symbol}'),120)"
-              title="${c.name} · R$ ${c.price}">
-              <div class="hm-sym">${c.symbol}</div>
-              <div class="hm-chg" style="color:${hmChgColor(c.change)}">
-                ${c.change>0?"+":""}${c.change.toFixed(2)}%
-              </div>
-              <div class="hm-price">R$ ${c.price.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    `).join("");
-    _hmLoaded = true;
   }catch(e){
-    body.innerHTML = `<div class="errmsg">⚠ ${e.message||"Erro desconhecido"} — <button onclick="loadHeatmap(true)" style="background:none;border:none;color:var(--ui2);cursor:pointer;text-decoration:underline;font-family:var(--mono);font-size:10px">Tentar novamente</button></div>`;
-    _hmLoaded = false;
+    console.warn(`Heatmap sector ${name}:`,e.message);
   }
+  // Re-render this sector card with fresh data
+  const card = document.getElementById(`hm-sec-${name.replace(/\s/g,"")}`);
+  if(card){
+    const tmp = document.createElement("div");
+    tmp.innerHTML = hmBuildSectorCard(name, syms, _hmCache);
+    const newCard = tmp.firstChild;
+    newCard.style.animation = "hmFadeIn .3s ease both";
+    card.replaceWith(newCard);
+  }
+}
+
+async function hmLoadAll(force=false){
+  const grid   = $("hm-grid");
+  const dot    = $("hm-live-dot");
+  const status = $("hm-status-txt");
+  if(!grid) return;
+  if(_hmLoading && !force) return;
+
+  _hmLoading = true;
+  if(force) _hmCache = {};  // força recarga total
+  if(dot)    dot.className    = "hm-live-dot";
+  if(status) status.textContent = "Atualizando…";
+
+  // Renderiza skeletons imediatamente para todos os setores
+  grid.innerHTML = Object.entries(HM_SECTORS).map(([name,syms])=>
+    hmBuildSectorCard(name, syms, _hmCache)
+  ).join("");
+
+  // Busca cada setor em paralelo (cada chamada = 4-5 símbolos = aceito pelo BRAPI)
+  const promises = Object.entries(HM_SECTORS).map(([name,syms],i)=>
+    new Promise(res=>setTimeout(()=>hmFetchSector(name,syms).then(res),i*150))
+  );
+  await Promise.allSettled(promises);
+
+  // Footer stats
+  const allLoaded  = Object.values(_hmCache);
+  const pos  = allLoaded.filter(d=>d.change>0.05).length;
+  const neg  = allLoaded.filter(d=>d.change<-0.05).length;
+  const flat = allLoaded.length - pos - neg;
+  const footer = $("hm-footer-stats");
+  if(footer && allLoaded.length){
+    footer.innerHTML = `
+      <span style="color:var(--g)">▲ ${pos} em alta</span>
+      <span style="color:var(--td);margin:0 8px">·</span>
+      <span style="color:var(--r)">▼ ${neg} em baixa</span>
+      <span style="color:var(--td);margin:0 8px">·</span>
+      <span style="color:var(--td)">= ${flat} estáveis</span>
+      <span style="color:var(--td);margin:0 8px">·</span>
+      <span style="color:var(--td)">${allLoaded.length} ativos</span>
+    `;
+  }
+
+  const ok = allLoaded.length > 0;
+  if(dot)    { dot.className = ok?"hm-live-dot":"hm-live-dot err"; }
+  if(status) status.textContent = ok
+    ? `${new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}`
+    : "Dados indisponíveis";
+
+  _hmLoading = false;
 }
 
 /* ══════════════════════════════════════════════════════════
