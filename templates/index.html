@@ -714,15 +714,22 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 .dcard:hover{transform:translateY(-2px)}
 .dcard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--a),transparent)}
 .dcard.duc::before{background:var(--ui-grd)}.dcard.duc{border-color:rgba(0,176,255,.2)}
+.dcard.dcard-urgente::before{background:linear-gradient(90deg,var(--g),#00b4ff)}.dcard.dcard-urgente{border-color:rgba(0,230,118,.35);box-shadow:0 0 16px rgba(0,230,118,.08)}
+.dcard.dcard-pending::before{background:linear-gradient(90deg,var(--a),transparent)}.dcard.dcard-pending{border-color:rgba(255,196,0,.2)}
 .dc-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
 .dc-sym{font-family:var(--sans);font-size:14px;font-weight:800;color:var(--tb)}
 .dc-name{font-size:8px;color:var(--td);letter-spacing:1px;text-transform:uppercase;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
 .dc-amt{font-family:var(--sans);font-size:21px;font-weight:800;color:var(--a)}
 .dc-sub{font-size:9px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
-.drow{display:flex;justify-content:space-between;font-size:10px;padding:5px 0;border-bottom:1px solid rgba(28,46,64,.5)}
+.drow{display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:5px 0;border-bottom:1px solid rgba(28,46,64,.5);gap:6px}
 .drow:last-child{border-bottom:none}
 .drl{color:var(--td)}.drv{color:var(--tb);font-weight:700}
-.drv-g{color:var(--g)}.drv-a{color:var(--a)}
+.drv-g{color:var(--g)}.drv-a{color:var(--a)}.drv-muted{color:var(--td)}
+/* badge "em X dias" */
+.div-days-badge{margin-left:auto;font-size:8px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(0,176,255,.1);color:var(--ui2);border:1px solid rgba(0,176,255,.2);white-space:nowrap;flex-shrink:0}
+.div-days-badge.urgente{background:rgba(0,230,118,.12);color:var(--g);border-color:rgba(0,230,118,.3)}
+/* sem data */
+.div-no-date{background:var(--ad);border:1px solid rgba(255,196,0,.25);border-radius:6px;padding:7px 10px;font-size:10px;color:var(--a);margin-top:8px}
 .dbadge{display:inline-block;padding:3px 7px;border-radius:5px;font-size:10px;font-weight:700}
 .dbadge-up{background:rgba(0,176,255,.08);color:var(--ui2);border:1px solid rgba(0,176,255,.2)}
 .dbadge-soon{background:var(--ad);color:var(--a);border:1px solid rgba(255,196,0,.25)}
@@ -2571,45 +2578,91 @@ function getDivFiltered(){
 }
 
 function renderDivData(){
-  const data=getDivFiltered();
-  $("div-cnt").textContent=divData.filter(d=>d.projected?.length||d.yieldA||d.lstVal||d.avgVal).length||"—";
-  $("div-yield").textContent=divData.length?Math.max(0,...divData.map(d=>d.yieldA||0)).toFixed(2)+"%":"—";
-  $("div-tbl-cnt").textContent=data.length+" ativo"+(data.length!==1?"s":"");
+  const data = getDivFiltered();
+  const comDados = divData.filter(d => d.projected?.length || d.yieldA || d.lstVal || d.avgVal);
+  $("div-cnt").textContent  = comDados.length || "—";
+  $("div-yield").textContent = divData.length
+    ? Math.max(0, ...divData.map(d => d.yieldA || 0)).toFixed(2) + "%"
+    : "—";
+  $("div-tbl-cnt").textContent = data.length + " ativo" + (data.length !== 1 ? "s" : "");
+
   if(!data.length){
-    $("dcards").innerHTML='<div class="empty-box"><span class="ei">📅</span><span class="et">Nenhum ativo</span><span>Adicione ativos na aba Minha Carteira</span></div>';
-    $("dtbody").innerHTML='<tr><td colspan="6" style="text-align:center;padding:22px;color:var(--td)">Nenhum resultado</td></tr>';return;
+    $("dcards").innerHTML = '<div class="empty-box"><span class="ei">📅</span><span class="et">Nenhum ativo</span><span>Adicione ativos na aba Minha Carteira</span></div>';
+    $("dtbody").innerHTML = '<tr><td colspan="6" style="text-align:center;padding:22px;color:var(--td)">Nenhum resultado</td></tr>';
+    return;
   }
-  $("dcards").innerHTML=data.map(d=>{
-    const nextPay=d.projected&&d.projected[0];
-    const hasDate=!!nextPay;
-    const val=hasDate?fR(nextPay.value_cota):(d.lstVal?fR(d.lstVal):"—");
-    const cardCls=hasDate?"dcard duc":"dcard dcard-pending";
-    const proxPays=(d.projected||[]).slice(0,3).map(p=>
-      `<div class="drow"><span class="drl">📅 ${p.month_name}</span><span class="drv drv-g">${fR(p.value_cota)}/cota</span></div>`
-    ).join("");
-    const semData=!hasDate?`<div style="background:var(--ad);border:1px solid rgba(255,196,0,.25);border-radius:6px;padding:7px 10px;font-size:10px;color:var(--a);margin-top:8px">⏳ Data ainda não divulgada</div>`:"";
-    const freqLabel=hasDate?(d.freq||"—"):"—";
-    return`<div class="${cardCls}">
-      <div class="dc-head"><div><div class="dc-sym">${d.symbol}</div><div class="dc-name">${d.name}</div></div>${pill(d.tipo)}</div>
+
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  $("dcards").innerHTML = data.map(d => {
+    const proj   = d.projected || [];
+    const next   = proj[0];
+    const hasNext = !!next;
+
+    // Calcular dias até o próximo pagamento
+    let diasStr = "", daysNum = null;
+    if(hasNext && next.date_str){
+      try{
+        const p = next.date_str.split("/");
+        const dt = new Date(+p[2], p[1]-1, +p[0]);
+        daysNum = Math.round((dt - today) / 86400000);
+        diasStr = daysNum === 0 ? "Hoje!" : daysNum === 1 ? "Amanhã" : daysNum > 0 ? `em ${daysNum} dias` : `há ${Math.abs(daysNum)} dias`;
+      }catch(e){}
+    }
+
+    const urgente = daysNum !== null && daysNum >= 0 && daysNum <= 7;
+    const val  = hasNext ? fR(next.value_cota) : (d.lstVal ? fR(d.lstVal) : "—");
+    const cardCls = hasNext ? (urgente ? "dcard dcard-urgente" : "dcard duc") : "dcard dcard-pending";
+
+    // Próximos 3 pagamentos
+    const proxRows = proj.slice(0, 3).map((p, i) => {
+      const isPast = (() => {
+        try{ const pt=p.date_str.split("/"); return new Date(+pt[2],pt[1]-1,+pt[0]) < today; }catch(e){return false;}
+      })();
+      return `<div class="drow">
+        <span class="drl">📅 ${p.month_name}</span>
+        <span class="drv ${isPast?'drv-muted':'drv-g'}">${fR(p.value_cota)}/cota</span>
+        ${i===0 && diasStr ? `<span class="div-days-badge ${urgente?'urgente':''}">${diasStr}</span>` : ""}
+      </div>`;
+    }).join("");
+
+    const semData = !hasNext
+      ? `<div class="div-no-date">⏳ Próximo pagamento não divulgado</div>` : "";
+
+    return `<div class="${cardCls}">
+      <div class="dc-head">
+        <div><div class="dc-sym">${d.symbol}</div><div class="dc-name">${d.name}</div></div>
+        ${pill(d.tipo)}
+      </div>
       <div class="dc-amt">${val}</div>
-      <div class="dc-sub">${freqLabel!=="—"?freqLabel+" · por cota":"último valor pago"}</div>
-      <div class="drow"><span class="drl">Dividend Yield</span><span class="drv drv-a">${d.yieldA?d.yieldA.toFixed(2)+"%":"—"}</span></div>
-      <div class="drow"><span class="drl">Último Pago</span><span class="drv">${d.lstDate?new Date(d.lstDate*1000).toLocaleDateString("pt-BR"):"—"}</span></div>
-      ${proxPays}${semData}
+      <div class="dc-sub">${hasNext ? (d.freq||"") + " · por cota" : "último valor registrado"}</div>
+      <div class="drow"><span class="drl">Dividend Yield</span><span class="drv drv-a">${d.yieldA ? d.yieldA.toFixed(2)+"%" : "—"}</span></div>
+      <div class="drow"><span class="drl">Último Pago</span><span class="drv">${d.lstDate ? new Date(d.lstDate*1000).toLocaleDateString("pt-BR") : "—"}</span></div>
+      ${proxRows}${semData}
     </div>`;
   }).join("");
-  $("dtbody").innerHTML=data.map(d=>{
-    const nextPay=d.projected&&d.projected[0];
-    const proxData=nextPay
-      ?`<span class="dbadge dbadge-up">📅 ${nextPay.date_str}</span>`
-      :`<span class="dbadge" style="background:var(--ad);color:var(--a);border:1px solid rgba(255,196,0,.25)">⏳ Aguardando</span>`;
-    const val=nextPay?fR(nextPay.value_cota):(d.lstVal?fR(d.lstVal):"—");
-    return`<tr>
+
+  $("dtbody").innerHTML = data.map(d => {
+    const next = d.projected && d.projected[0];
+    let diasNum = null, diasLabel = "";
+    if(next && next.date_str){
+      try{
+        const p = next.date_str.split("/");
+        const dt = new Date(+p[2], p[1]-1, +p[0]);
+        diasNum = Math.round((dt - today) / 86400000);
+        diasLabel = diasNum >= 0 ? ` (${diasNum === 0 ? "hoje" : diasNum + "d"})` : "";
+      }catch(e){}
+    }
+    const proxData = next
+      ? `<span class="dbadge dbadge-up">📅 ${next.date_str}${diasLabel}</span>`
+      : `<span class="dbadge" style="background:var(--ad);color:var(--a);border:1px solid rgba(255,196,0,.25)">⏳ Aguardando</span>`;
+    const val = next ? fR(next.value_cota) : (d.lstVal ? fR(d.lstVal) : "—");
+    return `<tr>
       <td><div class="td-sym">${d.symbol}</div><div class="td-sub">${d.name}</div></td>
       <td>${pill(d.tipo)}</td>
       <td>${proxData}</td>
-      <td>${d.lstDate?new Date(d.lstDate*1000).toLocaleDateString("pt-BR"):"—"}</td>
-      <td>${d.yieldA?`<span class="yieldb">${d.yieldA.toFixed(2)}%</span>`:"—"}</td>
+      <td>${d.lstDate ? new Date(d.lstDate*1000).toLocaleDateString("pt-BR") : "—"}</td>
+      <td>${d.yieldA ? `<span class="yieldb">${d.yieldA.toFixed(2)}%</span>` : "—"}</td>
       <td style="text-align:right;font-family:var(--sans);font-size:12px;font-weight:700;color:var(--a)">${val}</td>
     </tr>`;
   }).join("");
