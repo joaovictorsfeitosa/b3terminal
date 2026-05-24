@@ -2584,9 +2584,12 @@ function renderDivData(){
     const hasDate=!!nextPay;
     const val=hasDate?fR(nextPay.value_cota):(d.lstVal?fR(d.lstVal):"—");
     const cardCls=hasDate?"dcard duc":"dcard dcard-pending";
-    const proxPays=(d.projected||[]).slice(0,3).map(p=>
-      `<div class="drow"><span class="drl">📅 ${p.month_name}</span><span class="drv drv-g">${fR(p.value_cota)}/cota</span></div>`
-    ).join("");
+    const proxPays=(d.projected||[]).slice(0,3).map(p=>{
+      const confirmedBadge = p.confirmed
+        ? `<span style="font-size:7px;background:rgba(0,229,176,.15);color:var(--ui1);border:1px solid rgba(0,229,176,.3);padding:1px 5px;border-radius:10px;margin-left:4px;font-weight:700;letter-spacing:.5px">✓ CONF</span>`
+        : `<span style="font-size:7px;color:var(--td);margin-left:4px">est.</span>`;
+      return `<div class="drow"><span class="drl">📅 ${p.month_name}${confirmedBadge}</span><span class="drv drv-g">${fR(p.value_cota)}/cota</span></div>`;
+    }).join("");
     const semData=!hasDate?`<div style="background:var(--ad);border:1px solid rgba(255,196,0,.25);border-radius:6px;padding:7px 10px;font-size:10px;color:var(--a);margin-top:8px">⏳ Data ainda não divulgada</div>`:"";
     const freqLabel=hasDate?(d.freq||"—"):"—";
     return`<div class="${cardCls}">
@@ -2601,7 +2604,9 @@ function renderDivData(){
   $("dtbody").innerHTML=data.map(d=>{
     const nextPay=d.projected&&d.projected[0];
     const proxData=nextPay
-      ?`<span class="dbadge dbadge-up">📅 ${nextPay.date_str}</span>`
+      ?nextPay.confirmed
+        ?`<span class="dbadge dbadge-up">✓ ${nextPay.date_str}</span>`
+        :`<span class="dbadge" style="background:rgba(0,176,255,.08);color:var(--ui2);border:1px solid rgba(0,176,255,.2)">≈ ${nextPay.date_str}</span>`
       :`<span class="dbadge" style="background:var(--ad);color:var(--a);border:1px solid rgba(255,196,0,.25)">⏳ Aguardando</span>`;
     const val=nextPay?fR(nextPay.value_cota):(d.lstVal?fR(d.lstVal):"—");
     return`<tr>
