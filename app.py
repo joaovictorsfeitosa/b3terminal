@@ -155,39 +155,83 @@ def _is_fii(symbol):
     """FIIs brasileiros terminam em 11 (HGLG11, MXRF11, XPML11...)."""
     return bool(re.match(r'^[A-Z]{4}11$', symbol.upper().replace(".SA","")))
 
-def _build_div_result(sym, payments, freq_label, freq_months, cotas=1):
+def _build_div_result(sym, payments, freq_label, freq_months, cotas=1, declared_future=None):
     """Monta projeção e retorna dict padronizado."""
-    if not payments:
+    if not payments and not declared_future:
         return None
+
+    hist_payments = [p for p in (payments or []) if not p.get("declared")]
 
     month_avgs = {}
     for m in freq_months:
-        vals = [p["value"] for p in payments if p["month"] == m]
+        vals = [p["value"] for p in hist_payments if p["month"] == m]
         if vals:
             month_avgs[m] = round(sum(vals) / len(vals), 6)
 
-    avg_value = round(sum(p["value"] for p in payments) / len(payments), 6)
-    last_val  = payments[-1]["value"]
+    avg_value = round(sum(p["value"] for p in hist_payments) / len(hist_payments), 6) if hist_payments else (
+        (declared_future[0]["value"] if declared_future else 0)
+    )
+    last_val = hist_payments[-1]["value"] if hist_payments else (
+        declared_future[0]["value"] if declared_future else 0
+    )
 
-    today = date.today()
+    today     = date.today()
     projected = []
-    for i in range(15):
-        future = today + relativedelta(months=i)
-        if future.month not in freq_months:
-            continue
-        proj_val = month_avgs.get(future.month, avg_value)
-        hm = [p for p in payments if p["month"] == future.month]
-        avg_day = int(sum(p["day"] for p in hm) / len(hm)) if hm else 15
-        avg_day = min(avg_day, calendar.monthrange(future.year, future.month)[1])
-        pd_ = date(future.year, future.month, avg_day)
-        if pd_ >= today:
-            projected.append({
-                "date_str":    pd_.strftime("%d/%m/%Y"),
-                "month_name":  pd_.strftime("%b/%Y"),
-                "value_cota":  round(proj_val, 6),
-                "value_total": round(proj_val * cotas, 2),
-                "is_next":     len(projected) == 0,
-            })
+    seen_proj = set()
+
+    # ── 1. Pagamentos DECLARADOS (data real, oficial) ─────────────────────────
+    for dp in (declared_future or []):
+        try:
+            pd_ = date(dp["year"], dp["month"], dp["day"])
+            k   = f"{dp['year']}-{dp['month']:02d}"
+            if pd_ >= today and k not in seen_proj:
+                seen_proj.add(k)
+                projected.append({
+                    "date_str":    pd_.strftime("%d/%m/%Y"),
+                    "month_name":  pd_.strftime("%b/%Y"),
+                    "value_cota":  round(dp["value"], 6),
+                    "value_total": round(dp["value"] * cotas, 2),
+                    "is_next":     False,
+                    "confirmed":   True,
+                })
+        except Exception:
+            pass
+
+    # ── 2. Projeções estimadas por padrão histórico ───────────────────────────
+    if avg_value > 0:
+        for i in range(18):
+            future = today + relativedelta(months=i)
+            if future.month not in freq_months:
+                continue
+            k = f"{future.year}-{future.month:02d}"
+            if k in seen_proj:
+                continue
+            proj_val = month_avgs.get(future.month, avg_value)
+            if proj_val <= 0:
+                continue
+            hm      = [p for p in hist_payments if p["month"] == future.month]
+            avg_day = int(sum(p["day"] for p in hm) / len(hm)) if hm else 15
+            avg_day = min(avg_day, calendar.monthrange(future.year, future.month)[1])
+            pd_     = date(future.year, future.month, avg_day)
+            if pd_ >= today:
+                seen_proj.add(k)
+                projected.append({
+                    "date_str":    pd_.strftime("%d/%m/%Y"),
+                    "month_name":  pd_.strftime("%b/%Y"),
+                    "value_cota":  round(proj_val, 6),
+                    "value_total": round(proj_val * cotas, 2),
+                    "is_next":     False,
+                    "confirmed":   False,
+                })
+
+    # Ordena por data e marca próximo
+    def _date_key(p):
+        parts = p["date_str"].split("/")
+        return (parts[2], parts[1], parts[0])
+    projected.sort(key=_date_key)
+    if projected:
+        projected[0]["is_next"] = True
+    projected = projected[:12]
 
     return {
         "sym":              sym,
@@ -195,11 +239,13 @@ def _build_div_result(sym, payments, freq_label, freq_months, cotas=1):
         "freq_months":      freq_months,
         "avg_value":        avg_value,
         "last_value":       last_val,
-        "months_paid":      sorted(set(p["month"] for p in payments)),
-        "history":          payments[-24:],
-        "projected":        projected[:12],
-        "total_pagamentos": len(payments),
+        "months_paid":      sorted(set(p["month"] for p in hist_payments)),
+        "history":          hist_payments[-24:],
+        "projected":        projected,
+        "total_pagamentos": len(hist_payments),
+        "has_declared":     bool(declared_future),
     }
+
 
 
 def brapi_dividends(symbol, cotas=1):
@@ -219,7 +265,8 @@ def brapi_dividends(symbol, cotas=1):
                                  raw_cached["payments"],
                                  raw_cached["freq_label"],
                                  raw_cached["freq_months"],
-                                 cotas)
+                                 cotas,
+                                 declared_future=raw_cached.get("declared_future", []))
 
     payments     = []
     td_frequency = None  # frequência informada pela Twelve Data
@@ -296,7 +343,41 @@ def brapi_dividends(symbol, cotas=1):
                         })
                     except Exception:
                         pass
-                # Tenta lastDividendValue se cashDividends vazio
+
+                # ── Dividendo futuro DECLARADO ────────────────────────────────
+                # exDividendDate = data ex-dividendo já anunciada (unix ts)
+                # dividendDate   = data de pagamento já anunciada  (unix ts)
+                # Esses campos existem mesmo quando cashDividends está vazio
+                try:
+                    ex_ts  = res0.get("exDividendDate")
+                    pay_ts = res0.get("dividendDate")
+                    # Valor: usa lastDividendValue, dividendRate/frequência, ou 0
+                    raw_val  = (res0.get("lastDividendValue") or
+                                res0.get("dividendRate")      or
+                                (res0.get("dividendsData") or {}).get("rate") or 0)
+                    div_val  = float(raw_val or 0)
+
+                    if ex_ts and div_val > 0:
+                        # Prefere a data de pagamento; fallback para ex + 15 dias
+                        if pay_ts:
+                            pay_dt = datetime.fromtimestamp(int(pay_ts))
+                        else:
+                            pay_dt = datetime.fromtimestamp(int(ex_ts)) + timedelta(days=15)
+
+                        # Adiciona se for futura ou até 60 dias no passado (pode não estar no cashDividends)
+                        if (pay_dt - datetime.utcnow()).days > -60:
+                            payments.append({
+                                "year":     pay_dt.year,
+                                "month":    pay_dt.month,
+                                "day":      pay_dt.day,
+                                "value":    round(div_val, 6),
+                                "date_str": pay_dt.strftime("%d/%m/%Y"),
+                                "declared": True,   # pagamento oficialmente anunciado
+                            })
+                except Exception:
+                    pass
+
+                # Tenta lastDividendValue se ainda sem nada
                 if not payments:
                     ldd = res0.get("lastDividendDate")
                     ldv = float(res0.get("lastDividendValue") or 0)
@@ -317,136 +398,30 @@ def brapi_dividends(symbol, cotas=1):
     if not payments:
         return None
 
+    # ── Separar pagamentos futuros DECLARADOS dos históricos ──────────────────
+    today_dt  = datetime.utcnow()
+    declared_future = [
+        p for p in payments
+        if p.get("declared") and
+        datetime(p["year"], p["month"], p["day"]) >= today_dt
+    ]
+    historical = [p for p in payments if not p.get("declared")]
+
+    # Combina: histórico primeiro, declarados depois (para não distorcer freq)
+    all_payments = historical + declared_future
+
     # ── Deduplicar e ordenar ──────────────────────────────────────────────────
-    payments.sort(key=lambda x: (x["year"], x["month"], x["day"]))
+    all_payments.sort(key=lambda x: (x["year"], x["month"], x["day"]))
     seen_ym, unique = set(), []
-    for p in payments:
+    for p in all_payments:
         k = f"{p['year']}-{p['month']:02d}"
         if k not in seen_ym:
             seen_ym.add(k)
             unique.append(p)
     payments = unique
 
-    # ── 3. Fallback: valores médios históricos para ativos conhecidos ───────────
-    # FIIs mensais (valor por cota aproximado — últimos 12 meses)
-    FII_FALLBACK = {
-        "MXRF11":0.10,"HGLG11":1.10,"XPML11":0.07,"KNRI11":0.65,
-        "MALL11":0.07,"VISC11":0.68,"HSML11":0.06,"GGRC11":0.75,
-        "BTLG11":0.08,"BRCO11":0.75,"LVBI11":0.70,"XPCI11":0.09,
-        "RBRR11":0.09,"IRDM11":0.09,"KNCR11":0.10,"RBRF11":0.09,
-        "HCTR11":0.13,"VRTA11":0.09,"VCJR11":0.09,"VGIP11":0.09,
-        "RECR11":0.10,"RBRP11":0.65,"PVBI11":0.67,"HGRU11":0.72,
-        "ALZR11":0.70,"TRXF11":0.09,"HGCR11":0.10,"TGAR11":0.11,
-        "CPTS11":0.09,"RBVA11":0.62,"XPPR11":0.05,"BRCR11":0.55,
-        "RCRB11":0.60,"JSRE11":0.04,"DEVA11":0.12,"BCFF11":0.06,
-        "BCRI11":0.09,"HABT11":0.11,"HGBS11":0.70,"ABCP11":0.55,
-    }
-    # Ações pagadoras — DY médio anual convertido em valor trimestral/semestral
-    # (freq, meses de pagamento, valor médio por pagamento)
-    ACAO_FALLBACK = {
-        # Bancos — trimestrais
-        "ITUB4": ("Trimestral",[3,6,9,12], 0.35),
-        "ITUB3": ("Trimestral",[3,6,9,12], 0.35),
-        "BBDC4": ("Trimestral",[3,6,9,12], 0.22),
-        "BBDC3": ("Trimestral",[3,6,9,12], 0.22),
-        "BBAS3": ("Trimestral",[2,5,8,11], 0.50),
-        "SANB11":("Trimestral",[3,6,9,12], 0.28),
-        "BPAC11":("Semestral", [6,12],     1.20),
-        "BMGB4": ("Semestral", [6,12],     0.30),
-        # Energia elétrica — mensais/trimestrais
-        "TAEE4": ("Trimestral",[3,6,9,12], 0.40),
-        "TAEE11":("Trimestral",[3,6,9,12], 0.40),
-        "EGIE3": ("Trimestral",[3,6,9,12], 0.50),
-        "CPFE3": ("Trimestral",[3,6,9,12], 0.55),
-        "CMIG4": ("Trimestral",[3,6,9,12], 0.45),
-        "CMIG3": ("Trimestral",[3,6,9,12], 0.45),
-        "ENGI11":("Trimestral",[3,6,9,12], 0.35),
-        "CPLE6": ("Trimestral",[3,6,9,12], 0.40),
-        "AURE3": ("Trimestral",[3,6,9,12], 0.20),
-        "NEOE3": ("Semestral", [6,12],     0.50),
-        # Petróleo
-        "PETR4": ("Semestral", [5,11],     1.20),
-        "PETR3": ("Semestral", [5,11],     1.20),
-        "PRIO3": ("Semestral", [6,12],     0.80),
-        "UGPA3": ("Trimestral",[3,6,9,12], 0.25),
-        "RECV3": ("Anual",     [12],       0.50),
-        # Mineração / Siderurgia
-        "VALE3": ("Semestral", [3,9],      3.50),
-        "CSNA3": ("Semestral", [6,12],     0.80),
-        "GGBR4": ("Semestral", [6,12],     1.20),
-        "GGBR3": ("Semestral", [6,12],     1.20),
-        # Telecom
-        "VIVT3": ("Trimestral",[3,6,9,12], 0.55),
-        "TIMS3": ("Trimestral",[3,6,9,12], 0.22),
-        # Alimentos / Agro
-        "JBSS3": ("Semestral", [4,10],     0.60),
-        "ABEV3": ("Mensal",    list(range(1,13)), 0.06),
-        "MRFG3": ("Semestral", [4,10],     0.30),
-        "BEEF3": ("Semestral", [5,11],     0.25),
-        "SLCE3": ("Anual",     [4],        2.00),
-        "AGRO3": ("Anual",     [3],        1.50),
-        # Consumo / Varejo
-        "LREN3": ("Semestral", [6,12],     0.40),
-        "NTCO3": ("Semestral", [6,12],     0.35),
-        # Seguros / Financeiro
-        "BBSE3": ("Trimestral",[3,6,9,12], 0.60),
-        "IRBR3": ("Semestral", [6,12],     0.15),
-        # Construção
-        "MRVE3": ("Semestral", [6,12],     0.25),
-        "CYRE3": ("Anual",     [4],        1.00),
-        # Papel/Celulose
-        "SUZB3": ("Semestral", [5,11],     1.00),
-        "KLBN4": ("Semestral", [6,12],     0.45),
-        "KLBN11":("Semestral", [6,12],     0.45),
-        # Saúde
-        "RDOR3": ("Semestral", [6,12],     0.30),
-        "FLRY3": ("Trimestral",[3,6,9,12], 0.15),
-        # Shoppings
-        "MULT3": ("Trimestral",[3,6,9,12], 0.30),
-        "BRML3": ("Semestral", [6,12],     0.20),
-        # Tech
-        "TOTVS3":("Semestral", [6,12],     0.40),
-        # Outros
-        "WEGE3": ("Trimestral",[3,6,9,12], 0.12),
-        "BBRO11":("Trimestral",[3,6,9,12], 0.18),
-        "KEPL3": ("Semestral", [5,11],     0.80),
-        "LEVE3": ("Semestral", [5,11],     1.20),
-        "POSI3": ("Semestral", [6,12],     0.30),
-        "COGN3": ("Anual",     [4],        0.10),
-        "CXSE3": ("Semestral", [6,12],     0.50),
-    }
-
-    if not payments and sym in FII_FALLBACK:
-        avg_v   = FII_FALLBACK[sym]
-        today_d = date.today()
-        for i in range(12, 0, -1):
-            past = today_d - relativedelta(months=i)
-            payments.append({
-                "year":past.year,"month":past.month,"day":15,
-                "value":avg_v,"date_str":f"15/{past.month:02d}/{past.year}",
-            })
-        freq_label, freq_months = "Mensal", list(range(1,13))
-        print(f"  dividends {sym}: fallback FII R${avg_v}/cota")
-        cache_set(ck, {"payments":payments,"freq_label":freq_label,"freq_months":freq_months})
-        return _build_div_result(sym, payments, freq_label, freq_months, cotas)
-
-    if not payments and sym in ACAO_FALLBACK:
-        flabel, fmonths, avg_v = ACAO_FALLBACK[sym]
-        today_d = date.today()
-        # Gerar histórico nos meses corretos dos últimos 2 anos
-        for yr in range(today_d.year - 2, today_d.year + 1):
-            for m in fmonths:
-                if date(yr, m, 15) < today_d:
-                    payments.append({
-                        "year":yr,"month":m,"day":15,
-                        "value":avg_v,"date_str":f"15/{m:02d}/{yr}",
-                    })
-        freq_label, freq_months = flabel, fmonths
-        print(f"  dividends {sym}: fallback AÇÃO {flabel} R${avg_v}")
-        cache_set(ck, {"payments":payments,"freq_label":freq_label,"freq_months":freq_months})
-        return _build_div_result(sym, payments, freq_label, freq_months, cotas)
-
     # ── Detectar frequência ───────────────────────────────────────────────────
+    hist_only = [p for p in payments if not p.get("declared")]
     if td_frequency:
         _freq_map = {
             1:  ("Anual",       [12]),
@@ -456,25 +431,36 @@ def brapi_dividends(symbol, cotas=1):
         }
         freq_label, freq_months = _freq_map.get(td_frequency, ("Mensal", list(range(1, 13))))
     elif fii:
-        # FIIs brasileiros pagam mensalmente por padrão
         freq_label, freq_months = "Mensal", list(range(1, 13))
-    else:
-        recent       = payments[-24:]
-        months_paid  = sorted(set(p["month"] for p in recent))
-        n            = len(months_paid)
+    elif len(hist_only) >= 2:
+        recent      = hist_only[-24:]
+        months_paid = sorted(set(p["month"] for p in recent))
+        n           = len(months_paid)
         if   n >= 10: freq_label, freq_months = "Mensal",      list(range(1, 13))
         elif n >= 4:  freq_label, freq_months = "Trimestral",  [3, 6, 9, 12]
         elif n >= 2:  freq_label, freq_months = "Semestral",   [6, 12]
-        else:         freq_label, freq_months = "Anual",       months_paid or [12]
+        else:         freq_label, freq_months = "Irregular",   months_paid or [12]
+    else:
+        # Poucos dados históricos — usa mês do pagamento declarado se houver
+        if declared_future:
+            freq_months = [declared_future[0]["month"]]
+        elif hist_only:
+            freq_months = [hist_only[-1]["month"]]
+        else:
+            freq_months = [12]
+        freq_label = "Irregular"
 
-    # Salva cache sem cotas (cotas é por usuário)
+    # Salva cache sem cotas
     cache_set(ck, {
-        "payments":    payments,
-        "freq_label":  freq_label,
-        "freq_months": freq_months,
+        "payments":        payments,
+        "freq_label":      freq_label,
+        "freq_months":     freq_months,
+        "declared_future": declared_future,
     })
 
-    return _build_div_result(sym, payments, freq_label, freq_months, cotas)
+    return _build_div_result(sym, payments, freq_label, freq_months, cotas,
+                             declared_future=declared_future)
+
 
 
 
@@ -1404,6 +1390,10 @@ def _td_batch_quotes(symbols):
 @app.route("/api/heatmap-sector")
 @login_required
 def heatmap_sector():
+    """
+    Endpoint leve por setor: ?syms=ITUB4,BBDC4,BBAS3 (máx 6)
+    Cacheia cada símbolo individualmente para reutilização entre rotas.
+    """
     raw  = request.args.get("syms", "")
     syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:6]
     if not syms:
@@ -1418,32 +1408,21 @@ def heatmap_sector():
             missing.append(sym)
 
     if missing:
-        # Tenta buscar 1 símbolo de cada vez para evitar erro 400 em batch
-        for sym in missing:
-            try:
-                data = brapi_get(f"/quote/{sym}")
-                if data and "results" in data and data["results"]:
-                    r = data["results"][0]
-                    price  = float(r.get("regularMarketPrice") or 0)
-                    change = float(r.get("regularMarketChangePercent") or 0)
-                    if price > 0:
-                        item = {
-                            "symbol": sym,
-                            "price":  round(price, 2),
-                            "change": round(change, 2),
-                            "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
-                            "volume": int(r.get("regularMarketVolume") or 0),
-                        }
-                        cache_set(f"qm_{sym}", item)
-                        result.append(item)
-                    else:
-                        # Retorna com change=0 para não ficar em skeleton
-                        result.append({"symbol":sym,"price":0,"change":0,"name":sym,"volume":0})
-                else:
-                    result.append({"symbol":sym,"price":0,"change":0,"name":sym,"volume":0})
-            except Exception as e:
-                print(f"  heatmap {sym}: {e}")
-                result.append({"symbol":sym,"price":0,"change":0,"name":sym,"volume":0})
+        data = brapi_get(f"/quote/{','.join(missing)}")
+        if data and "results" in data:
+            for r in (data["results"] or []):
+                sym = r.get("symbol","")
+                if not sym:
+                    continue
+                item = {
+                    "symbol": sym,
+                    "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
+                    "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
+                    "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
+                    "volume": int(r.get("regularMarketVolume") or 0),
+                }
+                cache_set(f"qm_{sym}", item)
+                result.append(item)
 
     return jsonify(result)
 
