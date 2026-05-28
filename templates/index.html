@@ -4188,44 +4188,57 @@ async function hmLoadAll(force=false){
   if(_hmLoading && !force) return;
 
   _hmLoading = true;
-  if(force) _hmCache = {};  // força recarga total
+  if(force) _hmCache = {};
   if(dot)    dot.className    = "hm-live-dot";
   if(status) status.textContent = "Atualizando…";
 
-  // Renderiza skeletons imediatamente para todos os setores
+  // Mostra skeletons imediatamente
   grid.innerHTML = Object.entries(HM_SECTORS).map(([name,syms])=>
-    hmBuildSectorCard(name, syms, _hmCache)
+    hmBuildSectorCard(name, syms, {})
   ).join("");
 
-  // Busca cada setor em paralelo (cada chamada = 4-5 símbolos = aceito pelo BRAPI)
-  const promises = Object.entries(HM_SECTORS).map(([name,syms],i)=>
-    new Promise(res=>setTimeout(()=>hmFetchSector(name,syms).then(res),i*150))
-  );
-  await Promise.allSettled(promises);
+  try{
+    // UMA única chamada — o servidor busca tudo sequencialmente sem rate limit
+    const data = await apiFetch("/api/heatmap-all");
+
+    if(data && typeof data === "object"){
+      // Popula cache local e re-renderiza cada setor
+      Object.entries(data).forEach(([name, cells])=>{
+        (cells||[]).forEach(d=>{ if(d && d.symbol) _hmCache[d.symbol]=d; });
+        const card = document.getElementById(`hm-sec-${name.replace(/\s/g,"")}`);
+        if(card){
+          const tmp = document.createElement("div");
+          tmp.innerHTML = hmBuildSectorCard(name, HM_SECTORS[name]||[], _hmCache);
+          const newCard = tmp.firstChild;
+          if(newCard){
+            newCard.style.animation = "hmFadeIn .3s ease both";
+            card.replaceWith(newCard);
+          }
+        }
+      });
+    }
+  }catch(e){
+    console.warn("Heatmap:", e.message);
+  }
 
   // Footer stats
-  const allLoaded  = Object.values(_hmCache);
-  const pos  = allLoaded.filter(d=>d.change>0.05).length;
-  const neg  = allLoaded.filter(d=>d.change<-0.05).length;
+  const allLoaded = Object.values(_hmCache);
+  const pos  = allLoaded.filter(d=>d.change >  0.05).length;
+  const neg  = allLoaded.filter(d=>d.change < -0.05).length;
   const flat = allLoaded.length - pos - neg;
   const footer = $("hm-footer-stats");
   if(footer && allLoaded.length){
-    footer.innerHTML = `
-      <span style="color:var(--g)">▲ ${pos} em alta</span>
-      <span style="color:var(--td);margin:0 8px">·</span>
-      <span style="color:var(--r)">▼ ${neg} em baixa</span>
-      <span style="color:var(--td);margin:0 8px">·</span>
-      <span style="color:var(--td)">= ${flat} estáveis</span>
-      <span style="color:var(--td);margin:0 8px">·</span>
-      <span style="color:var(--td)">${allLoaded.length} ativos</span>
-    `;
+    footer.innerHTML =
+      `<span style="color:var(--g)">▲ ${pos} em alta</span> · ` +
+      `<span style="color:var(--r)">▼ ${neg} em baixa</span> · ` +
+      `<span style="color:var(--td)">${flat} estáveis · ${allLoaded.length} ativos</span>`;
   }
 
   const ok = allLoaded.length > 0;
-  if(dot)    { dot.className = ok?"hm-live-dot":"hm-live-dot err"; }
+  if(dot)    dot.className = ok ? "hm-live-dot" : "hm-live-dot err";
   if(status) status.textContent = ok
-    ? `${new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}`
-    : "Dados indisponíveis";
+    ? new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})
+    : "Sem dados — tente novamente";
 
   _hmLoading = false;
 }
