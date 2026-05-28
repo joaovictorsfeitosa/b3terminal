@@ -1372,7 +1372,7 @@ def ai_chat():
 
 
 
-# ── Heatmap — símbolos validados, lotes de 10 ────────────────────────────────
+# ── Heatmap — busca sequencial no backend, cache 10 min ──────────────────────
 HEATMAP_SECTORS = {
     "Bancos":    ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11"],
     "Petróleo":  ["PETR4","PRIO3","RECV3","UGPA3"],
@@ -1387,31 +1387,20 @@ HEATMAP_SECTORS = {
 def _td_batch_quotes(symbols):
     return {}
 
-@app.route("/api/heatmap-sector")
-@login_required
-def heatmap_sector():
-    """
-    Endpoint leve por setor: ?syms=ITUB4,BBDC4,BBAS3 (máx 6)
-    Cacheia cada símbolo individualmente para reutilização entre rotas.
-    """
-    raw  = request.args.get("syms", "")
-    syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:6]
-    if not syms:
-        return jsonify([])
-
-    result, missing = [], []
+def _fetch_sector_quotes(syms):
+    """Busca cotações de uma lista pequena de símbolos via BRAPI (sem fundamental)."""
+    missing, result = [], {}
     for sym in syms:
-        hit = cache_get(f"qm_{sym}", ttl=180)
+        hit = cache_get(f"qm_{sym}", ttl=600)
         if hit:
-            result.append(hit)
+            result[sym] = hit
         else:
             missing.append(sym)
-
     if missing:
         data = brapi_get(f"/quote/{','.join(missing)}")
         if data and "results" in data:
             for r in (data["results"] or []):
-                sym = r.get("symbol","")
+                sym = r.get("symbol", "")
                 if not sym:
                     continue
                 item = {
@@ -1422,9 +1411,45 @@ def heatmap_sector():
                     "volume": int(r.get("regularMarketVolume") or 0),
                 }
                 cache_set(f"qm_{sym}", item)
-                result.append(item)
+                result[sym] = item
+    return result
 
-    return jsonify(result)
+
+@app.route("/api/heatmap-all")
+@login_required
+def heatmap_all():
+    """
+    Endpoint único: busca TODOS os setores sequencialmente no servidor.
+    Cache 10 minutos — o frontend faz UMA só chamada e espera a resposta.
+    Sem concorrência, sem rate-limit.
+    """
+    ck = "hm_all_v3"
+    cached = cache_get(ck, ttl=600)
+    if cached:
+        return jsonify(cached)
+
+    out = {}
+    for name, syms in HEATMAP_SECTORS.items():
+        qmap = _fetch_sector_quotes(syms)
+        out[name] = [qmap[s] for s in syms if s in qmap]
+        # Pausa entre setores só quando há símbolos realmente buscados
+        if any(s not in qmap for s in syms):
+            time.sleep(0.35)
+
+    cache_set(ck, out)
+    return jsonify(out)
+
+
+# Mantido para compatibilidade com versões antigas
+@app.route("/api/heatmap-sector")
+@login_required
+def heatmap_sector():
+    raw  = request.args.get("syms", "")
+    syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:6]
+    if not syms:
+        return jsonify([])
+    qmap = _fetch_sector_quotes(syms)
+    return jsonify(list(qmap.values()))
 
 
 @app.route("/api/heatmap")
