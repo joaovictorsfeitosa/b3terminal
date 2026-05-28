@@ -97,7 +97,6 @@ def brapi_get(path, params=None):
 def brapi_quotes(symbols):
     syms_clean = [s.upper().replace(".SA","") for s in symbols]
     syms_str   = ",".join(syms_clean)
-    # Cache key: hash long lists to avoid oversized keys
     ck = f"bq_{syms_str}" if len(syms_str) < 120 else f"bq_{hash(syms_str)}"
     cached = cache_get(ck, ttl=300)
     if cached: return cached
@@ -107,9 +106,10 @@ def brapi_quotes(symbols):
     for r in data["results"]:
         dy = r.get("dividendYield")
         if dy is not None: dy = round(float(dy), 4)
+        sym = r.get("symbol","")
         results.append({
-            "symbol":                     r.get("symbol",""),
-            "shortName":                  r.get("shortName") or r.get("longName") or r.get("symbol",""),
+            "symbol":                     sym,
+            "shortName":                  r.get("shortName") or r.get("longName") or sym,
             "regularMarketPrice":         r.get("regularMarketPrice"),
             "regularMarketChange":        r.get("regularMarketChange"),
             "regularMarketChangePercent": r.get("regularMarketChangePercent"),
@@ -127,7 +127,17 @@ def brapi_quotes(symbols):
             "exDividendDate_br":          None,
             "lastDividendDate_br":        None,
         })
+        # Popula cache individual para reuso pelo heatmap (evita chamadas duplicadas)
+        if sym:
+            cache_set(f"qm_{sym}", {
+                "symbol": sym,
+                "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
+                "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
+                "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
+                "volume": int(r.get("regularMarketVolume") or 0),
+            })
     cache_set(ck, results); return results
+
 
 def brapi_history(symbol, range_="1mo"):
     sym = symbol.upper().replace(".SA","")
@@ -1372,7 +1382,7 @@ def ai_chat():
 
 
 
-# ── Heatmap — busca sequencial no backend, cache 10 min ──────────────────────
+# ── Heatmap ───────────────────────────────────────────────────────────────────
 HEATMAP_SECTORS = {
     "Bancos":    ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11"],
     "Petróleo":  ["PETR4","PRIO3","RECV3","UGPA3"],
@@ -1388,8 +1398,8 @@ def _td_batch_quotes(symbols):
     return {}
 
 def _fetch_sector_quotes(syms):
-    """Busca cotações de uma lista pequena de símbolos via BRAPI (sem fundamental)."""
-    missing, result = [], {}
+    """Cotações leves — checa qm_* cache (preenchido por brapi_quotes) antes de ir à BRAPI."""
+    result, missing = {}, []
     for sym in syms:
         hit = cache_get(f"qm_{sym}", ttl=600)
         if hit:
@@ -1400,7 +1410,7 @@ def _fetch_sector_quotes(syms):
         data = brapi_get(f"/quote/{','.join(missing)}")
         if data and "results" in data:
             for r in (data["results"] or []):
-                sym = r.get("symbol", "")
+                sym = r.get("symbol","")
                 if not sym:
                     continue
                 item = {
@@ -1412,6 +1422,8 @@ def _fetch_sector_quotes(syms):
                 }
                 cache_set(f"qm_{sym}", item)
                 result[sym] = item
+        else:
+            print(f"  [Heatmap] BRAPI sem dados para {missing}")
     return result
 
 
@@ -1419,43 +1431,49 @@ def _fetch_sector_quotes(syms):
 @login_required
 def heatmap_all():
     """
-    Endpoint único: busca TODOS os setores sequencialmente no servidor.
-    Cache 10 minutos — o frontend faz UMA só chamada e espera a resposta.
-    Sem concorrência, sem rate-limit.
+    Endpoint único — busca setores sequencialmente com pausa entre chamadas.
+    Cache 10 min. brapi_quotes() já alimenta qm_* cache → símbolos da Carteira
+    e do Mercado chegam aqui como cache-hit sem chamar BRAPI novamente.
     """
     ck = "hm_all_v3"
     cached = cache_get(ck, ttl=600)
     if cached:
         return jsonify(cached)
 
+    all_syms = [s for ss in HEATMAP_SECTORS.values() for s in ss]
+    hits = sum(1 for s in all_syms if cache_get(f"qm_{s}", ttl=600))
+    print(f"  [Heatmap] cache pre-warm: {hits}/{len(all_syms)} símbolos prontos")
+
     out = {}
     for name, syms in HEATMAP_SECTORS.items():
-        qmap = _fetch_sector_quotes(syms)
+        already = [s for s in syms if cache_get(f"qm_{s}", ttl=600)]
+        qmap    = _fetch_sector_quotes(syms)
         out[name] = [qmap[s] for s in syms if s in qmap]
-        # Pausa entre setores só quando há símbolos realmente buscados
-        if any(s not in qmap for s in syms):
-            time.sleep(0.35)
+        # Pausa apenas quando BRAPI foi de fato chamado
+        if len(already) < len(syms):
+            time.sleep(0.4)
 
-    cache_set(ck, out)
+    total = sum(len(v) for v in out.values())
+    print(f"  [Heatmap] resultado: {total}/{len(all_syms)} símbolos carregados")
+    if total > 0:
+        cache_set(ck, out)
     return jsonify(out)
 
 
-# Mantido para compatibilidade com versões antigas
 @app.route("/api/heatmap-sector")
 @login_required
 def heatmap_sector():
-    raw  = request.args.get("syms", "")
+    raw  = request.args.get("syms","")
     syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:6]
     if not syms:
         return jsonify([])
-    qmap = _fetch_sector_quotes(syms)
-    return jsonify(list(qmap.values()))
+    return jsonify(list(_fetch_sector_quotes(syms).values()))
 
 
 @app.route("/api/heatmap")
 @login_required
 def get_heatmap():
-    return jsonify({"sectors": [], "updated": datetime.utcnow().strftime("%H:%M")})
+    return jsonify({"sectors":[], "updated": datetime.utcnow().strftime("%H:%M")})
 
 
 
