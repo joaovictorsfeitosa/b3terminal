@@ -4188,47 +4188,42 @@ async function hmLoadAll(force=false){
     hmBuildSectorCard(name, syms, {})
   ).join("");
 
-  const allExpected = Object.values(HM_SECTORS).flat();
-  let   attempts    = 0;
-  const MAX_TRIES   = 3;
-
-  while(attempts < MAX_TRIES){
-    attempts++;
+  // Estratégia: busca cada setor individualmente em paralelo
+  // Cada chamada tem apenas 3-5 símbolos → nunca sofre timeout/rate-limit
+  const sectorPromises = Object.entries(HM_SECTORS).map(async ([name, syms])=>{
+    const url = `/api/heatmap-sector?name=${encodeURIComponent(name)}&syms=${syms.join(",")}`;
     try{
-      const data = await apiFetch("/api/heatmap-all");
-      if(data && typeof data === "object"){
-        Object.entries(data).forEach(([name, cells])=>{
-          (cells||[]).forEach(d=>{ if(d && d.symbol) _hmCache[d.symbol]=d; });
-          hmReplaceCard(name);
-        });
+      const res = await apiFetch(url);
+      const cells = res.cells || res;  // compatível com formato antigo e novo
+      if(Array.isArray(cells)){
+        cells.forEach(d=>{ if(d&&d.symbol) _hmCache[d.symbol]=d; });
+      } else if(res && res.cells){
+        res.cells.forEach(d=>{ if(d&&d.symbol) _hmCache[d.symbol]=d; });
       }
+      hmReplaceCard(name);  // renderiza este setor imediatamente
     }catch(e){
-      console.warn(`Heatmap tentativa ${attempts}:`, e.message);
+      console.warn(`Heatmap setor ${name}:`, e.message);
     }
+  });
 
-    // Verifica se ainda faltam símbolos
-    const missing = allExpected.filter(s=>!_hmCache[s]);
-    if(!missing.length) break;                        // tudo carregado
+  // Aguarda todos os setores (mas cada um já foi renderizando conforme chegou)
+  await Promise.allSettled(sectorPromises);
 
-    if(attempts < MAX_TRIES){
-      // Tenta buscar os que faltam individualmente via heatmap-sector
-      const bySetor = {};
-      Object.entries(HM_SECTORS).forEach(([name, syms])=>{
-        const falta = syms.filter(s=>!_hmCache[s]);
-        if(falta.length) bySetor[name] = falta;
-      });
-      for(const [name, falta] of Object.entries(bySetor)){
-        try{
-          const res = await apiFetch(`/api/heatmap-sector?syms=${falta.join(",")}`);
-          if(Array.isArray(res)) res.forEach(d=>{ if(d&&d.symbol) _hmCache[d.symbol]=d; });
-          hmReplaceCard(name);
-        }catch(e){ /* silencioso */ }
-        await new Promise(r=>setTimeout(r,200));
-      }
-      const stillMissing = allExpected.filter(s=>!_hmCache[s]);
-      if(!stillMissing.length) break;
-      await new Promise(r=>setTimeout(r,800));
-    }
+  // Segunda passagem: tenta de novo os que ainda estão vazios
+  const missing = Object.entries(HM_SECTORS)
+    .filter(([,syms]) => syms.every(s=>!_hmCache[s]));
+
+  if(missing.length){
+    await Promise.allSettled(missing.map(async ([name, syms])=>{
+      const url = `/api/heatmap-sector?name=${encodeURIComponent(name)}&syms=${syms.join(",")}`;
+      try{
+        const res = await apiFetch(url);
+        const cells = (res.cells || res);
+        if(Array.isArray(cells)) cells.forEach(d=>{ if(d&&d.symbol) _hmCache[d.symbol]=d; });
+        else if(res&&res.cells) res.cells.forEach(d=>{ if(d&&d.symbol) _hmCache[d.symbol]=d; });
+        hmReplaceCard(name);
+      }catch(e){}
+    }));
   }
 
   hmUpdateFooter();
@@ -4237,7 +4232,6 @@ async function hmLoadAll(force=false){
   if(status) status.textContent = ok
     ? new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})
     : "Sem dados — tente novamente";
-
   _hmLoading = false;
 }
 
@@ -4263,7 +4257,6 @@ function hmUpdateFooter(){
       `<span style="color:var(--td)">${flat} estáveis · ${allLoaded.length} ativos</span>`;
   }
 }
-
 /* ══════════════════════════════════════════════════════════
    SCORE DE SAÚDE DA CARTEIRA
 ══════════════════════════════════════════════════════════ */
