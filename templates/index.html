@@ -2686,6 +2686,15 @@ async function runSimulador(){
   if(!total||!sel.length){
     alert("Preencha o valor e selecione pelo menos um ativo.");return;
   }
+  // Se modo manual sem percentuais preenchidos, distribui igualmente (avisa)
+  if(dist==="manual"){
+    const totalPct=sel.reduce((acc,d)=>acc+(parseFloat(simPct[d.symbol])||0),0);
+    if(totalPct<=0){
+      const msg=$("sim-search-msg");
+      msg.innerHTML='<span style="color:var(--a)">⚠ Nenhum % preenchido — distribuindo igualmente entre os ativos.</span>';
+      setTimeout(()=>msg.innerHTML="",5000);
+    }
+  }
 
   // Mostra loading
   $("sim-result").innerHTML='<div class="empty-box"><div class="loading" style="grid-column:unset;padding:20px"><div class="sp"></div>CALCULANDO...</div></div>';
