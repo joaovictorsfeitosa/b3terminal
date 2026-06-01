@@ -260,11 +260,41 @@ def _build_div_result(sym, payments, freq_label, freq_months, cotas=1, declared_
 
 
 
+def _yf_dividends(sym):
+    """Busca dividendos via Yahoo Finance como fonte extra (sem chave)."""
+    try:
+        ticker = sym.upper() + ".SA"
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+        params = {"interval": "1d", "range": "5y", "events": "dividends"}
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = req_lib.get(url, params=params, headers=headers, timeout=10)
+        data = r.json()
+        events = (data.get("chart", {}).get("result") or [{}])[0].get("events", {})
+        divs = events.get("dividends", {})
+        payments = []
+        for ts_str, d in divs.items():
+            try:
+                dt  = datetime.utcfromtimestamp(int(d["date"]))
+                val = float(d.get("amount") or 0)
+                if val > 0:
+                    payments.append({
+                        "year": dt.year, "month": dt.month, "day": dt.day,
+                        "value": round(val, 6),
+                        "date_str": dt.strftime("%d/%m/%Y"),
+                    })
+            except Exception:
+                pass
+        payments.sort(key=lambda x: (x["year"], x["month"], x["day"]))
+        return payments
+    except Exception as e:
+        print(f"  YF dividends {sym}: {e}")
+        return []
+
+
 def brapi_dividends(symbol, cotas=1):
     """
     Busca histórico de dividendos/rendimentos.
-    Primário : Twelve Data (endpoint /dividends, histórico completo)
-    Fallback : BRAPI (limitado a ~3 meses no plano free)
+    Fontes (em ordem): Twelve Data → BRAPI cashDividends → Yahoo Finance
     """
     sym = symbol.upper().replace(".SA", "")
     fii = _is_fii(sym)
@@ -281,7 +311,7 @@ def brapi_dividends(symbol, cotas=1):
                                  declared_future=raw_cached.get("declared_future", []))
 
     payments     = []
-    td_frequency = None  # frequência informada pela Twelve Data
+    td_frequency = None
     TD_KEY = os.environ.get("TWELVE_DATA_KEY", "")
 
     # ── 1. Twelve Data ────────────────────────────────────────────────────────
@@ -289,12 +319,7 @@ def brapi_dividends(symbol, cotas=1):
         try:
             r = req_lib.get(
                 "https://api.twelvedata.com/dividends",
-                params={
-                    "symbol":   sym,
-                    "exchange": "BVMF",
-                    "range":    "5y",
-                    "apikey":   TD_KEY,
-                },
+                params={"symbol": sym, "exchange": "BVMF", "range": "5y", "apikey": TD_KEY},
                 timeout=15,
             )
             data = r.json()
@@ -303,16 +328,14 @@ def brapi_dividends(symbol, cotas=1):
                     try:
                         dt  = datetime.strptime(d["ex_dividend_date"][:10], "%Y-%m-%d")
                         val = float(d.get("amount") or 0)
-                        if val <= 0:
-                            continue
-                        payments.append({
-                            "year": dt.year, "month": dt.month, "day": dt.day,
-                            "value": round(val, 6),
-                            "date_str": dt.strftime("%d/%m/%Y"),
-                        })
+                        if val > 0:
+                            payments.append({
+                                "year": dt.year, "month": dt.month, "day": dt.day,
+                                "value": round(val, 6),
+                                "date_str": dt.strftime("%d/%m/%Y"),
+                            })
                     except Exception:
                         continue
-                # Twelve Data fornece frequency: 1=anual 2=semestral 4=trimestral 12=mensal
                 divs = data.get("dividends") or []
                 if divs and divs[0].get("frequency"):
                     td_frequency = int(divs[0]["frequency"])
@@ -321,11 +344,10 @@ def brapi_dividends(symbol, cotas=1):
         except Exception as e:
             print(f"  TwelveData dividends error {sym}: {e}")
 
-    # ── 2. BRAPI fallback ─────────────────────────────────────────────────────
+    # ── 2. BRAPI cashDividends ────────────────────────────────────────────────
     if not payments:
         try:
-            data = brapi_get(f"/quote/{sym}",
-                             {"dividends": "true", "modules": "defaultKeyStatistics"})
+            data = brapi_get(f"/quote/{sym}", {"dividends": "true", "modules": "defaultKeyStatistics"})
             if data and "results" in data and data["results"]:
                 res0      = data["results"][0]
                 cash_divs = (res0.get("dividendsData") or {}).get("cashDividends") or []
@@ -339,57 +361,45 @@ def brapi_dividends(symbol, cotas=1):
                         dt = None
                         for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S", "%d-%m-%Y"]:
                             try:
-                                dt = datetime.strptime(str(dt_str)[:10], fmt[:10])
-                                break
+                                dt = datetime.strptime(str(dt_str)[:10], fmt[:10]); break
                             except Exception:
                                 pass
                         if not dt:
                             continue
                         val = float(d.get("rate") or d.get("value") or d.get("adjValue") or
                                     d.get("amount") or d.get("dividendValue") or 0)
-                        if val <= 0:
-                            continue
-                        payments.append({
-                            "year": dt.year, "month": dt.month, "day": dt.day,
-                            "value": round(val, 6), "date_str": dt.strftime("%d/%m/%Y"),
-                        })
+                        if val > 0:
+                            payments.append({
+                                "year": dt.year, "month": dt.month, "day": dt.day,
+                                "value": round(val, 6), "date_str": dt.strftime("%d/%m/%Y"),
+                            })
                     except Exception:
                         pass
 
-                # ── Dividendo futuro DECLARADO ────────────────────────────────
-                # exDividendDate = data ex-dividendo já anunciada (unix ts)
-                # dividendDate   = data de pagamento já anunciada  (unix ts)
-                # Esses campos existem mesmo quando cashDividends está vazio
+                # Dividendo futuro declarado (campos exDividendDate / dividendDate)
                 try:
                     ex_ts  = res0.get("exDividendDate")
                     pay_ts = res0.get("dividendDate")
-                    # Valor: usa lastDividendValue, dividendRate/frequência, ou 0
-                    raw_val  = (res0.get("lastDividendValue") or
-                                res0.get("dividendRate")      or
-                                (res0.get("dividendsData") or {}).get("rate") or 0)
-                    div_val  = float(raw_val or 0)
-
+                    raw_val = (res0.get("lastDividendValue") or
+                               res0.get("dividendRate")      or
+                               (res0.get("dividendsData") or {}).get("rate") or 0)
+                    div_val = float(raw_val or 0)
                     if ex_ts and div_val > 0:
-                        # Prefere a data de pagamento; fallback para ex + 15 dias
                         if pay_ts:
                             pay_dt = datetime.fromtimestamp(int(pay_ts))
                         else:
                             pay_dt = datetime.fromtimestamp(int(ex_ts)) + timedelta(days=15)
-
-                        # Adiciona se for futura ou até 60 dias no passado (pode não estar no cashDividends)
                         if (pay_dt - datetime.utcnow()).days > -60:
                             payments.append({
-                                "year":     pay_dt.year,
-                                "month":    pay_dt.month,
-                                "day":      pay_dt.day,
-                                "value":    round(div_val, 6),
+                                "year": pay_dt.year, "month": pay_dt.month, "day": pay_dt.day,
+                                "value": round(div_val, 6),
                                 "date_str": pay_dt.strftime("%d/%m/%Y"),
-                                "declared": True,   # pagamento oficialmente anunciado
+                                "declared": True,
                             })
                 except Exception:
                     pass
 
-                # Tenta lastDividendValue se ainda sem nada
+                # Último dividendo via lastDividendValue
                 if not payments:
                     ldd = res0.get("lastDividendDate")
                     ldv = float(res0.get("lastDividendValue") or 0)
@@ -407,6 +417,10 @@ def brapi_dividends(symbol, cotas=1):
         except Exception as e:
             print(f"  BRAPI dividends fallback {sym}: {e}")
 
+    # ── 3. Yahoo Finance (sem chave, gratuito) ────────────────────────────────
+    if not payments:
+        payments = _yf_dividends(sym)
+
     if not payments:
         return None
 
@@ -418,11 +432,9 @@ def brapi_dividends(symbol, cotas=1):
         datetime(p["year"], p["month"], p["day"]) >= today_dt
     ]
     historical = [p for p in payments if not p.get("declared")]
-
-    # Combina: histórico primeiro, declarados depois (para não distorcer freq)
     all_payments = historical + declared_future
 
-    # ── Deduplicar e ordenar ──────────────────────────────────────────────────
+    # Deduplicar e ordenar
     all_payments.sort(key=lambda x: (x["year"], x["month"], x["day"]))
     seen_ym, unique = set(), []
     for p in all_payments:
@@ -453,7 +465,6 @@ def brapi_dividends(symbol, cotas=1):
         elif n >= 2:  freq_label, freq_months = "Semestral",   [6, 12]
         else:         freq_label, freq_months = "Irregular",   months_paid or [12]
     else:
-        # Poucos dados históricos — usa mês do pagamento declarado se houver
         if declared_future:
             freq_months = [declared_future[0]["month"]]
         elif hist_only:
@@ -462,7 +473,6 @@ def brapi_dividends(symbol, cotas=1):
             freq_months = [12]
         freq_label = "Irregular"
 
-    # Salva cache sem cotas
     cache_set(ck, {
         "payments":        payments,
         "freq_label":      freq_label,
@@ -472,7 +482,6 @@ def brapi_dividends(symbol, cotas=1):
 
     return _build_div_result(sym, payments, freq_label, freq_months, cotas,
                              declared_future=declared_future)
-
 
 
 
@@ -883,24 +892,25 @@ def simulate():
             men         = round(anl / 12, 2)    # sempre normalizado p/ mês
 
         else:
-            # Sem histórico de dividendos via brapi_dividends.
-            # Tenta múltiplas fontes em ordem de confiabilidade:
-            # 1. dividendRate (valor anual fixo em R$ — mais confiável que %)
-            # 2. dividendYield (%) — pode ser 0 fora do pregão
-            # 3. lastDividendValue × freq estimada
-            div_rate  = float(quote.get("dividendRate")      or 0)   # R$ anual/ação
-            dy        = float(quote.get("dividendYield")     or 0)   # % anual
-            last_div  = float(quote.get("lastDividendValue") or 0)   # último valor pago
+            # Sem histórico via brapi_dividends — usa campos do quote como fallback.
+            # dividendRate  = R$ anual por ação (mais confiável)
+            # dividendYield = % anual — BRAPI retorna às vezes como decimal (0.05) às vezes como (5.0)
+            # lastDividendValue = último valor pago por cota
+            div_rate  = float(quote.get("dividendRate")      or 0)
+            dy_raw    = float(quote.get("dividendYield")     or 0)
+            last_div  = float(quote.get("lastDividendValue") or 0)
+
+            # Normaliza dividendYield: se <= 1.0 provavelmente é decimal (0.05 → 5%)
+            dy = dy_raw * 100 if 0 < dy_raw <= 1.0 else dy_raw
 
             if div_rate > 0:
-                # dividendRate é o mais confiável: valor anual já em R$
                 anl = round(div_rate * cotas, 2)
-            elif dy > 0 and real > 0:
-                anl = round(real * (dy / 100), 2)
             elif last_div > 0:
-                # Estima: FII → 12x/ano; ação → 2x/ano
+                # lastDividendValue é o mais direto: valor por cota do último pagamento
                 freq_est = 12 if fii else 2
                 anl = round(last_div * cotas * freq_est, 2)
+            elif dy > 0 and real > 0:
+                anl = round(real * (dy / 100), 2)
             else:
                 anl = 0
 
