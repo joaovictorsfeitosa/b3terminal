@@ -841,9 +841,14 @@ def simulate():
         for s in symbols:
             alloc[s["sym"]] = valor_total * (ys[s["sym"]] / ty)
     else:
-        tp = sum(float(pcts.get(s["sym"], 0)) for s in symbols) or 1
-        for s in symbols:
-            alloc[s["sym"]] = valor_total * (float(pcts.get(s["sym"], 0)) / tp)
+        tp = sum(float(pcts.get(s["sym"], 0)) for s in symbols)
+        if tp <= 0:
+            # Nenhum percentual foi preenchido → distribui igualmente
+            for s in symbols:
+                alloc[s["sym"]] = valor_total / len(symbols)
+        else:
+            for s in symbols:
+                alloc[s["sym"]] = valor_total * (float(pcts.get(s["sym"], 0)) / tp)
 
     all_syms   = [s["sym"].upper().replace(".SA","") for s in symbols]
     quotes_map = {q["symbol"]: q for q in (brapi_quotes(all_syms) or [])}
