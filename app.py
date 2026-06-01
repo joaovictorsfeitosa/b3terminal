@@ -97,6 +97,7 @@ def brapi_get(path, params=None):
 def brapi_quotes(symbols):
     syms_clean = [s.upper().replace(".SA","") for s in symbols]
     syms_str   = ",".join(syms_clean)
+    # Cache key: hash long lists to avoid oversized keys
     ck = f"bq_{syms_str}" if len(syms_str) < 120 else f"bq_{hash(syms_str)}"
     cached = cache_get(ck, ttl=300)
     if cached: return cached
@@ -106,10 +107,9 @@ def brapi_quotes(symbols):
     for r in data["results"]:
         dy = r.get("dividendYield")
         if dy is not None: dy = round(float(dy), 4)
-        sym = r.get("symbol","")
         results.append({
-            "symbol":                     sym,
-            "shortName":                  r.get("shortName") or r.get("longName") or sym,
+            "symbol":                     r.get("symbol",""),
+            "shortName":                  r.get("shortName") or r.get("longName") or r.get("symbol",""),
             "regularMarketPrice":         r.get("regularMarketPrice"),
             "regularMarketChange":        r.get("regularMarketChange"),
             "regularMarketChangePercent": r.get("regularMarketChangePercent"),
@@ -127,17 +127,19 @@ def brapi_quotes(symbols):
             "exDividendDate_br":          None,
             "lastDividendDate_br":        None,
         })
-        # Popula cache individual para reuso pelo heatmap (evita chamadas duplicadas)
+    cache_set(ck, results)
+    # Alimenta cache individual qm_{sym} — reutilizado pelo heatmap sem chamar BRAPI de novo
+    for r in results:
+        sym = r.get("symbol","")
         if sym:
             cache_set(f"qm_{sym}", {
                 "symbol": sym,
                 "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
                 "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
-                "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
+                "name":   (r.get("shortName") or sym)[:24],
                 "volume": int(r.get("regularMarketVolume") or 0),
             })
-    cache_set(ck, results); return results
-
+    return results
 
 def brapi_history(symbol, range_="1mo"):
     sym = symbol.upper().replace(".SA","")
@@ -876,13 +878,31 @@ def simulate():
             men         = round(anl / 12, 2)    # sempre normalizado p/ mês
 
         else:
-            # Sem histórico: usa DY do quote
-            dy         = float(quote.get("dividendYield") or 0)
-            anl        = round(real * (dy / 100), 2)
+            # Sem histórico de dividendos via brapi_dividends.
+            # Tenta múltiplas fontes em ordem de confiabilidade:
+            # 1. dividendRate (valor anual fixo em R$ — mais confiável que %)
+            # 2. dividendYield (%) — pode ser 0 fora do pregão
+            # 3. lastDividendValue × freq estimada
+            div_rate  = float(quote.get("dividendRate")      or 0)   # R$ anual/ação
+            dy        = float(quote.get("dividendYield")     or 0)   # % anual
+            last_div  = float(quote.get("lastDividendValue") or 0)   # último valor pago
+
+            if div_rate > 0:
+                # dividendRate é o mais confiável: valor anual já em R$
+                anl = round(div_rate * cotas, 2)
+            elif dy > 0 and real > 0:
+                anl = round(real * (dy / 100), 2)
+            elif last_div > 0:
+                # Estima: FII → 12x/ano; ação → 2x/ano
+                freq_est = 12 if fii else 2
+                anl = round(last_div * cotas * freq_est, 2)
+            else:
+                anl = 0
+
             men        = round(anl / 12, 2)
-            freq_label = "Mensal" if fii else "—"
-            last_value = 0
-            avg_cota   = 0
+            freq_label = "Mensal" if fii else ("Semestral" if not fii and anl > 0 else "—")
+            last_value = last_div
+            avg_cota   = round(anl / (cotas * (12 if fii else 2)), 6) if (cotas > 0 and anl > 0) else 0
             projected  = []
 
         results.append({
@@ -1278,111 +1298,8 @@ def ai_ping():
         return jsonify({"ok": False, "erro": f"{type(e).__name__}: {str(e)}"}), 200
 
 
-@app.route("/api/ai/chat", methods=["POST"])
-@login_required
-def ai_chat():
-    ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not ANTHROPIC_KEY:
-        return jsonify({"error": "ANTHROPIC_API_KEY não configurada no Render."}), 503
 
-    # Parse body
-    try:
-        body = request.get_json(force=True) or {}
-    except Exception as e:
-        print(f"  AI chat: falha ao parsear JSON do body: {e}")
-        return jsonify({"error": "Payload inválido."}), 400
-
-    messages = body.get("messages", [])
-    if not messages:
-        return jsonify({"error": "Campo 'messages' obrigatório."}), 400
-
-    # Sanitizar mensagens
-    clean_msgs = []
-    for m in messages[-20:]:
-        role    = str(m.get("role", "")).strip()
-        content = str(m.get("content", "")).strip()
-        if role in ("user", "assistant") and content:
-            clean_msgs.append({"role": role, "content": content[:2000]})
-
-    if not clean_msgs:
-        return jsonify({"error": "Nenhuma mensagem válida após sanitização."}), 400
-
-    system_prompt = (
-        "Você é Vix, assistente especializado no mercado financeiro brasileiro (B3). "
-        "Responda sempre em português brasileiro, de forma objetiva e profissional. "
-        "Especialidade: ações, FIIs, ETFs, BDRs, dividendos, análise fundamentalista e técnica. "
-        "Nunca faça recomendações definitivas de compra/venda sem mencionar riscos."
-    )
-
-    payload = {
-        "model": "claude-sonnet-4-20250514",
-        "max_tokens": 1024,
-        "system": system_prompt,
-        "messages": clean_msgs,
-    }
-
-    headers = {
-        "x-api-key": ANTHROPIC_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    }
-
-    print(f"  AI chat: chamando Anthropic. model={payload['model']} msgs={len(clean_msgs)} key_prefix={ANTHROPIC_KEY[:12]}...")
-
-    try:
-        r = req_lib.post(
-            "https://api.anthropic.com/v1/messages",
-            headers=headers,
-            json=payload,
-            timeout=55,
-        )
-        print(f"  AI chat: resposta HTTP {r.status_code}")
-        r.raise_for_status()
-
-        data = r.json()
-        reply = "".join(
-            block.get("text", "")
-            for block in data.get("content", [])
-            if block.get("type") == "text"
-        )
-
-        if not reply:
-            print(f"  AI chat: resposta vazia. stop_reason={data.get('stop_reason')} usage={data.get('usage')}")
-            return jsonify({"error": "A IA não retornou texto. Tente novamente."}), 502
-
-        return jsonify({"reply": reply.strip()})
-
-    except req_lib.exceptions.Timeout:
-        print("  AI chat: timeout 55s")
-        return jsonify({"error": "Tempo esgotado (55s). O servidor pode estar acordando — aguarde e tente novamente."}), 504
-
-    except req_lib.exceptions.ConnectionError as e:
-        print(f"  AI chat: ConnectionError: {e}")
-        return jsonify({"error": "Sem conexão com a API Anthropic. Verifique a rede do Render."}), 503
-
-    except req_lib.exceptions.HTTPError as e:
-        status = e.response.status_code if e.response else 0
-        body_snippet = ""
-        try: body_snippet = e.response.text[:400]
-        except: pass
-        print(f"  AI chat: HTTPError {status}: {body_snippet}")
-        msgs = {
-            401: "Chave da API inválida ou expirada (401). Verifique ANTHROPIC_API_KEY no Render.",
-            403: "Acesso negado (403). Verifique permissões da chave.",
-            429: "Limite de requisições atingido (429). Aguarde alguns segundos.",
-            529: "API Anthropic sobrecarregada (529). Tente em instantes.",
-        }
-        return jsonify({"error": msgs.get(status, f"Erro HTTP {status} na API Anthropic.")}), 502
-
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print(f"  AI chat: ERRO INESPERADO {type(e).__name__}: {e}\n{tb}")
-        return jsonify({"error": f"Erro interno: {type(e).__name__} — {str(e)[:120]}"}), 500
-
-
-
-# ── Heatmap ───────────────────────────────────────────────────────────────────
+# ── Heatmap — busca sequencial no backend, cache 10 min ──────────────────────
 HEATMAP_SECTORS = {
     "Bancos":    ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11"],
     "Petróleo":  ["PETR4","PRIO3","RECV3","UGPA3"],
@@ -1398,8 +1315,8 @@ def _td_batch_quotes(symbols):
     return {}
 
 def _fetch_sector_quotes(syms):
-    """Cotações leves — checa qm_* cache (preenchido por brapi_quotes) antes de ir à BRAPI."""
-    result, missing = {}, []
+    """Busca cotações de uma lista pequena de símbolos via BRAPI (sem fundamental)."""
+    missing, result = [], {}
     for sym in syms:
         hit = cache_get(f"qm_{sym}", ttl=600)
         if hit:
@@ -1410,7 +1327,7 @@ def _fetch_sector_quotes(syms):
         data = brapi_get(f"/quote/{','.join(missing)}")
         if data and "results" in data:
             for r in (data["results"] or []):
-                sym = r.get("symbol","")
+                sym = r.get("symbol", "")
                 if not sym:
                     continue
                 item = {
@@ -1422,8 +1339,6 @@ def _fetch_sector_quotes(syms):
                 }
                 cache_set(f"qm_{sym}", item)
                 result[sym] = item
-        else:
-            print(f"  [Heatmap] BRAPI sem dados para {missing}")
     return result
 
 
@@ -1431,49 +1346,47 @@ def _fetch_sector_quotes(syms):
 @login_required
 def heatmap_all():
     """
-    Endpoint único — busca setores sequencialmente com pausa entre chamadas.
-    Cache 10 min. brapi_quotes() já alimenta qm_* cache → símbolos da Carteira
-    e do Mercado chegam aqui como cache-hit sem chamar BRAPI novamente.
+    Endpoint único: busca TODOS os setores sequencialmente no servidor.
+    Cache 10 minutos — o frontend faz UMA só chamada e espera a resposta.
+    Sem concorrência, sem rate-limit.
     """
     ck = "hm_all_v3"
     cached = cache_get(ck, ttl=600)
     if cached:
         return jsonify(cached)
 
-    all_syms = [s for ss in HEATMAP_SECTORS.values() for s in ss]
-    hits = sum(1 for s in all_syms if cache_get(f"qm_{s}", ttl=600))
-    print(f"  [Heatmap] cache pre-warm: {hits}/{len(all_syms)} símbolos prontos")
-
     out = {}
     for name, syms in HEATMAP_SECTORS.items():
-        already = [s for s in syms if cache_get(f"qm_{s}", ttl=600)]
+        before  = [s for s in syms if cache_get(f"qm_{s}", ttl=600)]
         qmap    = _fetch_sector_quotes(syms)
         out[name] = [qmap[s] for s in syms if s in qmap]
-        # Pausa apenas quando BRAPI foi de fato chamado
-        if len(already) < len(syms):
+        # Só pausa se houve chamada real ao BRAPI (símbolos não estavam em cache)
+        if len(before) < len(syms):
             time.sleep(0.4)
 
     total = sum(len(v) for v in out.values())
-    print(f"  [Heatmap] resultado: {total}/{len(all_syms)} símbolos carregados")
+    print(f"  [Heatmap] carregado: {total}/{sum(len(v) for v in HEATMAP_SECTORS.values())} símbolos")
     if total > 0:
         cache_set(ck, out)
     return jsonify(out)
 
 
+# Mantido para compatibilidade com versões antigas
 @app.route("/api/heatmap-sector")
 @login_required
 def heatmap_sector():
-    raw  = request.args.get("syms","")
+    raw  = request.args.get("syms", "")
     syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:6]
     if not syms:
         return jsonify([])
-    return jsonify(list(_fetch_sector_quotes(syms).values()))
+    qmap = _fetch_sector_quotes(syms)
+    return jsonify(list(qmap.values()))
 
 
 @app.route("/api/heatmap")
 @login_required
 def get_heatmap():
-    return jsonify({"sectors":[], "updated": datetime.utcnow().strftime("%H:%M")})
+    return jsonify({"sectors": [], "updated": datetime.utcnow().strftime("%H:%M")})
 
 
 
