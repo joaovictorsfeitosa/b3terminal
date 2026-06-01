@@ -1326,34 +1326,47 @@ HEATMAP_SECTORS = {
     "FIIs":      ["HGLG11","MXRF11","XPML11","KNRI11","MALL11"],
 }
 
-def _td_batch_quotes(symbols):
-    return {}
-
-def _fetch_sector_quotes(syms):
-    """Busca cotações de uma lista pequena de símbolos via BRAPI (sem fundamental)."""
-    missing, result = [], {}
-    for sym in syms:
-        hit = cache_get(f"qm_{sym}", ttl=600)
+def _fetch_all_heatmap_quotes(all_syms):
+    """
+    Busca cotações de TODOS os símbolos do heatmap em lotes de 10.
+    Usa cache individual qm_{sym} (ttl 5min). Só chama BRAPI para os ausentes.
+    Retorna dict {sym: item}.
+    """
+    result  = {}
+    missing = []
+    for sym in all_syms:
+        hit = cache_get(f"qm_{sym}", ttl=300)
         if hit:
             result[sym] = hit
         else:
             missing.append(sym)
-    if missing:
-        data = brapi_get(f"/quote/{','.join(missing)}")
-        if data and "results" in data:
-            for r in (data["results"] or []):
-                sym = r.get("symbol", "")
-                if not sym:
-                    continue
-                item = {
-                    "symbol": sym,
-                    "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
-                    "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
-                    "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
-                    "volume": int(r.get("regularMarketVolume") or 0),
-                }
-                cache_set(f"qm_{sym}", item)
-                result[sym] = item
+
+    # Busca em lotes de 10 para não estourar a URL da BRAPI
+    BATCH = 10
+    for i in range(0, len(missing), BATCH):
+        batch = missing[i:i+BATCH]
+        try:
+            data = brapi_get(f"/quote/{','.join(batch)}")
+            if data and "results" in data:
+                for r in (data["results"] or []):
+                    sym = r.get("symbol", "")
+                    if not sym:
+                        continue
+                    item = {
+                        "symbol": sym,
+                        "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
+                        "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
+                        "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
+                        "volume": int(r.get("regularMarketVolume") or 0),
+                    }
+                    cache_set(f"qm_{sym}", item)
+                    result[sym] = item
+        except Exception as e:
+            print(f"  [Heatmap] lote {batch}: {e}")
+        # Pequena pausa só entre lotes (não no primeiro)
+        if i + BATCH < len(missing):
+            time.sleep(0.25)
+
     return result
 
 
@@ -1361,40 +1374,43 @@ def _fetch_sector_quotes(syms):
 @login_required
 def heatmap_all():
     """
-    Endpoint único: busca TODOS os setores sequencialmente no servidor.
-    Cache 10 minutos — o frontend faz UMA só chamada e espera a resposta.
-    Sem concorrência, sem rate-limit.
+    Busca TODOS os 30 símbolos do heatmap em lotes de 10 via BRAPI.
+    Cache 5 min. Frontend faz UMA chamada e recebe tudo de uma vez.
     """
-    ck = "hm_all_v3"
-    cached = cache_get(ck, ttl=600)
+    ck = "hm_all_v4"
+    cached = cache_get(ck, ttl=300)
     if cached:
         return jsonify(cached)
 
+    # Coleta todos os símbolos únicos
+    all_syms = []
+    for syms in HEATMAP_SECTORS.values():
+        for s in syms:
+            if s not in all_syms:
+                all_syms.append(s)
+
+    qmap = _fetch_all_heatmap_quotes(all_syms)
+
     out = {}
     for name, syms in HEATMAP_SECTORS.items():
-        before  = [s for s in syms if cache_get(f"qm_{s}", ttl=600)]
-        qmap    = _fetch_sector_quotes(syms)
         out[name] = [qmap[s] for s in syms if s in qmap]
-        # Só pausa se houve chamada real ao BRAPI (símbolos não estavam em cache)
-        if len(before) < len(syms):
-            time.sleep(0.4)
 
     total = sum(len(v) for v in out.values())
-    print(f"  [Heatmap] carregado: {total}/{sum(len(v) for v in HEATMAP_SECTORS.values())} símbolos")
+    print(f"  [Heatmap] carregado: {total}/{len(all_syms)} símbolos")
     if total > 0:
         cache_set(ck, out)
     return jsonify(out)
 
 
-# Mantido para compatibilidade com versões antigas
 @app.route("/api/heatmap-sector")
 @login_required
 def heatmap_sector():
+    """Busca cotações de um setor específico (usado pelo frontend para refresh parcial)."""
     raw  = request.args.get("syms", "")
-    syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:6]
+    syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:10]
     if not syms:
         return jsonify([])
-    qmap = _fetch_sector_quotes(syms)
+    qmap = _fetch_all_heatmap_quotes(syms)
     return jsonify(list(qmap.values()))
 
 
