@@ -1326,27 +1326,23 @@ HEATMAP_SECTORS = {
     "FIIs":      ["HGLG11","MXRF11","XPML11","KNRI11","MALL11"],
 }
 
-def _fetch_all_heatmap_quotes(all_syms):
+def _fetch_quotes_simple(syms):
     """
-    Busca cotações de TODOS os símbolos do heatmap em lotes de 10.
-    Usa cache individual qm_{sym} (ttl 5min). Só chama BRAPI para os ausentes.
-    Retorna dict {sym: item}.
+    Busca cotações simples (sem fundamental) para lista de símbolos.
+    Usa cache qm_{sym} (5 min). Retorna dict {sym: item}.
     """
-    result  = {}
-    missing = []
-    for sym in all_syms:
+    result, missing = {}, []
+    for sym in syms:
         hit = cache_get(f"qm_{sym}", ttl=300)
         if hit:
             result[sym] = hit
         else:
             missing.append(sym)
 
-    # Busca em lotes de 10 para não estourar a URL da BRAPI
-    BATCH = 10
-    for i in range(0, len(missing), BATCH):
-        batch = missing[i:i+BATCH]
+    if missing:
+        # UMA chamada BRAPI para todos os faltantes (até ~15 símbolos ok)
         try:
-            data = brapi_get(f"/quote/{','.join(batch)}")
+            data = brapi_get(f"/quote/{','.join(missing)}")
             if data and "results" in data:
                 for r in (data["results"] or []):
                     sym = r.get("symbol", "")
@@ -1362,58 +1358,53 @@ def _fetch_all_heatmap_quotes(all_syms):
                     cache_set(f"qm_{sym}", item)
                     result[sym] = item
         except Exception as e:
-            print(f"  [Heatmap] lote {batch}: {e}")
-        # Pequena pausa só entre lotes (não no primeiro)
-        if i + BATCH < len(missing):
-            time.sleep(0.25)
+            print(f"  [Heatmap quotes] {e}")
 
     return result
+
+
+@app.route("/api/heatmap-sector")
+@login_required
+def heatmap_sector():
+    """
+    Retorna cotações de um setor específico — chamado individualmente pelo frontend.
+    Cada chamada busca apenas 3-5 símbolos → sem timeout, sem rate limit.
+    """
+    raw  = request.args.get("syms", "")
+    name = request.args.get("name", "")
+    syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:8]
+    if not syms:
+        return jsonify({"name": name, "cells": []})
+
+    qmap = _fetch_quotes_simple(syms)
+    cells = [qmap[s] for s in syms if s in qmap]
+    return jsonify({"name": name, "cells": cells})
 
 
 @app.route("/api/heatmap-all")
 @login_required
 def heatmap_all():
     """
-    Busca TODOS os 30 símbolos do heatmap em lotes de 10 via BRAPI.
-    Cache 5 min. Frontend faz UMA chamada e recebe tudo de uma vez.
+    Tenta entregar tudo de cache. Se cache está quente, responde instantaneamente.
+    Se frio, faz UMA chamada BRAPI com todos os símbolos e retorna o que vier.
+    O frontend não depende mais deste endpoint para carregar tudo — usa heatmap-sector.
     """
-    ck = "hm_all_v4"
-    cached = cache_get(ck, ttl=300)
+    ck = "hm_all_v5"
+    cached = cache_get(ck, ttl=270)
     if cached:
         return jsonify(cached)
 
-    # Coleta todos os símbolos únicos
-    all_syms = []
-    for syms in HEATMAP_SECTORS.values():
-        for s in syms:
-            if s not in all_syms:
-                all_syms.append(s)
+    all_syms = [s for syms in HEATMAP_SECTORS.values() for s in syms]
+    qmap     = _fetch_quotes_simple(all_syms)
 
-    qmap = _fetch_all_heatmap_quotes(all_syms)
-
-    out = {}
-    for name, syms in HEATMAP_SECTORS.items():
-        out[name] = [qmap[s] for s in syms if s in qmap]
+    out = {name: [qmap[s] for s in syms if s in qmap]
+           for name, syms in HEATMAP_SECTORS.items()}
 
     total = sum(len(v) for v in out.values())
-    print(f"  [Heatmap] carregado: {total}/{len(all_syms)} símbolos")
+    print(f"  [Heatmap-all] {total}/{len(all_syms)} símbolos")
     if total > 0:
         cache_set(ck, out)
     return jsonify(out)
-
-
-@app.route("/api/heatmap-sector")
-@login_required
-def heatmap_sector():
-    """Busca cotações de um setor específico (usado pelo frontend para refresh parcial)."""
-    raw  = request.args.get("syms", "")
-    syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:10]
-    if not syms:
-        return jsonify([])
-    qmap = _fetch_all_heatmap_quotes(syms)
-    return jsonify(list(qmap.values()))
-
-
 @app.route("/api/heatmap")
 @login_required
 def get_heatmap():
