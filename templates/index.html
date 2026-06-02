@@ -3032,6 +3032,7 @@ async function runSimulador(){
     });
 
     const {results,total_mensal,total_anual,total_inv,yield_medio}=data;
+    const totalInvestido = total_inv || 0;
     const mx=Math.max(...results.map(r=>r.mensal_estimado),0.01);
 
     // Painel de resumo
@@ -3723,7 +3724,7 @@ function goTab(btn){
   document.querySelectorAll(`[data-tab="${tab}"]`).forEach(el=>el.classList.add("on"));
   $("page-"+tab).classList.add("on");
   if(tab==="carteira"   &&!Object.keys(carteira).length) initCarteira();
-  else if(tab==="carteira"){ ctRenderGrid(); }
+  else if(tab==="carteira"){ ctRenderGrid(); loadPortfolioScore(); }
   if(tab==="ri"&&!_riAllData.length){ initRI(); }
   if(tab==="graficos"&&!_gcInited){ gcInit(); _gcInited=true; }
   if(tab==="heatmap") hmLoadAll();
