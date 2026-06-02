@@ -90,7 +90,11 @@ def brapi_get(path, params=None):
     if BRAPI_TOKEN: p["token"] = BRAPI_TOKEN
     try:
         r = req_lib.get(f"{BRAPI_BASE}{path}", params=p, timeout=15)
-        r.raise_for_status(); return r.json()
+        if r.status_code in (400, 403, 422, 429):
+            print(f"  BRAPI {path}: HTTP {r.status_code} (plano sem suporte ou token inválido)")
+            return None
+        r.raise_for_status()
+        return r.json()
     except Exception as e:
         print(f"  BRAPI {path}: {e}"); return None
 
@@ -101,7 +105,7 @@ def brapi_quotes(symbols):
     ck = f"bq_{syms_str}" if len(syms_str) < 120 else f"bq_{hash(syms_str)}"
     cached = cache_get(ck, ttl=300)
     if cached: return cached
-    data = brapi_get(f"/quote/{syms_str}", {"fundamental":"true"})
+    data = brapi_get(f"/quote/{syms_str}")  # fundamental=true removido: nao suportado em batch no plano free
     if not data or "results" not in data: return []
     results = []
     for r in data["results"]:
@@ -1790,7 +1794,10 @@ def simulador_independencia():
 @login_required
 def score_pro_ativo(symbol):
     sym = symbol.upper().replace(".SA", "")
+    # Tenta com modules; se falhar (plano free), cai para chamada simples
     data = brapi_get(f"/quote/{sym}", {"fundamental": "true", "modules": "summaryProfile,defaultKeyStatistics,financialData"})
+    if not data or "results" not in data or not data["results"]:
+        data = brapi_get(f"/quote/{sym}")  # fallback sem modules
 
     if not data or "results" not in data or not data["results"]:
         return jsonify({"error": f"Ativo {sym} não encontrado."}), 404
