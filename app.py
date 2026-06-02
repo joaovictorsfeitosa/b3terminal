@@ -863,6 +863,29 @@ def simulate():
     all_syms   = [s["sym"].upper().replace(".SA","") for s in symbols]
     quotes_map = {q["symbol"]: q for q in (brapi_quotes(all_syms) or [])}
 
+    # Enrich each quote with fundamental data (individual call per symbol)
+    # This gets dividendYield, dividendRate, lastDividendValue reliably
+    for sym in all_syms:
+        if sym not in quotes_map:
+            continue
+        ck_fund = f"fund_{sym}"
+        fund_cached = cache_get(ck_fund, ttl=1800)
+        if fund_cached:
+            quotes_map[sym].update(fund_cached)
+            continue
+        fund_data = brapi_get(f"/quote/{sym}", {"fundamental": "true"})
+        if fund_data and "results" in fund_data and fund_data["results"]:
+            r = fund_data["results"][0]
+            enriched = {
+                "dividendYield":      r.get("dividendYield"),
+                "dividendRate":       r.get("dividendRate"),
+                "lastDividendValue":  r.get("lastDividendValue"),
+                "lastDividendDate":   r.get("lastDividendDate"),
+                "exDividendDate":     r.get("exDividendDate"),
+            }
+            cache_set(ck_fund, enriched)
+            quotes_map[sym].update(enriched)
+
     results = []
     for s in symbols:
         sym   = s["sym"].upper().replace(".SA", "")
