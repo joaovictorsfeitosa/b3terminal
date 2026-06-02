@@ -41,11 +41,29 @@ login_manager.login_view    = "login_page"
 login_manager.login_message = ""
 
 with app.app_context():
-    db.create_all()
+    db.create_all()  # cria tabelas novas (user_data, etc) se não existirem
     # ── Migration: adiciona colunas novas se não existirem ──────────────────
     try:
         from sqlalchemy import text
         with db.engine.connect() as conn:
+            # Garante tabela user_data (pode não existir em bancos antigos)
+            try:
+                conn.execute(text(
+                    """CREATE TABLE IF NOT EXISTS user_data (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL REFERENCES users(id),
+                        key VARCHAR(64) NOT NULL,
+                        value TEXT NOT NULL DEFAULT '{}',
+                        updated_at TIMESTAMP,
+                        UNIQUE(user_id, key)
+                    )"""
+                ))
+                conn.commit()
+                print("  Migration: tabela 'user_data' verificada/criada.")
+            except Exception as e_ud:
+                conn.rollback()
+                print(f"  Migration user_data: {e_ud}")
+            # Garante colunas em users
             for col, definition in [
                 ("is_admin",   "BOOLEAN NOT NULL DEFAULT FALSE"),
                 ("is_blocked", "BOOLEAN NOT NULL DEFAULT FALSE"),
