@@ -5777,7 +5777,7 @@ async function ifSimular(){
     let projHtml = `<div class="stitle" style="margin-bottom:12px"><div class="sl">Projeção por Marco Temporal</div></div>
       <div class="sim-proj-grid">`;
     for(const anos of milestones){
-      const ev = (d.realista?.evolucao||[]).find(e=>e.ano>==(idade+anos));
+      const ev = ((d.realista && d.realista.evolucao) || []).find(function(e){ return e.ano === (idade + anos); });
       projHtml += `<div class="sim-proj-card">
         <div class="sim-proj-year">${anos} ANOS</div>
         <div class="sim-proj-val">${ev?fmtBRL(ev.patrimonio):'-'}</div>
