@@ -107,14 +107,20 @@ def brapi_quotes(symbols):
     ck = f"bq_{syms_str}" if len(syms_str) < 120 else f"bq_{hash(syms_str)}"
     cached = cache_get(ck, ttl=300)
     if cached: return cached
-    # BRAPI free plan: max ~8 symbols per batch to avoid 400/403
+    # BRAPI free plan: max 8 symbols per batch
+    # fundamental=true works on small batches and gives dividendYield/Rate/lastDividendValue
     BATCH = 8
     all_results = []
     for i in range(0, len(syms_clean), BATCH):
         batch = syms_clean[i:i+BATCH]
-        data = brapi_get(f"/quote/{','.join(batch)}")
-        if data and "results" in data:
-            all_results.extend(data["results"])
+        data_batch = brapi_get(f"/quote/{','.join(batch)}", {"fundamental": "true"})
+        if data_batch and "results" in data_batch:
+            all_results.extend(data_batch["results"])
+        else:
+            # fallback sem fundamental se der erro
+            data_batch = brapi_get(f"/quote/{','.join(batch)}")
+            if data_batch and "results" in data_batch:
+                all_results.extend(data_batch["results"])
     # Build unified data structure
     data = {"results": all_results} if all_results else None
     if not data or "results" not in data: return []
@@ -862,29 +868,6 @@ def simulate():
 
     all_syms   = [s["sym"].upper().replace(".SA","") for s in symbols]
     quotes_map = {q["symbol"]: q for q in (brapi_quotes(all_syms) or [])}
-
-    # Enrich each quote with fundamental data (individual call per symbol)
-    # This gets dividendYield, dividendRate, lastDividendValue reliably
-    for sym in all_syms:
-        if sym not in quotes_map:
-            continue
-        ck_fund = f"fund_{sym}"
-        fund_cached = cache_get(ck_fund, ttl=1800)
-        if fund_cached:
-            quotes_map[sym].update(fund_cached)
-            continue
-        fund_data = brapi_get(f"/quote/{sym}", {"fundamental": "true"})
-        if fund_data and "results" in fund_data and fund_data["results"]:
-            r = fund_data["results"][0]
-            enriched = {
-                "dividendYield":      r.get("dividendYield"),
-                "dividendRate":       r.get("dividendRate"),
-                "lastDividendValue":  r.get("lastDividendValue"),
-                "lastDividendDate":   r.get("lastDividendDate"),
-                "exDividendDate":     r.get("exDividendDate"),
-            }
-            cache_set(ck_fund, enriched)
-            quotes_map[sym].update(enriched)
 
     results = []
     for s in symbols:
