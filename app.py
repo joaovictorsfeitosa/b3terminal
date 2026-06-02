@@ -46,18 +46,31 @@ with app.app_context():
     try:
         from sqlalchemy import text
         with db.engine.connect() as conn:
-            # Garante tabela user_data (pode não existir em bancos antigos)
+            # Garante tabela user_data — sintaxe compatível com PostgreSQL e SQLite
             try:
-                conn.execute(text(
-                    """CREATE TABLE IF NOT EXISTS user_data (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL REFERENCES users(id),
-                        key VARCHAR(64) NOT NULL,
-                        value TEXT NOT NULL DEFAULT '{}',
-                        updated_at TIMESTAMP,
-                        UNIQUE(user_id, key)
-                    )"""
-                ))
+                is_pg = not _db_url.startswith("sqlite")
+                if is_pg:
+                    conn.execute(text(
+                        """CREATE TABLE IF NOT EXISTS user_data (
+                            id SERIAL PRIMARY KEY,
+                            user_id INTEGER NOT NULL REFERENCES users(id),
+                            key VARCHAR(64) NOT NULL,
+                            value TEXT NOT NULL DEFAULT '{}',
+                            updated_at TIMESTAMP,
+                            UNIQUE(user_id, key)
+                        )"""
+                    ))
+                else:
+                    conn.execute(text(
+                        """CREATE TABLE IF NOT EXISTS user_data (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            user_id INTEGER NOT NULL REFERENCES users(id),
+                            key VARCHAR(64) NOT NULL,
+                            value TEXT NOT NULL DEFAULT '{}',
+                            updated_at TIMESTAMP,
+                            UNIQUE(user_id, key)
+                        )"""
+                    ))
                 conn.commit()
                 print("  Migration: tabela 'user_data' verificada/criada.")
             except Exception as e_ud:
