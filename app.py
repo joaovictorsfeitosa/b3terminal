@@ -102,12 +102,21 @@ def brapi_get(path, params=None):
 
 def brapi_quotes(symbols):
     syms_clean = [s.upper().replace(".SA","") for s in symbols]
-    syms_str   = ",".join(syms_clean)
     # Cache key: hash long lists to avoid oversized keys
+    syms_str = ",".join(syms_clean)
     ck = f"bq_{syms_str}" if len(syms_str) < 120 else f"bq_{hash(syms_str)}"
     cached = cache_get(ck, ttl=300)
     if cached: return cached
-    data = brapi_get(f"/quote/{syms_str}")  # fundamental=true removido: nao suportado em batch no plano free
+    # BRAPI free plan: max ~8 symbols per batch to avoid 400/403
+    BATCH = 8
+    all_results = []
+    for i in range(0, len(syms_clean), BATCH):
+        batch = syms_clean[i:i+BATCH]
+        data = brapi_get(f"/quote/{','.join(batch)}")
+        if data and "results" in data:
+            all_results.extend(data["results"])
+    # Build unified data structure
+    data = {"results": all_results} if all_results else None
     if not data or "results" not in data: return []
     results = []
     for r in data["results"]:
