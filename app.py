@@ -41,42 +41,13 @@ login_manager.login_view    = "login_page"
 login_manager.login_message = ""
 
 with app.app_context():
-    db.create_all()  # cria tabelas novas (user_data, etc) se não existirem
-    # ── Migration: adiciona colunas novas se não existirem ──────────────────
+    # SQLAlchemy cria todas as tabelas definidas nos models (incluindo user_data)
+    db.create_all()
+    print("  DB: todas as tabelas verificadas/criadas pelo SQLAlchemy.")
+    # Migration: adiciona colunas novas em tabelas já existentes (não quebra se já existir)
     try:
         from sqlalchemy import text
         with db.engine.connect() as conn:
-            # Garante tabela user_data — sintaxe compatível com PostgreSQL e SQLite
-            try:
-                is_pg = not _db_url.startswith("sqlite")
-                if is_pg:
-                    conn.execute(text(
-                        """CREATE TABLE IF NOT EXISTS user_data (
-                            id SERIAL PRIMARY KEY,
-                            user_id INTEGER NOT NULL REFERENCES users(id),
-                            key VARCHAR(64) NOT NULL,
-                            value TEXT NOT NULL DEFAULT '{}',
-                            updated_at TIMESTAMP,
-                            UNIQUE(user_id, key)
-                        )"""
-                    ))
-                else:
-                    conn.execute(text(
-                        """CREATE TABLE IF NOT EXISTS user_data (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            user_id INTEGER NOT NULL REFERENCES users(id),
-                            key VARCHAR(64) NOT NULL,
-                            value TEXT NOT NULL DEFAULT '{}',
-                            updated_at TIMESTAMP,
-                            UNIQUE(user_id, key)
-                        )"""
-                    ))
-                conn.commit()
-                print("  Migration: tabela 'user_data' verificada/criada.")
-            except Exception as e_ud:
-                conn.rollback()
-                print(f"  Migration user_data: {e_ud}")
-            # Garante colunas em users
             for col, definition in [
                 ("is_admin",   "BOOLEAN NOT NULL DEFAULT FALSE"),
                 ("is_blocked", "BOOLEAN NOT NULL DEFAULT FALSE"),
@@ -86,7 +57,7 @@ with app.app_context():
                     conn.commit()
                     print(f"  Migration: coluna '{col}' adicionada.")
                 except Exception:
-                    conn.rollback()  # coluna já existe, tudo certo
+                    conn.rollback()  # coluna já existe — ignorar
     except Exception as e:
         print(f"  Migration warning: {e}")
 
