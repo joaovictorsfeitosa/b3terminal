@@ -260,41 +260,11 @@ def _build_div_result(sym, payments, freq_label, freq_months, cotas=1, declared_
 
 
 
-def _yf_dividends(sym):
-    """Busca dividendos via Yahoo Finance como fonte extra (sem chave)."""
-    try:
-        ticker = sym.upper() + ".SA"
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
-        params = {"interval": "1d", "range": "5y", "events": "dividends"}
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = req_lib.get(url, params=params, headers=headers, timeout=10)
-        data = r.json()
-        events = (data.get("chart", {}).get("result") or [{}])[0].get("events", {})
-        divs = events.get("dividends", {})
-        payments = []
-        for ts_str, d in divs.items():
-            try:
-                dt  = datetime.utcfromtimestamp(int(d["date"]))
-                val = float(d.get("amount") or 0)
-                if val > 0:
-                    payments.append({
-                        "year": dt.year, "month": dt.month, "day": dt.day,
-                        "value": round(val, 6),
-                        "date_str": dt.strftime("%d/%m/%Y"),
-                    })
-            except Exception:
-                pass
-        payments.sort(key=lambda x: (x["year"], x["month"], x["day"]))
-        return payments
-    except Exception as e:
-        print(f"  YF dividends {sym}: {e}")
-        return []
-
-
 def brapi_dividends(symbol, cotas=1):
     """
     Busca histórico de dividendos/rendimentos.
-    Fontes (em ordem): Twelve Data → BRAPI cashDividends → Yahoo Finance
+    Primário : Twelve Data (endpoint /dividends, histórico completo)
+    Fallback : BRAPI (limitado a ~3 meses no plano free)
     """
     sym = symbol.upper().replace(".SA", "")
     fii = _is_fii(sym)
@@ -311,7 +281,7 @@ def brapi_dividends(symbol, cotas=1):
                                  declared_future=raw_cached.get("declared_future", []))
 
     payments     = []
-    td_frequency = None
+    td_frequency = None  # frequência informada pela Twelve Data
     TD_KEY = os.environ.get("TWELVE_DATA_KEY", "")
 
     # ── 1. Twelve Data ────────────────────────────────────────────────────────
@@ -319,7 +289,12 @@ def brapi_dividends(symbol, cotas=1):
         try:
             r = req_lib.get(
                 "https://api.twelvedata.com/dividends",
-                params={"symbol": sym, "exchange": "BVMF", "range": "5y", "apikey": TD_KEY},
+                params={
+                    "symbol":   sym,
+                    "exchange": "BVMF",
+                    "range":    "5y",
+                    "apikey":   TD_KEY,
+                },
                 timeout=15,
             )
             data = r.json()
@@ -328,14 +303,16 @@ def brapi_dividends(symbol, cotas=1):
                     try:
                         dt  = datetime.strptime(d["ex_dividend_date"][:10], "%Y-%m-%d")
                         val = float(d.get("amount") or 0)
-                        if val > 0:
-                            payments.append({
-                                "year": dt.year, "month": dt.month, "day": dt.day,
-                                "value": round(val, 6),
-                                "date_str": dt.strftime("%d/%m/%Y"),
-                            })
+                        if val <= 0:
+                            continue
+                        payments.append({
+                            "year": dt.year, "month": dt.month, "day": dt.day,
+                            "value": round(val, 6),
+                            "date_str": dt.strftime("%d/%m/%Y"),
+                        })
                     except Exception:
                         continue
+                # Twelve Data fornece frequency: 1=anual 2=semestral 4=trimestral 12=mensal
                 divs = data.get("dividends") or []
                 if divs and divs[0].get("frequency"):
                     td_frequency = int(divs[0]["frequency"])
@@ -344,10 +321,11 @@ def brapi_dividends(symbol, cotas=1):
         except Exception as e:
             print(f"  TwelveData dividends error {sym}: {e}")
 
-    # ── 2. BRAPI cashDividends ────────────────────────────────────────────────
+    # ── 2. BRAPI fallback ─────────────────────────────────────────────────────
     if not payments:
         try:
-            data = brapi_get(f"/quote/{sym}", {"dividends": "true", "modules": "defaultKeyStatistics"})
+            data = brapi_get(f"/quote/{sym}",
+                             {"dividends": "true", "modules": "defaultKeyStatistics"})
             if data and "results" in data and data["results"]:
                 res0      = data["results"][0]
                 cash_divs = (res0.get("dividendsData") or {}).get("cashDividends") or []
@@ -361,45 +339,57 @@ def brapi_dividends(symbol, cotas=1):
                         dt = None
                         for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S", "%d-%m-%Y"]:
                             try:
-                                dt = datetime.strptime(str(dt_str)[:10], fmt[:10]); break
+                                dt = datetime.strptime(str(dt_str)[:10], fmt[:10])
+                                break
                             except Exception:
                                 pass
                         if not dt:
                             continue
                         val = float(d.get("rate") or d.get("value") or d.get("adjValue") or
                                     d.get("amount") or d.get("dividendValue") or 0)
-                        if val > 0:
-                            payments.append({
-                                "year": dt.year, "month": dt.month, "day": dt.day,
-                                "value": round(val, 6), "date_str": dt.strftime("%d/%m/%Y"),
-                            })
+                        if val <= 0:
+                            continue
+                        payments.append({
+                            "year": dt.year, "month": dt.month, "day": dt.day,
+                            "value": round(val, 6), "date_str": dt.strftime("%d/%m/%Y"),
+                        })
                     except Exception:
                         pass
 
-                # Dividendo futuro declarado (campos exDividendDate / dividendDate)
+                # ── Dividendo futuro DECLARADO ────────────────────────────────
+                # exDividendDate = data ex-dividendo já anunciada (unix ts)
+                # dividendDate   = data de pagamento já anunciada  (unix ts)
+                # Esses campos existem mesmo quando cashDividends está vazio
                 try:
                     ex_ts  = res0.get("exDividendDate")
                     pay_ts = res0.get("dividendDate")
-                    raw_val = (res0.get("lastDividendValue") or
-                               res0.get("dividendRate")      or
-                               (res0.get("dividendsData") or {}).get("rate") or 0)
-                    div_val = float(raw_val or 0)
+                    # Valor: usa lastDividendValue, dividendRate/frequência, ou 0
+                    raw_val  = (res0.get("lastDividendValue") or
+                                res0.get("dividendRate")      or
+                                (res0.get("dividendsData") or {}).get("rate") or 0)
+                    div_val  = float(raw_val or 0)
+
                     if ex_ts and div_val > 0:
+                        # Prefere a data de pagamento; fallback para ex + 15 dias
                         if pay_ts:
                             pay_dt = datetime.fromtimestamp(int(pay_ts))
                         else:
                             pay_dt = datetime.fromtimestamp(int(ex_ts)) + timedelta(days=15)
+
+                        # Adiciona se for futura ou até 60 dias no passado (pode não estar no cashDividends)
                         if (pay_dt - datetime.utcnow()).days > -60:
                             payments.append({
-                                "year": pay_dt.year, "month": pay_dt.month, "day": pay_dt.day,
-                                "value": round(div_val, 6),
+                                "year":     pay_dt.year,
+                                "month":    pay_dt.month,
+                                "day":      pay_dt.day,
+                                "value":    round(div_val, 6),
                                 "date_str": pay_dt.strftime("%d/%m/%Y"),
-                                "declared": True,
+                                "declared": True,   # pagamento oficialmente anunciado
                             })
                 except Exception:
                     pass
 
-                # Último dividendo via lastDividendValue
+                # Tenta lastDividendValue se ainda sem nada
                 if not payments:
                     ldd = res0.get("lastDividendDate")
                     ldv = float(res0.get("lastDividendValue") or 0)
@@ -417,10 +407,6 @@ def brapi_dividends(symbol, cotas=1):
         except Exception as e:
             print(f"  BRAPI dividends fallback {sym}: {e}")
 
-    # ── 3. Yahoo Finance (sem chave, gratuito) ────────────────────────────────
-    if not payments:
-        payments = _yf_dividends(sym)
-
     if not payments:
         return None
 
@@ -432,9 +418,11 @@ def brapi_dividends(symbol, cotas=1):
         datetime(p["year"], p["month"], p["day"]) >= today_dt
     ]
     historical = [p for p in payments if not p.get("declared")]
+
+    # Combina: histórico primeiro, declarados depois (para não distorcer freq)
     all_payments = historical + declared_future
 
-    # Deduplicar e ordenar
+    # ── Deduplicar e ordenar ──────────────────────────────────────────────────
     all_payments.sort(key=lambda x: (x["year"], x["month"], x["day"]))
     seen_ym, unique = set(), []
     for p in all_payments:
@@ -465,6 +453,7 @@ def brapi_dividends(symbol, cotas=1):
         elif n >= 2:  freq_label, freq_months = "Semestral",   [6, 12]
         else:         freq_label, freq_months = "Irregular",   months_paid or [12]
     else:
+        # Poucos dados históricos — usa mês do pagamento declarado se houver
         if declared_future:
             freq_months = [declared_future[0]["month"]]
         elif hist_only:
@@ -473,6 +462,7 @@ def brapi_dividends(symbol, cotas=1):
             freq_months = [12]
         freq_label = "Irregular"
 
+    # Salva cache sem cotas
     cache_set(ck, {
         "payments":        payments,
         "freq_label":      freq_label,
@@ -482,6 +472,7 @@ def brapi_dividends(symbol, cotas=1):
 
     return _build_div_result(sym, payments, freq_label, freq_months, cotas,
                              declared_future=declared_future)
+
 
 
 
@@ -850,14 +841,9 @@ def simulate():
         for s in symbols:
             alloc[s["sym"]] = valor_total * (ys[s["sym"]] / ty)
     else:
-        tp = sum(float(pcts.get(s["sym"], 0)) for s in symbols)
-        if tp <= 0:
-            # Nenhum percentual foi preenchido → distribui igualmente
-            for s in symbols:
-                alloc[s["sym"]] = valor_total / len(symbols)
-        else:
-            for s in symbols:
-                alloc[s["sym"]] = valor_total * (float(pcts.get(s["sym"], 0)) / tp)
+        tp = sum(float(pcts.get(s["sym"], 0)) for s in symbols) or 1
+        for s in symbols:
+            alloc[s["sym"]] = valor_total * (float(pcts.get(s["sym"], 0)) / tp)
 
     all_syms   = [s["sym"].upper().replace(".SA","") for s in symbols]
     quotes_map = {q["symbol"]: q for q in (brapi_quotes(all_syms) or [])}
@@ -892,25 +878,24 @@ def simulate():
             men         = round(anl / 12, 2)    # sempre normalizado p/ mês
 
         else:
-            # Sem histórico via brapi_dividends — usa campos do quote como fallback.
-            # dividendRate  = R$ anual por ação (mais confiável)
-            # dividendYield = % anual — BRAPI retorna às vezes como decimal (0.05) às vezes como (5.0)
-            # lastDividendValue = último valor pago por cota
-            div_rate  = float(quote.get("dividendRate")      or 0)
-            dy_raw    = float(quote.get("dividendYield")     or 0)
-            last_div  = float(quote.get("lastDividendValue") or 0)
-
-            # Normaliza dividendYield: se <= 1.0 provavelmente é decimal (0.05 → 5%)
-            dy = dy_raw * 100 if 0 < dy_raw <= 1.0 else dy_raw
+            # Sem histórico de dividendos via brapi_dividends.
+            # Tenta múltiplas fontes em ordem de confiabilidade:
+            # 1. dividendRate (valor anual fixo em R$ — mais confiável que %)
+            # 2. dividendYield (%) — pode ser 0 fora do pregão
+            # 3. lastDividendValue × freq estimada
+            div_rate  = float(quote.get("dividendRate")      or 0)   # R$ anual/ação
+            dy        = float(quote.get("dividendYield")     or 0)   # % anual
+            last_div  = float(quote.get("lastDividendValue") or 0)   # último valor pago
 
             if div_rate > 0:
+                # dividendRate é o mais confiável: valor anual já em R$
                 anl = round(div_rate * cotas, 2)
-            elif last_div > 0:
-                # lastDividendValue é o mais direto: valor por cota do último pagamento
-                freq_est = 12 if fii else 2
-                anl = round(last_div * cotas * freq_est, 2)
             elif dy > 0 and real > 0:
                 anl = round(real * (dy / 100), 2)
+            elif last_div > 0:
+                # Estima: FII → 12x/ano; ação → 2x/ano
+                freq_est = 12 if fii else 2
+                anl = round(last_div * cotas * freq_est, 2)
             else:
                 anl = 0
 
@@ -1326,85 +1311,78 @@ HEATMAP_SECTORS = {
     "FIIs":      ["HGLG11","MXRF11","XPML11","KNRI11","MALL11"],
 }
 
-def _fetch_quotes_simple(syms):
-    """
-    Busca cotações simples (sem fundamental) para lista de símbolos.
-    Usa cache qm_{sym} (5 min). Retorna dict {sym: item}.
-    """
-    result, missing = {}, []
+def _td_batch_quotes(symbols):
+    return {}
+
+def _fetch_sector_quotes(syms):
+    """Busca cotações de uma lista pequena de símbolos via BRAPI (sem fundamental)."""
+    missing, result = [], {}
     for sym in syms:
-        hit = cache_get(f"qm_{sym}", ttl=300)
+        hit = cache_get(f"qm_{sym}", ttl=600)
         if hit:
             result[sym] = hit
         else:
             missing.append(sym)
-
     if missing:
-        # UMA chamada BRAPI para todos os faltantes (até ~15 símbolos ok)
-        try:
-            data = brapi_get(f"/quote/{','.join(missing)}")
-            if data and "results" in data:
-                for r in (data["results"] or []):
-                    sym = r.get("symbol", "")
-                    if not sym:
-                        continue
-                    item = {
-                        "symbol": sym,
-                        "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
-                        "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
-                        "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
-                        "volume": int(r.get("regularMarketVolume") or 0),
-                    }
-                    cache_set(f"qm_{sym}", item)
-                    result[sym] = item
-        except Exception as e:
-            print(f"  [Heatmap quotes] {e}")
-
+        data = brapi_get(f"/quote/{','.join(missing)}")
+        if data and "results" in data:
+            for r in (data["results"] or []):
+                sym = r.get("symbol", "")
+                if not sym:
+                    continue
+                item = {
+                    "symbol": sym,
+                    "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
+                    "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
+                    "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
+                    "volume": int(r.get("regularMarketVolume") or 0),
+                }
+                cache_set(f"qm_{sym}", item)
+                result[sym] = item
     return result
-
-
-@app.route("/api/heatmap-sector")
-@login_required
-def heatmap_sector():
-    """
-    Retorna cotações de um setor específico — chamado individualmente pelo frontend.
-    Cada chamada busca apenas 3-5 símbolos → sem timeout, sem rate limit.
-    """
-    raw  = request.args.get("syms", "")
-    name = request.args.get("name", "")
-    syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:8]
-    if not syms:
-        return jsonify({"name": name, "cells": []})
-
-    qmap = _fetch_quotes_simple(syms)
-    cells = [qmap[s] for s in syms if s in qmap]
-    return jsonify({"name": name, "cells": cells})
 
 
 @app.route("/api/heatmap-all")
 @login_required
 def heatmap_all():
     """
-    Tenta entregar tudo de cache. Se cache está quente, responde instantaneamente.
-    Se frio, faz UMA chamada BRAPI com todos os símbolos e retorna o que vier.
-    O frontend não depende mais deste endpoint para carregar tudo — usa heatmap-sector.
+    Endpoint único: busca TODOS os setores sequencialmente no servidor.
+    Cache 10 minutos — o frontend faz UMA só chamada e espera a resposta.
+    Sem concorrência, sem rate-limit.
     """
-    ck = "hm_all_v5"
-    cached = cache_get(ck, ttl=270)
+    ck = "hm_all_v3"
+    cached = cache_get(ck, ttl=600)
     if cached:
         return jsonify(cached)
 
-    all_syms = [s for syms in HEATMAP_SECTORS.values() for s in syms]
-    qmap     = _fetch_quotes_simple(all_syms)
-
-    out = {name: [qmap[s] for s in syms if s in qmap]
-           for name, syms in HEATMAP_SECTORS.items()}
+    out = {}
+    for name, syms in HEATMAP_SECTORS.items():
+        before  = [s for s in syms if cache_get(f"qm_{s}", ttl=600)]
+        qmap    = _fetch_sector_quotes(syms)
+        out[name] = [qmap[s] for s in syms if s in qmap]
+        # Só pausa se houve chamada real ao BRAPI (símbolos não estavam em cache)
+        if len(before) < len(syms):
+            time.sleep(0.4)
 
     total = sum(len(v) for v in out.values())
-    print(f"  [Heatmap-all] {total}/{len(all_syms)} símbolos")
+    print(f"  [Heatmap] carregado: {total}/{sum(len(v) for v in HEATMAP_SECTORS.values())} símbolos")
     if total > 0:
         cache_set(ck, out)
     return jsonify(out)
+
+
+# Mantido para compatibilidade com versões antigas
+@app.route("/api/heatmap-sector")
+@login_required
+def heatmap_sector():
+    raw  = request.args.get("syms", "")
+    syms = [s.strip().upper().replace(".SA","") for s in raw.split(",") if s.strip()][:6]
+    if not syms:
+        return jsonify([])
+    qmap = _fetch_sector_quotes(syms)
+    return jsonify(list(qmap.values()))
+
+
 @app.route("/api/heatmap")
 @login_required
 def get_heatmap():
@@ -1667,6 +1645,420 @@ def ri_search():
 @login_required
 def ri_all():
     return jsonify(RI_DB[:50])
+
+# ── Consultor IA (chat com Anthropic) ────────────────────────────────────────
+@app.route("/api/ai/chat", methods=["POST"])
+@login_required
+def ai_chat():
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        return jsonify({"error": "ANTHROPIC_API_KEY não configurada. Configure nas variáveis de ambiente."}), 503
+
+    data = request.json or {}
+    messages = data.get("messages", [])
+    portfolio_ctx = data.get("portfolio_context", "")
+
+    if not messages:
+        return jsonify({"error": "Nenhuma mensagem enviada."}), 400
+
+    system_prompt = f"""Você é o MERIDIAN AI, um consultor financeiro especializado no mercado brasileiro de investimentos (B3, FIIs, ações, renda fixa).
+
+Você auxilia investidores com:
+- Análise de carteira e diversificação
+- Sugestões de alocação por perfil de risco
+- Explicação de indicadores financeiros (DY, P/L, ROE, ROIC, etc.)
+- Estratégias de renda passiva com dividendos
+- Planejamento de independência financeira
+- Comparação entre ativos
+- Simulação de cenários
+- Educação financeira
+
+Contexto da carteira do usuário:
+{portfolio_ctx if portfolio_ctx else "Carteira não carregada."}
+
+Regras:
+- Responda sempre em português brasileiro
+- Use formatação com **negrito** e listas quando útil
+- Seja objetivo, direto e profissional
+- Use dados reais do mercado brasileiro quando possível
+- Não forneça recomendações definitivas de compra/venda — sempre oriente a buscar assessoria profissional para decisões definitivas
+- Use emojis moderadamente para melhorar legibilidade
+- Formate valores em R$ quando relevante"""
+
+    try:
+        r = req_lib.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 1500,
+                "system": system_prompt,
+                "messages": messages[-20:],  # últimas 20 mensagens
+            },
+            timeout=45,
+        )
+        r.raise_for_status()
+        resp = r.json()
+        content = resp.get("content", [{}])[0].get("text", "")
+        return jsonify({"response": content})
+    except req_lib.exceptions.HTTPError as e:
+        st = e.response.status_code if e.response else 0
+        if st == 401:
+            return jsonify({"error": "API key inválida. Verifique ANTHROPIC_API_KEY."}), 503
+        if st == 529 or st == 503:
+            return jsonify({"error": "API sobrecarregada. Tente novamente em instantes."}), 503
+        return jsonify({"error": f"Erro HTTP {st} na API Anthropic."}), 503
+    except Exception as e:
+        return jsonify({"error": f"Erro ao conectar à IA: {str(e)}"}), 503
+
+
+# ── Simulador de Independência Financeira ────────────────────────────────────
+@app.route("/api/independencia", methods=["POST"])
+@login_required
+def simulador_independencia():
+    data = request.json or {}
+    patrimonio_atual = float(data.get("patrimonio_atual", 0))
+    aporte_mensal    = float(data.get("aporte_mensal", 0))
+    rentabilidade    = float(data.get("rentabilidade", 0.1)) / 100
+    idade_atual      = int(data.get("idade_atual", 30))
+    idade_aposentadoria = int(data.get("idade_aposentadoria", 60))
+    objetivo         = float(data.get("objetivo", 0))
+
+    cenarios = {
+        "conservador": max(rentabilidade * 0.6, 0.004),
+        "realista":    rentabilidade,
+        "otimista":    min(rentabilidade * 1.4, 0.025),
+    }
+
+    resultados = {}
+    for nome, taxa_anual in cenarios.items():
+        taxa_mensal = (1 + taxa_anual) ** (1/12) - 1
+        anos = idade_aposentadoria - idade_atual
+        meses = anos * 12
+        if meses <= 0:
+            resultados[nome] = {"erro": "Idade inválida"}
+            continue
+
+        patrimonio = patrimonio_atual
+        evolucao = []
+        for m in range(meses + 1):
+            if m > 0:
+                patrimonio = patrimonio * (1 + taxa_mensal) + aporte_mensal
+            if m % 12 == 0:
+                ano = idade_atual + m // 12
+                renda_mensal = patrimonio * taxa_mensal
+                evolucao.append({
+                    "ano": ano,
+                    "patrimonio": round(patrimonio, 2),
+                    "renda_mensal": round(renda_mensal, 2),
+                })
+
+        # Calcular quando atinge o objetivo
+        anos_para_objetivo = None
+        if objetivo > 0:
+            p = patrimonio_atual
+            for m2 in range(meses * 2):
+                p = p * (1 + taxa_mensal) + aporte_mensal
+                if p >= objetivo:
+                    anos_para_objetivo = round(m2 / 12, 1)
+                    break
+
+        patrimonio_final = evolucao[-1]["patrimonio"] if evolucao else 0
+        renda_mensal_final = round(patrimonio_final * taxa_mensal, 2)
+        total_aportado = patrimonio_atual + aporte_mensal * meses
+        rendimentos = round(patrimonio_final - total_aportado, 2)
+
+        resultados[nome] = {
+            "patrimonio_final": round(patrimonio_final, 2),
+            "renda_mensal": renda_mensal_final,
+            "total_aportado": round(total_aportado, 2),
+            "rendimentos": rendimentos,
+            "anos_para_objetivo": anos_para_objetivo,
+            "evolucao": evolucao,
+            "taxa_anual_pct": round(taxa_anual * 100, 2),
+        }
+
+    return jsonify(resultados)
+
+
+# ── MERIDIAN SCORE PRO — score individual de ativo ───────────────────────────
+@app.route("/api/score-pro/<symbol>")
+@login_required
+def score_pro_ativo(symbol):
+    sym = symbol.upper().replace(".SA", "")
+    data = brapi_get(f"/quote/{sym}", {"fundamental": "true", "modules": "summaryProfile,defaultKeyStatistics,financialData"})
+
+    if not data or "results" not in data or not data["results"]:
+        return jsonify({"error": f"Ativo {sym} não encontrado."}), 404
+
+    r = data["results"][0]
+    fii = _is_fii(sym)
+
+    # Extraindo métricas
+    dy           = float(r.get("dividendYield") or 0)
+    price        = float(r.get("regularMarketPrice") or 0)
+    pl           = float(r.get("priceEarnings") or 0)
+    pb           = float(r.get("priceToBook") or 0)
+    roe          = float(r.get("returnOnEquity") or 0) * 100 if r.get("returnOnEquity") else 0
+    market_cap   = float(r.get("marketCap") or 0)
+    div_rate     = float(r.get("dividendRate") or 0)
+    last_div     = float(r.get("lastDividendValue") or 0)
+    week52_low   = float(r.get("fiftyTwoWeekLow") or 0)
+    week52_high  = float(r.get("fiftyTwoWeekHigh") or 0)
+
+    # ── Score Dividendos (0-25) ───────────────────────────────────────────────
+    sc_div = 0
+    if dy >= 10: sc_div = 25
+    elif dy >= 7: sc_div = 20
+    elif dy >= 5: sc_div = 15
+    elif dy >= 3: sc_div = 10
+    elif dy >= 1: sc_div = 6
+    elif last_div > 0: sc_div = 4
+    sc_div_label = f"DY de {dy:.1f}%" if dy > 0 else "Sem DY disponível"
+
+    # ── Score Valuation (0-25) ────────────────────────────────────────────────
+    sc_val = 12  # base
+    if pl > 0:
+        if pl < 8: sc_val = 25
+        elif pl < 12: sc_val = 22
+        elif pl < 18: sc_val = 18
+        elif pl < 25: sc_val = 14
+        elif pl < 40: sc_val = 8
+        else: sc_val = 4
+    elif fii and pb > 0:
+        if pb < 0.85: sc_val = 25
+        elif pb < 1.0: sc_val = 20
+        elif pb < 1.1: sc_val = 15
+        elif pb < 1.3: sc_val = 10
+        else: sc_val = 5
+    sc_val_label = f"P/L: {pl:.1f}" if pl > 0 else ("P/VP: {:.2f}".format(pb) if pb > 0 else "Valuation indisponível")
+
+    # ── Score Crescimento (0-25) ──────────────────────────────────────────────
+    sc_cres = 12  # base neutro
+    if roe >= 20: sc_cres = 25
+    elif roe >= 15: sc_cres = 22
+    elif roe >= 10: sc_cres = 17
+    elif roe >= 5: sc_cres = 12
+    elif roe > 0: sc_cres = 7
+    sc_cres_label = f"ROE: {roe:.1f}%" if roe > 0 else "ROE indisponível"
+
+    # ── Score Segurança Financeira (0-25) ─────────────────────────────────────
+    sc_seg = 12  # base
+    dist_52 = 0
+    if week52_high > week52_low and price > 0:
+        dist_52 = (price - week52_low) / (week52_high - week52_low) * 100 if week52_high != week52_low else 50
+        if dist_52 < 20: sc_seg = 22    # perto da mínima = barato
+        elif dist_52 < 40: sc_seg = 18
+        elif dist_52 < 60: sc_seg = 14
+        elif dist_52 < 80: sc_seg = 10
+        else: sc_seg = 6                # perto da máxima
+    sc_seg_label = f"{dist_52:.0f}% da faixa 52 semanas" if dist_52 > 0 else "Posição 52 semanas"
+
+    total = min(100, sc_div + sc_val + sc_cres + sc_seg)
+
+    if total >= 90: grade, cat = "A+", "Excelente"
+    elif total >= 80: grade, cat = "A",  "Muito Bom"
+    elif total >= 70: grade, cat = "B+", "Bom"
+    elif total >= 60: grade, cat = "B",  "Regular"
+    else: grade, cat = "C", "Fraco"
+
+    sector = _SECTOR_MAP.get(sym, "FII" if fii else "Outros")
+    name   = r.get("shortName") or r.get("longName") or sym
+
+    return jsonify({
+        "symbol": sym, "name": name, "sector": sector,
+        "price": price, "fii": fii,
+        "score_total": total, "grade": grade, "categoria": cat,
+        "scores": {
+            "dividendos":  {"value": sc_div,  "max": 25, "label": "Dividendos",          "detail": sc_div_label},
+            "valuation":   {"value": sc_val,  "max": 25, "label": "Valuation",           "detail": sc_val_label},
+            "crescimento": {"value": sc_cres, "max": 25, "label": "Crescimento/ROE",     "detail": sc_cres_label},
+            "seguranca":   {"value": sc_seg,  "max": 25, "label": "Segurança Financeira","detail": sc_seg_label},
+        },
+        "metricas": {
+            "dy": dy, "pl": pl, "pb": pb, "roe": roe,
+            "market_cap": market_cap, "last_div": last_div,
+            "week52_low": week52_low, "week52_high": week52_high,
+        }
+    })
+
+
+# ── MERIDIAN SCORE PRO — ranking de ativos ───────────────────────────────────
+@app.route("/api/score-pro/ranking/<tipo>")
+@login_required
+def score_pro_ranking(tipo):
+    """tipo: acoes | fiis | etfs | geral"""
+    if tipo == "acoes":
+        symbols = ["WEGE3","ITUB4","BBAS3","PETR4","VALE3","LREN3","EGIE3","TAEE11",
+                   "BBDC4","PRIO3","RDOR3","FLRY3","ODPV3","VIVT3","CMIG4","CPLE6",
+                   "SAPR11","ENBR3","BBSE3","CXSE3"]
+    elif tipo == "fiis":
+        symbols = ["HGLG11","MXRF11","XPML11","KNRI11","MALL11","BCFF11","HSML11",
+                   "VISC11","BRCO11","RBRR11","TVRI11","BTLG11","HCTR11","MCCI11","IRDM11"]
+    elif tipo == "etfs":
+        symbols = ["BOVA11","IVVB11","SMAL11","DIVO11","HASH11","GOLD11","SPXI11","NTNB11"]
+    else:  # geral
+        symbols = ["WEGE3","ITUB4","BBAS3","EGIE3","TAEE11","HGLG11","MXRF11","XPML11",
+                   "PETR4","VALE3","BBSE3","FLRY3","VIVT3","CMIG4","SAPR11","ODPV3"]
+
+    quotes = brapi_quotes(symbols) or []
+    qmap   = {q["symbol"]: q for q in quotes}
+
+    ranking = []
+    for sym in symbols:
+        q = qmap.get(sym, {})
+        if not q:
+            continue
+        fii      = _is_fii(sym)
+        dy       = float(q.get("dividendYield") or 0)
+        pl       = float(q.get("priceEarnings") or 0)
+        pb       = float(q.get("priceToBook") or 0)
+        roe      = float(q.get("returnOnEquity") or 0) * 100 if q.get("returnOnEquity") else 0
+        price    = float(q.get("regularMarketPrice") or 0)
+        chg      = float(q.get("regularMarketChangePercent") or 0)
+        w52l     = float(q.get("fiftyTwoWeekLow") or 0)
+        w52h     = float(q.get("fiftyTwoWeekHigh") or 0)
+        last_div = float(q.get("lastDividendValue") or 0)
+
+        # Score rápido
+        sc_div = 0
+        if dy >= 10: sc_div = 25
+        elif dy >= 7: sc_div = 20
+        elif dy >= 5: sc_div = 15
+        elif dy >= 3: sc_div = 10
+        elif dy >= 1: sc_div = 6
+        elif last_div > 0: sc_div = 4
+
+        sc_val = 12
+        if pl > 0:
+            if pl < 8: sc_val = 25
+            elif pl < 12: sc_val = 22
+            elif pl < 18: sc_val = 18
+            elif pl < 25: sc_val = 14
+            elif pl < 40: sc_val = 8
+            else: sc_val = 4
+        elif fii and pb > 0:
+            if pb < 0.85: sc_val = 25
+            elif pb < 1.0: sc_val = 20
+            elif pb < 1.1: sc_val = 15
+            elif pb < 1.3: sc_val = 10
+            else: sc_val = 5
+
+        sc_cres = 12
+        if roe >= 20: sc_cres = 25
+        elif roe >= 15: sc_cres = 22
+        elif roe >= 10: sc_cres = 17
+        elif roe >= 5: sc_cres = 12
+        elif roe > 0: sc_cres = 7
+
+        sc_seg = 12
+        if w52h > w52l and price > 0 and w52h != w52l:
+            dist = (price - w52l) / (w52h - w52l) * 100
+            if dist < 20: sc_seg = 22
+            elif dist < 40: sc_seg = 18
+            elif dist < 60: sc_seg = 14
+            elif dist < 80: sc_seg = 10
+            else: sc_seg = 6
+
+        total = min(100, sc_div + sc_val + sc_cres + sc_seg)
+        if total >= 90: grade, cat = "A+", "Excelente"
+        elif total >= 80: grade, cat = "A",  "Muito Bom"
+        elif total >= 70: grade, cat = "B+", "Bom"
+        elif total >= 60: grade, cat = "B",  "Regular"
+        else: grade, cat = "C", "Fraco"
+
+        sector = _SECTOR_MAP.get(sym, "FII" if fii else "ETF" if sym in ["BOVA11","IVVB11","SMAL11","DIVO11","HASH11","GOLD11","SPXI11","NTNB11"] else "Outros")
+        name   = (q.get("shortName") or sym)[:22]
+
+        ranking.append({
+            "symbol": sym, "name": name, "sector": sector,
+            "price": price, "change": round(chg, 2), "fii": fii,
+            "score": total, "grade": grade, "categoria": cat,
+            "dy": round(dy, 2), "pl": round(pl, 2), "roe": round(roe, 2),
+        })
+
+    ranking.sort(key=lambda x: -x["score"])
+    return jsonify(ranking)
+
+
+# ── Radar de Oportunidades ────────────────────────────────────────────────────
+@app.route("/api/radar")
+@login_required
+def radar_oportunidades():
+    ck = "radar_data"; cached = cache_get(ck, ttl=600)
+    if cached: return jsonify(cached)
+
+    # Ativos monitorados para oportunidades
+    acoes_radar = ["WEGE3","ITUB4","BBAS3","PETR4","VALE3","EGIE3","TAEE11",
+                   "BBDC4","PRIO3","RDOR3","FLRY3","VIVT3","CMIG4","BBSE3",
+                   "LREN3","MGLU3","HAPV3","ODPV3","CXSE3","SAPR11"]
+    fiis_radar  = ["HGLG11","MXRF11","XPML11","KNRI11","MALL11","HSML11",
+                   "VISC11","BRCO11","BTLG11","IRDM11","TVRI11","MCCI11"]
+
+    all_syms = acoes_radar + fiis_radar
+    quotes   = brapi_quotes(all_syms) or []
+    qmap     = {q["symbol"]: q for q in quotes}
+
+    descontadas_acoes, descontadas_fiis = [], []
+    maiores_altas, maiores_quedas       = [], []
+    alto_dy                              = []
+
+    for sym in all_syms:
+        q = qmap.get(sym, {})
+        if not q: continue
+        fii   = _is_fii(sym)
+        price = float(q.get("regularMarketPrice") or 0)
+        chg   = float(q.get("regularMarketChangePercent") or 0)
+        dy    = float(q.get("dividendYield") or 0)
+        pl    = float(q.get("priceEarnings") or 0)
+        pb    = float(q.get("priceToBook") or 0)
+        w52l  = float(q.get("fiftyTwoWeekLow") or 0)
+        w52h  = float(q.get("fiftyTwoWeekHigh") or 0)
+        name  = (q.get("shortName") or sym)[:22]
+        sector = _SECTOR_MAP.get(sym, "FII" if fii else "Outros")
+
+        item = {"symbol": sym, "name": name, "price": price,
+                "change": round(chg, 2), "dy": round(dy, 2),
+                "sector": sector, "fii": fii,
+                "pl": round(pl, 2), "pb": round(pb, 2)}
+
+        # Descontadas: perto do mínimo de 52 semanas
+        if price > 0 and w52h > w52l and w52h != w52l:
+            dist = (price - w52l) / (w52h - w52l) * 100
+            item["dist_min_52"] = round(dist, 1)
+            if dist < 25:
+                if fii: descontadas_fiis.append(item)
+                else:   descontadas_acoes.append(item)
+
+        # Alto DY
+        if dy >= 6: alto_dy.append(item)
+
+        # Altas e quedas do dia
+        if price > 0:
+            maiores_altas.append(item)
+            maiores_quedas.append(item)
+
+    maiores_altas.sort(key=lambda x: -x["change"])
+    maiores_quedas.sort(key=lambda x: x["change"])
+    descontadas_acoes.sort(key=lambda x: x.get("dist_min_52", 100))
+    descontadas_fiis.sort(key=lambda x: x.get("dist_min_52", 100))
+    alto_dy.sort(key=lambda x: -x["dy"])
+
+    result = {
+        "descontadas_acoes": descontadas_acoes[:6],
+        "descontadas_fiis":  descontadas_fiis[:6],
+        "maiores_altas":     maiores_altas[:6],
+        "maiores_quedas":    maiores_quedas[:6],
+        "alto_dy":           alto_dy[:8],
+        "atualizado_em":     datetime.utcnow().strftime("%H:%M UTC"),
+    }
+    cache_set(ck, result)
+    return jsonify(result)
+
 
 @app.after_request
 def sec_headers(r):
