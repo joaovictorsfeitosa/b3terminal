@@ -879,6 +879,37 @@ def simulate():
     all_syms   = [s["sym"].upper().replace(".SA","") for s in symbols]
     quotes_map = {q["symbol"]: q for q in (brapi_quotes(all_syms) or [])}
 
+    # Para o simulador, enriquecer cada ativo individualmente
+    # garante dividendYield/Rate/lastDividendValue mesmo quando batch falha
+    for sym in all_syms:
+        ck_e = f"sim_enrich_{sym}"
+        cached_e = cache_get(ck_e, ttl=1800)
+        if cached_e:
+            if sym in quotes_map:
+                for k, v in cached_e.items():
+                    if v is not None and not quotes_map[sym].get(k):
+                        quotes_map[sym][k] = v
+            continue
+        raw = brapi_get(f"/quote/{sym}", {"fundamental": "true"})
+        if raw and "results" in raw and raw["results"]:
+            r = raw["results"][0]
+            enriched = {
+                "dividendYield":     r.get("dividendYield"),
+                "dividendRate":      r.get("dividendRate"),
+                "lastDividendValue": r.get("lastDividendValue"),
+                "lastDividendDate":  r.get("lastDividendDate"),
+                "exDividendDate":    r.get("exDividendDate"),
+                "priceEarnings":     r.get("priceEarnings"),
+                "priceToBook":       r.get("priceToBook"),
+            }
+            cache_set(ck_e, enriched)
+            if sym not in quotes_map:
+                quotes_map[sym] = r
+            else:
+                for k, v in enriched.items():
+                    if v is not None:
+                        quotes_map[sym][k] = v
+
     results = []
     for s in symbols:
         sym   = s["sym"].upper().replace(".SA", "")
@@ -2037,6 +2068,35 @@ def radar_oportunidades():
     quotes   = brapi_quotes(all_syms) or []
     qmap     = {q["symbol"]: q for q in quotes}
 
+    # Enriquecer com fundamental individualmente para garantir priceEarnings/priceToBook/dy
+    for sym in all_syms:
+        ck_re = f"radar_enrich_{sym}"
+        cached_re = cache_get(ck_re, ttl=3600)
+        if cached_re:
+            if sym in qmap:
+                for k, v in cached_re.items():
+                    if v is not None and not qmap[sym].get(k):
+                        qmap[sym][k] = v
+            continue
+        raw = brapi_get(f"/quote/{sym}", {"fundamental": "true"})
+        if raw and "results" in raw and raw["results"]:
+            r = raw["results"][0]
+            enriched = {
+                "dividendYield":  r.get("dividendYield"),
+                "priceEarnings":  r.get("priceEarnings"),
+                "priceToBook":    r.get("priceToBook"),
+                "fiftyTwoWeekLow":  r.get("fiftyTwoWeekLow"),
+                "fiftyTwoWeekHigh": r.get("fiftyTwoWeekHigh"),
+                "returnOnEquity": r.get("returnOnEquity"),
+            }
+            cache_set(ck_re, enriched)
+            if sym not in qmap:
+                qmap[sym] = r
+            else:
+                for k, v in enriched.items():
+                    if v is not None:
+                        qmap[sym][k] = v
+
     descontadas_acoes, descontadas_fiis = [], []
     maiores_altas, maiores_quedas       = [], []
     alto_dy                              = []
@@ -2069,12 +2129,12 @@ def radar_oportunidades():
                 else:   descontadas_acoes.append(item)
 
         # Alto DY
-        if dy >= 6: alto_dy.append(item)
+        if dy >= 4: alto_dy.append(item)  # 4% já é bom DY no Brasil
 
-        # Altas e quedas do dia
-        if price > 0:
-            maiores_altas.append(item)
-            maiores_quedas.append(item)
+        # Altas e quedas do dia (exclui ativos sem variação real)
+        if price > 0 and chg != 0:
+            if chg > 0: maiores_altas.append(item)
+            if chg < 0: maiores_quedas.append(item)
 
     maiores_altas.sort(key=lambda x: -x["change"])
     maiores_quedas.sort(key=lambda x: x["change"])
