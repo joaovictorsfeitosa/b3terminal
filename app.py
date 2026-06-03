@@ -107,9 +107,8 @@ def brapi_quotes(symbols):
     ck = f"bq_{syms_str}" if len(syms_str) < 120 else f"bq_{hash(syms_str)}"
     cached = cache_get(ck, ttl=300)
     if cached: return cached
-    # BRAPI free plan: max 8 symbols per batch
-    # fundamental=true works on small batches and gives dividendYield/Rate/lastDividendValue
-    BATCH = 8
+    # BRAPI free plan: batches of 5 are reliable with fundamental=true
+    BATCH = 5
     all_results = []
     for i in range(0, len(syms_clean), BATCH):
         batch = syms_clean[i:i+BATCH]
@@ -145,6 +144,17 @@ def brapi_quotes(symbols):
             "dividendRate":               r.get("dividendRate"),
             "marketCap":                  r.get("marketCap"),
             "lastDividendValue":          r.get("lastDividendValue"),
+            "lastDividendDate":           r.get("lastDividendDate"),
+            "exDividendDate":             r.get("exDividendDate"),
+            "priceEarnings":              r.get("priceEarnings"),
+            "priceToBook":                r.get("priceToBook"),
+            "earningsPerShare":           r.get("earningsPerShare"),
+            "roe":                        r.get("returnOnEquity"),
+            "returnOnEquity":             r.get("returnOnEquity"),
+            "debtToEquity":               r.get("debtToEquity"),
+            "currentRatio":               r.get("currentRatio"),
+            "revenueGrowth":              r.get("revenueGrowth"),
+            "grossMargins":               r.get("grossMargins"),
             "exDividendDate_br":          None,
             "lastDividendDate_br":        None,
         })
