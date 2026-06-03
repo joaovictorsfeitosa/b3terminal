@@ -940,31 +940,30 @@ def simulate():
             men         = round(anl / 12, 2)    # sempre normalizado p/ mês
 
         else:
-            # Sem histórico de dividendos via brapi_dividends.
-            # Tenta múltiplas fontes em ordem de confiabilidade:
-            # 1. dividendRate (valor anual fixo em R$ — mais confiável que %)
-            # 2. dividendYield (%) — pode ser 0 fora do pregão
-            # 3. lastDividendValue × freq estimada
-            div_rate  = float(quote.get("dividendRate")      or 0)   # R$ anual/ação
-            dy        = float(quote.get("dividendYield")     or 0)   # % anual
-            last_div  = float(quote.get("lastDividendValue") or 0)   # último valor pago
+            # Sem histórico completo — usa campos disponíveis na cotação básica
+            div_rate  = float(quote.get("dividendRate")      or 0)
+            dy        = float(quote.get("dividendYield")     or 0)
+            last_div  = float(quote.get("lastDividendValue") or 0)
 
-            if div_rate > 0:
-                # dividendRate é o mais confiável: valor anual já em R$
+            # Frequência estimada: FII=12x/ano, ação=2x/ano (semestral)
+            freq_est = 12 if fii else 2
+
+            if last_div > 0 and cotas > 0:
+                # Mais confiável: último dividendo pago × frequência estimada
+                anl = round(last_div * cotas * freq_est, 2)
+            elif div_rate > 0:
+                # dividendRate = valor anual total em R$ por ação
                 anl = round(div_rate * cotas, 2)
             elif dy > 0 and real > 0:
+                # Dividend Yield % anual aplicado ao valor investido real
                 anl = round(real * (dy / 100), 2)
-            elif last_div > 0:
-                # Estima: FII → 12x/ano; ação → 2x/ano
-                freq_est = 12 if fii else 2
-                anl = round(last_div * cotas * freq_est, 2)
             else:
                 anl = 0
 
             men        = round(anl / 12, 2)
-            freq_label = "Mensal" if fii else ("Semestral" if not fii and anl > 0 else "—")
-            last_value = last_div
-            avg_cota   = round(anl / (cotas * (12 if fii else 2)), 6) if (cotas > 0 and anl > 0) else 0
+            freq_label = "Mensal" if fii else ("Semestral" if anl > 0 else "—")
+            last_value = last_div if last_div > 0 else (round(anl / (cotas * freq_est), 6) if cotas > 0 and anl > 0 else 0)
+            avg_cota   = last_value
             projected  = []
 
         results.append({
@@ -2170,3 +2169,43 @@ if __name__=="__main__":
     print(f"  Brapi: {'OK' if BRAPI_TOKEN else 'SEM TOKEN!'}")
     print("="*50)
     app.run(debug=False,host="0.0.0.0",port=5000)
+
+# ── Debug: testa token BRAPI e retorna campos disponíveis ─────────────────────
+@app.route("/api/debug/brapi/<symbol>")
+@login_required
+def debug_brapi(symbol):
+    if not current_user.admin:
+        return jsonify({"error": "admin only"}), 403
+    sym = symbol.upper().replace(".SA","")
+    result = {}
+    # Teste 1: básico sem fundamental
+    d1 = brapi_get(f"/quote/{sym}")
+    r1 = (d1.get("results") or [{}])[0] if d1 else {}
+    result["basic"] = {
+        "dividendYield": r1.get("dividendYield"),
+        "dividendRate": r1.get("dividendRate"),
+        "lastDividendValue": r1.get("lastDividendValue"),
+        "regularMarketPrice": r1.get("regularMarketPrice"),
+    }
+    # Teste 2: com fundamental
+    d2 = brapi_get(f"/quote/{sym}", {"fundamental": "true"})
+    r2 = (d2.get("results") or [{}])[0] if d2 else {}
+    result["fundamental"] = {
+        "ok": d2 is not None,
+        "dividendYield": r2.get("dividendYield"),
+        "dividendRate": r2.get("dividendRate"),
+        "lastDividendValue": r2.get("lastDividendValue"),
+        "priceEarnings": r2.get("priceEarnings"),
+        "priceToBook": r2.get("priceToBook"),
+    }
+    # Teste 3: com dividends
+    d3 = brapi_get(f"/quote/{sym}", {"dividends": "true"})
+    r3 = (d3.get("results") or [{}])[0] if d3 else {}
+    cash = (r3.get("dividendsData") or {}).get("cashDividends") or []
+    result["dividends"] = {
+        "ok": d3 is not None,
+        "count": len(cash),
+        "first": cash[0] if cash else None,
+    }
+    result["token_configured"] = bool(BRAPI_TOKEN)
+    return jsonify(result)
