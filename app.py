@@ -291,6 +291,67 @@ def _build_div_result(sym, payments, freq_label, freq_months, cotas=1, declared_
 
 
 
+def _get_sim_dividend_data(sym, price):
+    """
+    Busca dados de dividendos para o simulador via múltiplas fontes.
+    Retorna dict com: last_div, dy_decimal, div_rate, freq_est, freq_label
+    """
+    fii = _is_fii(sym)
+    result = {"last_div": 0, "dy": 0, "div_rate": 0, "freq_est": 12 if fii else 2,
+              "freq_label": "Mensal" if fii else "Semestral"}
+
+    # Fonte 1: BRAPI quote com fundamental=true (funciona no plano free com token)
+    data = brapi_get(f"/quote/{sym}", {"fundamental": "true"})
+    if not data:
+        # Fallback: BRAPI quote básico
+        data = brapi_get(f"/quote/{sym}")
+
+    if data and "results" in data and data["results"]:
+        r = data["results"][0]
+        dy_raw   = r.get("dividendYield")     # fração decimal ex: 0.1020 = 10.20%
+        rate_raw = r.get("dividendRate")       # R$ anuais por cota
+        ldv_raw  = r.get("lastDividendValue")  # último dividendo pago por cota
+
+        if dy_raw is not None:
+            dy = float(dy_raw)
+            # BRAPI retorna dividendYield como fração decimal (0.10 = 10%)
+            # se valor > 1, provavelmente já é percentual — normaliza
+            if dy > 1:
+                dy = dy / 100
+            result["dy"] = dy
+
+        if rate_raw:
+            result["div_rate"] = float(rate_raw)
+
+        if ldv_raw:
+            result["last_div"] = float(ldv_raw)
+
+        print(f"  SimData {sym}: dy={result['dy']:.4f} rate={result['div_rate']} ldv={result['last_div']}")
+
+    # Fonte 2: TwelveData /quote (retorna dividend_yield no plano free)
+    if result["dy"] == 0 and result["last_div"] == 0:
+        TD_KEY = os.environ.get("TWELVE_DATA_KEY", "")
+        if TD_KEY:
+            try:
+                r2 = req_lib.get(
+                    "https://api.twelvedata.com/quote",
+                    params={"symbol": sym, "exchange": "BVMF", "apikey": TD_KEY},
+                    timeout=10
+                )
+                d2 = r2.json()
+                if d2.get("status") != "error":
+                    dy2 = float(d2.get("fifty_two_week", {}).get("dividend_yield", 0) or
+                                d2.get("dividend_yield") or 0)
+                    if dy2 > 0:
+                        if dy2 > 1: dy2 = dy2 / 100
+                        result["dy"] = dy2
+                        print(f"  SimData {sym} via TD quote: dy={dy2:.4f}")
+            except Exception as e:
+                print(f"  TD quote {sym}: {e}")
+
+    return result
+
+
 def brapi_dividends(symbol, cotas=1):
     """
     Busca histórico de dividendos/rendimentos.
@@ -879,37 +940,6 @@ def simulate():
     all_syms   = [s["sym"].upper().replace(".SA","") for s in symbols]
     quotes_map = {q["symbol"]: q for q in (brapi_quotes(all_syms) or [])}
 
-    # Para o simulador, enriquecer cada ativo individualmente
-    # garante dividendYield/Rate/lastDividendValue mesmo quando batch falha
-    for sym in all_syms:
-        ck_e = f"sim_enrich_{sym}"
-        cached_e = cache_get(ck_e, ttl=1800)
-        if cached_e:
-            if sym in quotes_map:
-                for k, v in cached_e.items():
-                    if v is not None and not quotes_map[sym].get(k):
-                        quotes_map[sym][k] = v
-            continue
-        raw = brapi_get(f"/quote/{sym}", {"fundamental": "true"})
-        if raw and "results" in raw and raw["results"]:
-            r = raw["results"][0]
-            enriched = {
-                "dividendYield":     r.get("dividendYield"),
-                "dividendRate":      r.get("dividendRate"),
-                "lastDividendValue": r.get("lastDividendValue"),
-                "lastDividendDate":  r.get("lastDividendDate"),
-                "exDividendDate":    r.get("exDividendDate"),
-                "priceEarnings":     r.get("priceEarnings"),
-                "priceToBook":       r.get("priceToBook"),
-            }
-            cache_set(ck_e, enriched)
-            if sym not in quotes_map:
-                quotes_map[sym] = r
-            else:
-                for k, v in enriched.items():
-                    if v is not None:
-                        quotes_map[sym][k] = v
-
     results = []
     for s in symbols:
         sym   = s["sym"].upper().replace(".SA", "")
@@ -940,28 +970,27 @@ def simulate():
             men         = round(anl / 12, 2)    # sempre normalizado p/ mês
 
         else:
-            # Sem histórico completo — usa campos disponíveis na cotação básica
-            div_rate  = float(quote.get("dividendRate")      or 0)
-            dy        = float(quote.get("dividendYield")     or 0)
-            last_div  = float(quote.get("lastDividendValue") or 0)
-
-            # Frequência estimada: FII=12x/ano, ação=2x/ano (semestral)
-            freq_est = 12 if fii else 2
+            # Sem histórico completo — busca dados via helper multi-fonte
+            sd = _get_sim_dividend_data(sym, price)
+            last_div  = sd["last_div"]
+            dy        = sd["dy"]        # já normalizado como fração decimal
+            div_rate  = sd["div_rate"]
+            freq_est  = sd["freq_est"]
+            freq_label = sd["freq_label"]
 
             if last_div > 0 and cotas > 0:
-                # Mais confiável: último dividendo pago × frequência estimada
                 anl = round(last_div * cotas * freq_est, 2)
             elif div_rate > 0:
-                # dividendRate = valor anual total em R$ por ação
                 anl = round(div_rate * cotas, 2)
             elif dy > 0 and real > 0:
-                # Dividend Yield % anual aplicado ao valor investido real
-                anl = round(real * (dy / 100), 2)
+                # dy é fração decimal: 0.1020 = 10.20% ao ano
+                anl = round(real * dy, 2)
             else:
                 anl = 0
 
             men        = round(anl / 12, 2)
-            freq_label = "Mensal" if fii else ("Semestral" if anl > 0 else "—")
+            if anl == 0:
+                freq_label = "—"
             last_value = last_div if last_div > 0 else (round(anl / (cotas * freq_est), 6) if cotas > 0 and anl > 0 else 0)
             avg_cota   = last_value
             projected  = []
@@ -1078,9 +1107,24 @@ def clear_cache_route():
 def get_dividends(symbol):
     sym = symbol.upper().replace(".SA","")
     result = brapi_dividends(sym, 1)
-    if not result:
-        return jsonify({"found":False,"projected":[],"freq_label":"—","avg_value":0})
-    return jsonify({**result,"found":True})
+    if result:
+        return jsonify({**result,"found":True})
+    # Fallback: usa _get_sim_dividend_data para pelo menos retornar DY e último dividendo
+    sd = _get_sim_dividend_data(sym, 0)
+    fii = _is_fii(sym)
+    if sd["last_div"] > 0 or sd["dy"] > 0:
+        freq_label = sd["freq_label"]
+        avg_val = sd["last_div"] if sd["last_div"] > 0 else 0
+        return jsonify({
+            "found": True,
+            "projected": [],
+            "freq_label": freq_label,
+            "avg_value": avg_val,
+            "last_value": sd["last_div"],
+            "div_yield": sd["dy"],
+            "freq_months": list(range(1,13)) if fii else [6,12],
+        })
+    return jsonify({"found":False,"projected":[],"freq_label":"—","avg_value":0})
 
 @app.route("/api/user/data/<key>", methods=["GET"])
 @login_required
@@ -2128,7 +2172,7 @@ def radar_oportunidades():
                 else:   descontadas_acoes.append(item)
 
         # Alto DY
-        if dy >= 4: alto_dy.append(item)  # 4% já é bom DY no Brasil
+        if dy >= 0.04: alto_dy.append(item)  # dy é fração decimal: 0.04 = 4%
 
         # Altas e quedas do dia (exclui ativos sem variação real)
         if price > 0 and chg != 0:
