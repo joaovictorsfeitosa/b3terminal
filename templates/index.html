@@ -1226,6 +1226,19 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 .gc-tt-l{color:var(--td)}.gc-tt-v{font-weight:700;color:var(--tb)}
 
 /* Mini-stats below chart */
+.gc-news-section{margin-top:24px}
+.gc-news-title{font-size:10px;letter-spacing:2px;color:var(--td);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.gc-news-title::after{content:"";flex:1;height:1px;background:var(--bd)}
+.gc-news-list{display:flex;flex-direction:column;gap:10px}
+.gc-news-card{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;
+  display:flex;flex-direction:column;gap:4px;transition:border-color .2s;cursor:pointer;text-decoration:none}
+.gc-news-card:hover{border-color:var(--ui1)}
+.gc-news-card-title{font-size:12px;font-weight:700;color:var(--tb);line-height:1.4}
+.gc-news-card-meta{display:flex;gap:8px;align-items:center;margin-top:2px}
+.gc-news-card-fonte{font-size:9px;color:var(--ui1);font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.gc-news-card-time{font-size:9px;color:var(--td)}
+.gc-news-card-desc{font-size:10px;color:var(--td);line-height:1.5;margin-top:2px}
+.gc-news-empty{font-size:11px;color:var(--td);padding:16px 0;text-align:center}
 .gc-mini-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
   gap:8px;margin-bottom:16px}
 .gc-ms-card{background:var(--bg2);border:1px solid var(--bd);border-radius:9px;
@@ -2450,6 +2463,12 @@ body.light .gr-wm-cover{background:#ffffff}
 
     <!-- Mini stat cards -->
     <div class="gc-mini-stats" id="gc-mini-stats"></div>
+
+    <!-- Notícias do ativo -->
+    <div class="gc-news-section" id="gc-news-section" style="display:none">
+      <div class="gc-news-title">📰 Notícias sobre <span id="gc-news-sym"></span></div>
+      <div class="gc-news-list" id="gc-news-list"></div>
+    </div>
 
   </div>
 
@@ -4175,6 +4194,39 @@ async function gcLoadAsset(sym){
   // If quote lookup totally failed and we have no data, show toast (not error on page)
   if(!quote && !_gcData.length){
     gcShowToast(`Sem dados para "${sym}". Verifique o ticker.`);
+  }
+
+  // Load news for this asset
+  gcLoadAssetNews(sym);
+}
+
+async function gcLoadAssetNews(sym){
+  const sec  = $("gc-news-section");
+  const list = $("gc-news-list");
+  const symEl= $("gc-news-sym");
+  if(!sec || !list) return;
+
+  sec.style.display = "block";
+  if(symEl) symEl.textContent = sym;
+  list.innerHTML = '<div class="loading" style="padding:16px 0"><div class="sp"></div>BUSCANDO NOTÍCIAS...</div>';
+
+  try{
+    const news = await apiFetch(`/api/news/symbol/${sym}`);
+    if(!news || !news.length){
+      list.innerHTML = `<div class="gc-news-empty">Nenhuma notícia encontrada para ${sym} nos últimos feeds.</div>`;
+      return;
+    }
+    list.innerHTML = news.slice(0,8).map(n=>`
+      <a class="gc-news-card" href="${n.url}" target="_blank" rel="noopener">
+        <div class="gc-news-card-title">${n.title}</div>
+        <div class="gc-news-card-meta">
+          <span class="gc-news-card-fonte">${n.fonte}</span>
+          <span class="gc-news-card-time">${n.time}</span>
+        </div>
+        ${n.desc ? `<div class="gc-news-card-desc">${n.desc}</div>` : ""}
+      </a>`).join("");
+  }catch(e){
+    list.innerHTML = `<div class="gc-news-empty">Erro ao carregar notícias.</div>`;
   }
 }
 
