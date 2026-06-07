@@ -4213,7 +4213,11 @@ async function gcLoadAssetNews(sym){
   try{
     const news = await apiFetch(`/api/news/symbol/${sym}`);
     if(!news || !news.length){
-      list.innerHTML = `<div class="gc-news-empty">Nenhuma notícia encontrada para ${sym} nos últimos feeds.</div>`;
+      list.innerHTML = `<div class="gc-news-empty">
+        Nenhuma notícia recente encontrada para ${sym}.<br>
+        <a href="https://www.google.com/search?q=${sym}+bolsa+B3+noticias" target="_blank" rel="noopener"
+           style="color:var(--ui1);font-size:10px">🔍 Buscar no Google →</a>
+      </div>`;
       return;
     }
     list.innerHTML = news.slice(0,8).map(n=>`
