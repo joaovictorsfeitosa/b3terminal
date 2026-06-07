@@ -1177,6 +1177,69 @@ def compound_interest():
                     "yield_total_pct":round((saldo/total_inv-1)*100,2) if total_inv>0 else 0,
                     "timeline":timeline})
 
+@app.route("/api/news/symbol/<symbol>")
+@login_required
+def get_news_symbol(symbol):
+    """Busca notícias relacionadas a um ativo específico via RSS"""
+    sym = symbol.upper().replace(".SA","")
+    ck = f"news_sym_{sym}"
+    cached = cache_get(ck, ttl=300)
+    if cached: return jsonify(cached)
+
+    # Mapa de nomes para busca em títulos
+    sym_names = {
+        "PETR4":"Petrobras","PETR3":"Petrobras","VALE3":"Vale","ITUB4":"Itaú",
+        "ITUB3":"Itaú","BBDC4":"Bradesco","BBDC3":"Bradesco","BBAS3":"Banco do Brasil",
+        "WEGE3":"WEG","ABEV3":"Ambev","MGLU3":"Magazine Luiza","RENT3":"Localiza",
+        "PRIO3":"PRIO","CXSE3":"Caixa Seguridade","COGN3":"Cogna","EGIE3":"Engie",
+        "TAEE4":"Taesa","TAEE3":"Taesa","CMIG4":"Cemig","CPFE3":"CPFL","SBSP3":"Sabesp",
+        "VIVT3":"Vivo","TIMS3":"TIM","JBSS3":"JBS","MRFG3":"Marfrig",
+        "BEEF3":"Minerva","SUZB3":"Suzano","CSNA3":"CSN","GGBR4":"Gerdau",
+        "USIM5":"Usiminas","RDOR3":"Rede D'Or","HAPV3":"Hapvida",
+    }
+    search_terms = [sym.lower()]
+    if sym in sym_names:
+        search_terms.append(sym_names[sym].lower())
+
+    feeds = [
+        {"url":"https://www.infomoney.com.br/feed/","fonte":"InfoMoney"},
+        {"url":"https://exame.com/invest/feed/","fonte":"Exame Invest"},
+        {"url":"https://valor.globo.com/rss/financas/feed.xml","fonte":"Valor Econômico"},
+    ]
+
+    def tr(pub):
+        try:
+            from email.utils import parsedate_to_datetime
+            dt=parsedate_to_datetime(pub); diff=int((datetime.now(dt.tzinfo)-dt).total_seconds()/60)
+            if diff<1: return "agora"
+            if diff<60: return f"há {diff} min"
+            if diff<1440: return f"há {diff//60}h"
+            return f"há {diff//1440} dias"
+        except: return ""
+
+    results = []
+    for f in feeds:
+        try:
+            import feedparser
+            feed = feedparser.parse(f["url"])
+            for e in feed.entries[:30]:
+                title = e.get("title","")
+                desc  = e.get("summary","")
+                txt   = (title + " " + desc).lower()
+                if any(t in txt for t in search_terms):
+                    results.append({
+                        "title":  title,
+                        "url":    e.get("link",""),
+                        "fonte":  f["fonte"],
+                        "time":   tr(e.get("published","")),
+                        "desc":   desc[:120] + "..." if len(desc)>120 else desc,
+                    })
+        except: pass
+
+    cache_set(ck, results)
+    return jsonify(results)
+
+
 @app.route("/api/news")
 @login_required
 def get_news():
