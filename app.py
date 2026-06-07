@@ -1201,12 +1201,6 @@ def get_news_symbol(symbol):
     if sym in sym_names:
         search_terms.append(sym_names[sym].lower())
 
-    feeds = [
-        {"url":"https://www.infomoney.com.br/feed/","fonte":"InfoMoney"},
-        {"url":"https://exame.com/invest/feed/","fonte":"Exame Invest"},
-        {"url":"https://valor.globo.com/rss/financas/feed.xml","fonte":"Valor Econômico"},
-    ]
-
     def tr(pub):
         try:
             from email.utils import parsedate_to_datetime
@@ -1218,24 +1212,55 @@ def get_news_symbol(symbol):
         except: return ""
 
     results = []
-    for f in feeds:
+
+    # Fonte 1: Google News RSS — busca direta pelo ticker + nome da empresa
+    for term in search_terms:
         try:
-            import feedparser
-            feed = feedparser.parse(f["url"])
-            for e in feed.entries[:30]:
+            gn_url = f"https://news.google.com/rss/search?q={term}+bolsa+B3&hl=pt-BR&gl=BR&ceid=BR:pt-419"
+            feed = feedparser.parse(gn_url)
+            for e in (feed.entries or [])[:10]:
                 title = e.get("title","")
-                desc  = e.get("summary","")
-                txt   = (title + " " + desc).lower()
-                if any(t in txt for t in search_terms):
-                    results.append({
-                        "title":  title,
-                        "url":    e.get("link",""),
-                        "fonte":  f["fonte"],
-                        "time":   tr(e.get("published","")),
-                        "desc":   desc[:120] + "..." if len(desc)>120 else desc,
-                    })
+                if not title: continue
+                source = ""
+                if hasattr(e, "source"): source = getattr(e.source, "title", "")
+                results.append({
+                    "title": title,
+                    "url":   e.get("link",""),
+                    "fonte": source or "Google News",
+                    "time":  tr(e.get("published","")),
+                    "desc":  "",
+                })
         except: pass
 
+    # Fonte 2: Feeds brasileiros — filtra por termos do ativo
+    feeds = [
+        {"url":"https://www.infomoney.com.br/feed/","fonte":"InfoMoney"},
+        {"url":"https://exame.com/invest/feed/","fonte":"Exame Invest"},
+        {"url":"https://valor.globo.com/rss/financas/feed.xml","fonte":"Valor Econômico"},
+        {"url":"https://einvestidor.estadao.com.br/feed/","fonte":"E-Investidor"},
+        {"url":"https://moneytimes.com.br/feed/","fonte":"Money Times"},
+    ]
+    for f in feeds:
+        try:
+            feed = feedparser.parse(f["url"])
+            for e in (feed.entries or [])[:40]:
+                title = e.get("title","")
+                desc  = e.get("summary","") or ""
+                txt   = (title + " " + desc).lower()
+                if any(t in txt for t in search_terms):
+                    # Avoid duplicates
+                    if not any(r["title"] == title for r in results):
+                        results.append({
+                            "title": title,
+                            "url":   e.get("link",""),
+                            "fonte": f["fonte"],
+                            "time":  tr(e.get("published","")),
+                            "desc":  desc[:150] + "..." if len(desc)>150 else desc,
+                        })
+        except: pass
+
+    # Limita e salva cache
+    results = results[:12]
     cache_set(ck, results)
     return jsonify(results)
 
@@ -1613,7 +1638,7 @@ def _td_batch_quotes(symbols):
     return {}
 
 def _fetch_sector_quotes(syms):
-    """Busca cotações de uma lista pequena de símbolos via BRAPI (sem fundamental)."""
+    """Busca cotações via brapi_quotes (batching correto, fundamental=true)."""
     missing, result = [], {}
     for sym in syms:
         hit = cache_get(f"qm_{sym}", ttl=600)
@@ -1622,21 +1647,20 @@ def _fetch_sector_quotes(syms):
         else:
             missing.append(sym)
     if missing:
-        data = brapi_get(f"/quote/{','.join(missing)}")
-        if data and "results" in data:
-            for r in (data["results"] or []):
-                sym = r.get("symbol", "")
-                if not sym:
-                    continue
-                item = {
-                    "symbol": sym,
-                    "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
-                    "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
-                    "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
-                    "volume": int(r.get("regularMarketVolume") or 0),
-                }
-                cache_set(f"qm_{sym}", item)
-                result[sym] = item
+        quotes = brapi_quotes(missing) or []
+        for r in quotes:
+            sym = r.get("symbol", "")
+            if not sym:
+                continue
+            item = {
+                "symbol": sym,
+                "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
+                "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
+                "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
+                "volume": int(r.get("regularMarketVolume") or 0),
+            }
+            cache_set(f"qm_{sym}", item)
+            result[sym] = item
     return result
 
 
