@@ -1680,9 +1680,14 @@ def portfolio_score():
         dy_rate   = float(q.get("dividendRate")      or 0)
         last_div  = float(q.get("lastDividendValue") or 0)
         fii       = _is_fii(sym)
+        # Se BRAPI não retornou DY, usa base estática
+        if dy == 0:
+            static = _DIV_DB.get(sym)
+            if static and static["dy"] > 0:
+                dy = static["dy"] * 100  # converte para % (ex: 0.11 → 11.0)
         sector    = _SECTOR_MAP.get(sym, "FII" if fii else "Outros")
         # FIIs sempre pagam rendimentos; ações: usa qualquer campo disponível
-        has_div   = fii or dy > 0 or dy_rate > 0 or last_div > 0
+        has_div   = fii or dy > 0 or dy_rate > 0 or last_div > 0 or sym in _DIV_DB
         ativos_info.append({
             "sym": sym, "valor": valor, "dy": dy,
             "sector": sector, "fii": fii,
