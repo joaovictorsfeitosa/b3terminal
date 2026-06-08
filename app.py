@@ -1093,10 +1093,12 @@ def simulate():
             last_value = div_h["last_value"]
             avg_cota   = div_h["avg_value"]
 
-            # Mensal estimado correto por frequência
+            # Mensal estimado: usa último valor pago (mais recente e preciso)
             freq_months = div_h["freq_months"]
             n_freq      = len(freq_months)      # pagamentos por ano
-            anl         = round(avg_cota * cotas * n_freq, 2)
+            # Prioriza last_value (último histórico real), cai para avg_cota se inválido
+            base_cota   = last_value if last_value > 0 else avg_cota
+            anl         = round(base_cota * cotas * n_freq, 2)
             men         = round(anl / 12, 2)    # sempre normalizado p/ mês
 
         else:
