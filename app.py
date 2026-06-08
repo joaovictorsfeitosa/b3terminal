@@ -1127,6 +1127,14 @@ def simulate():
             avg_cota   = last_value
             projected  = []
 
+        # n_freq: pagamentos reais por ano (12=mensal, 4=trimestral, 2=semestral, 1=anual)
+        if div_h and div_h.get("projected"):
+            _nfreq = len(div_h["freq_months"])
+        else:
+            _nfreq = freq_est if 'freq_est' in dir() or True else 4
+            try: _nfreq = freq_est
+            except NameError: _nfreq = 4
+
         results.append({
             "sym":              sym,
             "name":             quote.get("shortName") or sym,
@@ -1136,6 +1144,7 @@ def simulate():
             "investido":        real,
             "div_yield":        quote.get("dividendYield") or 0,
             "freq_label":       freq_label,
+            "n_freq":           _nfreq,
             "last_value":       last_value,
             "avg_value_cota":   avg_cota,
             "mensal_estimado":  men,
