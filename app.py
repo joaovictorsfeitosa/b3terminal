@@ -1638,7 +1638,7 @@ def _td_batch_quotes(symbols):
     return {}
 
 def _fetch_sector_quotes(syms):
-    """Busca cotações via brapi_quotes (batching correto, fundamental=true)."""
+    """Busca cotações para heatmap — sem fundamental para ser mais rápido e confiável."""
     missing, result = [], {}
     for sym in syms:
         hit = cache_get(f"qm_{sym}", ttl=600)
@@ -1647,20 +1647,24 @@ def _fetch_sector_quotes(syms):
         else:
             missing.append(sym)
     if missing:
-        quotes = brapi_quotes(missing) or []
-        for r in quotes:
-            sym = r.get("symbol", "")
-            if not sym:
-                continue
-            item = {
-                "symbol": sym,
-                "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
-                "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
-                "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
-                "volume": int(r.get("regularMarketVolume") or 0),
-            }
-            cache_set(f"qm_{sym}", item)
-            result[sym] = item
+        # Batches de 10 sem fundamental — mais rápido para heatmap
+        BATCH = 10
+        for i in range(0, len(missing), BATCH):
+            batch = missing[i:i+BATCH]
+            data = brapi_get(f"/quote/{','.join(batch)}")
+            if data and "results" in data:
+                for r in (data["results"] or []):
+                    sym = r.get("symbol","")
+                    if not sym: continue
+                    item = {
+                        "symbol": sym,
+                        "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
+                        "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
+                        "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
+                        "volume": int(r.get("regularMarketVolume") or 0),
+                    }
+                    cache_set(f"qm_{sym}", item)
+                    result[sym] = item
     return result
 
 
@@ -1672,19 +1676,38 @@ def heatmap_all():
     Cache 10 minutos — o frontend faz UMA só chamada e espera a resposta.
     Sem concorrência, sem rate-limit.
     """
-    ck = "hm_all_v3"
+    ck = "hm_all_v5"
     cached = cache_get(ck, ttl=600)
     if cached:
         return jsonify(cached)
 
+    # Busca todos os símbolos de uma vez — mais eficiente
+    all_syms = []
+    for syms in HEATMAP_SECTORS.values():
+        all_syms.extend(syms)
+    all_syms = list(dict.fromkeys(all_syms))  # deduplica mantendo ordem
+
+    # Busca em batches de 10 sem fundamental
+    BATCH = 10
+    all_quotes = {}
+    for i in range(0, len(all_syms), BATCH):
+        batch = all_syms[i:i+BATCH]
+        data = brapi_get(f"/quote/{','.join(batch)}")
+        if data and "results" in data:
+            for r in (data["results"] or []):
+                sym = r.get("symbol","")
+                if not sym: continue
+                all_quotes[sym] = {
+                    "symbol": sym,
+                    "price":  round(float(r.get("regularMarketPrice")         or 0), 2),
+                    "change": round(float(r.get("regularMarketChangePercent") or 0), 2),
+                    "name":   (r.get("shortName") or r.get("longName") or sym)[:24],
+                    "volume": int(r.get("regularMarketVolume") or 0),
+                }
+
     out = {}
     for name, syms in HEATMAP_SECTORS.items():
-        before  = [s for s in syms if cache_get(f"qm_{s}", ttl=600)]
-        qmap    = _fetch_sector_quotes(syms)
-        out[name] = [qmap[s] for s in syms if s in qmap]
-        # Só pausa se houve chamada real ao BRAPI (símbolos não estavam em cache)
-        if len(before) < len(syms):
-            time.sleep(0.4)
+        out[name] = [all_quotes[s] for s in syms if s in all_quotes]
 
     total = sum(len(v) for v in out.values())
     print(f"  [Heatmap] carregado: {total}/{sum(len(v) for v in HEATMAP_SECTORS.values())} símbolos")
