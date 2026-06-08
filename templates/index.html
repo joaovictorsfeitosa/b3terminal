@@ -3292,6 +3292,7 @@ async function runSimulador(){
       window._simDivAnual = results.reduce((s,r)=>s+(r.anual_estimado||0),0);
       window._simDyMedio = totalInvestido>0 ? (window._simDivAnual/totalInvestido*100) : 0;
       window._simCotasIniciais = results.reduce((s,r)=>s+(r.cotas||0), 0);
+      window._simResults = results;
       const curTab = document.querySelector(".sim-adv-tab.on")||document.querySelector(".sim-adv-tab");
       simAdvTab(parseInt(curTab?.dataset?.anos||'5'), curTab);
     }
@@ -3311,52 +3312,65 @@ function renderReinvResult(totalInvestido, divAnual, results){
     return;
   }
 
-  const anos          = getReinvAnos();
-  const meses         = anos * 12;
-  const cotasIniciais = results.reduce((s,r) => s + (r.cotas||0), 0);
-  const precoMedio    = cotasIniciais > 0 ? totalInvestido / cotasIniciais : 0;
-  const aporteMs      = parseFloat(document.getElementById('sim-aporte-mensal')?.value||'0') || 0;
+  const anos     = getReinvAnos();
+  const meses    = anos * 12;
+  const aporteMs = parseFloat(document.getElementById('sim-aporte-mensal')?.value||'0') || 0;
 
-  // divPorCota mensal = dividendo mensal real por cota (ex: R$0,09 para MXRF11)
-  // divAnual = soma de todos os anual_estimado dos ativos
-  // divMensal inicial = divAnual / 12
-  // divPorCota = divMensal / cotasIniciais
-  const divMensalInicial = divAnual / 12;
-  const divPorCota       = cotasIniciais > 0 ? divMensalInicial / cotasIniciais : 0;
+  // Por ativo: divPorCotaMensal = last_value * n_freq / 12
+  // Isso respeita frequência: PETR4(trim)=0.70*4/12=0.233/mês, MXRF11(mensal)=0.09*12/12=0.09/mês
+  const ativos = results.map(r => ({
+    cotas:           r.cotas || 0,
+    preco:           r.price || (r.cotas > 0 ? (r.investido || 0) / r.cotas : 0),
+    divPorCotaMes:   r.cotas > 0 ? (r.anual_estimado || 0) / 12 / r.cotas : 0,
+    freqLabel:       r.freq_label || '—',
+    nFreq:           r.n_freq || 12,
+    lastValue:       r.last_value || 0,
+    sym:             r.sym,
+  }));
 
-  let cotas     = cotasIniciais;
-  let divAcum   = 0;
-  let cotasAcum = 0;
+  const totalCotas   = ativos.reduce((s,a) => s + a.cotas, 0);
+  const precoMedio   = totalCotas > 0 ? totalInvestido / totalCotas : 0;
+  const divMensalIni = ativos.reduce((s,a) => s + a.cotas * a.divPorCotaMes, 0);
+
+  // Simulação: cada ativo cresce suas cotas de forma proporcional ao reinvestimento
+  // Simplificação: tratamos o portfólio como um todo com preço médio ponderado
+  let cotasTotal = totalCotas;
+  let divAcum    = 0;
+  let cotasAcum  = 0;
   const evoAnual = [];
 
-  for(let m = 1; m <= meses; m++){
-    // dividendo mensal = cotas atuais × valor por cota
-    const divMes   = cotas * divPorCota;
-    // reinveste dividendos em cotas
-    const cotasDiv = precoMedio > 0 ? divMes   / precoMedio : 0;
-    // aporte mensal → 100% em cotas
-    const cotasAp  = precoMedio > 0 ? aporteMs / precoMedio : 0;
+  // divPorCotaMes do portfólio = divMensalIni / totalCotas
+  const portDivPorCotaMes = totalCotas > 0 ? divMensalIni / totalCotas : 0;
 
-    cotas     += cotasDiv + cotasAp;
-    cotasAcum += cotasDiv + cotasAp;
-    divAcum   += divMes;
+  for(let m = 1; m <= meses; m++){
+    const divMes   = cotasTotal * portDivPorCotaMes;
+    const cotasDiv = precoMedio > 0 ? divMes   / precoMedio : 0;
+    const cotasAp  = precoMedio > 0 ? aporteMs / precoMedio : 0;
+    cotasTotal += cotasDiv + cotasAp;
+    cotasAcum  += cotasDiv + cotasAp;
+    divAcum    += divMes;
 
     if(m % 12 === 0){
       evoAnual.push({
         ano:        m / 12,
-        cotas:      Math.round(cotas),
+        cotas:      Math.round(cotasTotal),
         cotasAcum:  Math.round(cotasAcum),
-        divMensal:  cotas * divPorCota,
+        divMensal:  cotasTotal * portDivPorCotaMes,
         divAcum:    Math.round(divAcum),
-        patrimonio: Math.round(cotas * precoMedio),
+        patrimonio: Math.round(cotasTotal * precoMedio),
       });
     }
   }
 
-  const final        = evoAnual[evoAnual.length - 1] || {};
-  const crescPct     = divMensalInicial > 0 ? (((final.divMensal||0) - divMensalInicial) / divMensalInicial * 100).toFixed(0) : 0;
-  const yoc          = totalInvestido > 0 ? ((final.divMensal||0) * 12 / totalInvestido * 100).toFixed(1) : '0.0';
-  const maxPatr      = final.patrimonio || 1;
+  const final    = evoAnual[evoAnual.length - 1] || {};
+  const crescPct = divMensalIni > 0 ? (((final.divMensal||0) - divMensalIni) / divMensalIni * 100).toFixed(0) : 0;
+  const yoc      = totalInvestido > 0 ? ((final.divMensal||0) * 12 / totalInvestido * 100).toFixed(1) : '0.0';
+  const maxPatr  = final.patrimonio || 1;
+
+  // Info de frequência por ativo (para mostrar no rodapé)
+  const freqInfo = ativos.map(a =>
+    `${a.sym}: R$${a.lastValue.toFixed(4)}/cota · ${a.freqLabel} · R$${(a.divPorCotaMes).toFixed(4)}/cota/mês`
+  ).join(' | ');
 
   const linhasTabela = evoAnual.map((e, i) => {
     const isLast = i === evoAnual.length - 1;
@@ -3375,21 +3389,20 @@ function renderReinvResult(totalInvestido, divAnual, results){
 
   const aporteLinha = aporteMs > 0
     ? `<div style="background:rgba(255,196,0,.06);border:1px solid rgba(255,196,0,.2);border-radius:8px;padding:8px 12px;margin-top:10px;font-size:10px;color:var(--td)">
-        💰 Aporte mensal de <strong style="color:var(--a)">${fR(aporteMs)}</strong> é usado <strong style="color:var(--a)">integralmente para comprar cotas</strong> ao preço médio de ${precoMedio > 0 ? fR(precoMedio) : '—'}/cota.
-      </div>`
-    : '';
+        💰 Aporte de <strong style="color:var(--a)">${fR(aporteMs)}</strong> mensal vai 100% para comprar cotas ao preço médio de ${fR(precoMedio)}/cota.
+      </div>` : '';
 
   wrap.style.display = 'block';
   wrap.innerHTML = `
     <div class="stitle" style="margin-bottom:16px">
       <div class="sl">♻ Projeção de ${anos} Ano${anos > 1 ? 's' : ''} · Reinvestindo Dividendos${aporteMs > 0 ? ' + Aporte Mensal' : ''}</div>
-      <div class="sr" style="font-size:10px;color:var(--td)">baseado no último dividendo pago e yield atual</div>
+      <div class="sr" style="font-size:10px;color:var(--td)">cada ativo usa sua frequência real de pagamento</div>
     </div>
 
     <div class="reinv-hero">
-      <div class="reinv-hero-t">Renda Mensal no Final do Período</div>
+      <div class="reinv-hero-t">Renda Mensal Equivalente no Final</div>
       <div class="reinv-hero-val">${fR(final.divMensal || 0)}<span style="font-size:14px;font-weight:500;color:var(--td)">/mês</span></div>
-      <div class="reinv-hero-sub">vs ${fR(divMensalInicial)} no início · +${crescPct}% de crescimento</div>
+      <div class="reinv-hero-sub">vs ${fR(divMensalIni)} no início · +${crescPct}% de crescimento</div>
     </div>
 
     <div class="reinv-kpis">
@@ -3431,11 +3444,10 @@ function renderReinvResult(totalInvestido, divAnual, results){
       </div>
       ${linhasTabela}
     </div>
-    <div style="font-size:9px;color:var(--td);text-align:center;padding-top:10px">
-      ⚠ Preço médio por cota: ${precoMedio > 0 ? fR(precoMedio) : '—'} · R$${divPorCota.toFixed(4)}/cota/mês. Dividendos futuros podem variar.
+    <div style="font-size:9px;color:var(--td);padding-top:10px;line-height:1.6">
+      ⚠ ${freqInfo}. Renda mensal equivalente = dividendos anuais ÷ 12.
     </div>`;
 }
-
 
 function simAdvTab(anos, btn){
   if(btn){
@@ -3445,20 +3457,21 @@ function simAdvTab(anos, btn){
   const wrap = $("sim-adv-result");
   if(!wrap) return;
 
-  const investido  = window._simTotalInvestido || 0;
-  const divAnual   = window._simDivAnual || 0;
-  const cotasIni   = window._simCotasIniciais || 0;
-  const precoMedio = cotasIni > 0 ? investido / cotasIni : 0;
-  const aporteMs   = parseFloat(document.getElementById('sim-aporte-mensal')?.value||'0') || 0;
+  const investido   = window._simTotalInvestido || 0;
+  const divAnual    = window._simDivAnual || 0;
+  const cotasIni    = window._simCotasIniciais || 0;
+  const resultados  = window._simResults || [];
+  const precoMedio  = cotasIni > 0 ? investido / cotasIni : 0;
+  const aporteMs    = parseFloat(document.getElementById('sim-aporte-mensal')?.value||'0') || 0;
 
   if(investido <= 0){
     wrap.innerHTML = '<div style="color:var(--td);font-size:12px">Execute uma simulação primeiro.</div>';
     return;
   }
 
-  // divPorCota mensal = quanto cada cota paga por mês
-  const divMensalInicial = divAnual / 12;
-  const divPorCota       = cotasIni > 0 ? divMensalInicial / cotasIni : 0;
+  // divPorCotaMes do portfólio = (divAnual/12) / cotasIni
+  const divMensalIni      = divAnual / 12;
+  const portDivPorCotaMes = cotasIni > 0 ? divMensalIni / cotasIni : 0;
 
   const meses = anos * 12;
   let cotas     = cotasIni;
@@ -3467,7 +3480,7 @@ function simAdvTab(anos, btn){
   const evoAnual = [];
 
   for(let m = 1; m <= meses; m++){
-    const divMes   = cotas * divPorCota;
+    const divMes   = cotas * portDivPorCotaMes;
     const cotasDiv = precoMedio > 0 ? divMes   / precoMedio : 0;
     const cotasAp  = precoMedio > 0 ? aporteMs / precoMedio : 0;
     cotas     += cotasDiv + cotasAp;
@@ -3475,12 +3488,12 @@ function simAdvTab(anos, btn){
     divAcum   += divMes;
     if(m % 12 === 0){
       evoAnual.push({
-        ano:       m / 12,
-        cotas:     Math.round(cotas),
-        cotasAcum: Math.round(cotasAcum),
-        divMensal: cotas * divPorCota,
-        divAcum:   Math.round(divAcum),
-        patrimonio:Math.round(cotas * precoMedio),
+        ano:        m / 12,
+        cotas:      Math.round(cotas),
+        cotasAcum:  Math.round(cotasAcum),
+        divMensal:  cotas * portDivPorCotaMes,
+        divAcum:    Math.round(divAcum),
+        patrimonio: Math.round(cotas * precoMedio),
       });
     }
   }
@@ -3488,7 +3501,6 @@ function simAdvTab(anos, btn){
   const final = evoAnual[evoAnual.length - 1] || {};
   const yoc   = investido > 0 ? ((final.divMensal||0) * 12 / investido * 100).toFixed(1) : '0.0';
 
-  // 4 marcos distribuídos no período
   const step   = Math.max(1, Math.round(anos / 4));
   const marcos = [];
   for(let a = step; a < anos; a += step) if(evoAnual[a-1]) marcos.push(evoAnual[a-1]);
@@ -3535,7 +3547,7 @@ function simAdvTab(anos, btn){
       </div>
     </div>
     <div style="font-size:9px;color:var(--td);text-align:center;padding-top:10px">
-      ⚠ R$${divPorCota.toFixed(4)}/cota/mês · preço médio R$${precoMedio.toFixed(2)}/cota. Valores futuros podem variar.
+      ⚠ Renda mensal = dividendos anuais ÷ 12. Valores futuros podem variar.
     </div>`;
 }
 /* ── NEWS ── */
