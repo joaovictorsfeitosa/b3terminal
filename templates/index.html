@@ -3316,44 +3316,47 @@ function renderReinvResult(totalInvestido, divAnual, results){
   const cotasIniciais = results.reduce((s,r) => s + (r.cotas||0), 0);
   const precoMedio    = cotasIniciais > 0 ? totalInvestido / cotasIniciais : 0;
   const aporteMs      = parseFloat(document.getElementById('sim-aporte-mensal')?.value||'0') || 0;
-  const taxaMensal    = divAnual / totalInvestido / 12;
 
-  // Simulação mês a mês
-  let cotas       = cotasIniciais;
-  let divAcum     = 0;
-  let cotasAcum   = 0;   // cotas recompradas ao longo do tempo
-  const evoAnual  = [];
+  // divPorCota mensal = dividendo mensal real por cota (ex: R$0,09 para MXRF11)
+  // divAnual = soma de todos os anual_estimado dos ativos
+  // divMensal inicial = divAnual / 12
+  // divPorCota = divMensal / cotasIniciais
+  const divMensalInicial = divAnual / 12;
+  const divPorCota       = cotasIniciais > 0 ? divMensalInicial / cotasIniciais : 0;
+
+  let cotas     = cotasIniciais;
+  let divAcum   = 0;
+  let cotasAcum = 0;
+  const evoAnual = [];
 
   for(let m = 1; m <= meses; m++){
-    // 1) dividendos gerados pelas cotas atuais → reinvestidos em novas cotas
-    const divMes    = cotas * (taxaMensal > 0 ? taxaMensal : 0);
-    const cotasDiv  = precoMedio > 0 ? divMes  / precoMedio : 0;
-    // 2) aporte mensal → integralmente em novas cotas
-    const cotasAp   = precoMedio > 0 ? aporteMs / precoMedio : 0;
+    // dividendo mensal = cotas atuais × valor por cota
+    const divMes   = cotas * divPorCota;
+    // reinveste dividendos em cotas
+    const cotasDiv = precoMedio > 0 ? divMes   / precoMedio : 0;
+    // aporte mensal → 100% em cotas
+    const cotasAp  = precoMedio > 0 ? aporteMs / precoMedio : 0;
 
     cotas     += cotasDiv + cotasAp;
     cotasAcum += cotasDiv + cotasAp;
     divAcum   += divMes;
 
     if(m % 12 === 0){
-      const patrimonioAtual = cotas * precoMedio;
-      const rendaMensalAno  = cotas * taxaMensal;   // renda mensal ao final deste ano
       evoAnual.push({
         ano:        m / 12,
         cotas:      Math.round(cotas),
         cotasAcum:  Math.round(cotasAcum),
-        divMensal:  rendaMensalAno,
+        divMensal:  cotas * divPorCota,
         divAcum:    Math.round(divAcum),
-        patrimonio: Math.round(patrimonioAtual),
+        patrimonio: Math.round(cotas * precoMedio),
       });
     }
   }
 
-  const final       = evoAnual[evoAnual.length - 1] || {};
-  const rendaInicial = divAnual / 12;
-  const crescPct    = rendaInicial > 0 ? ((final.divMensal - rendaInicial) / rendaInicial * 100).toFixed(0) : 0;
-  const yoc         = totalInvestido > 0 ? (final.divMensal * 12 / totalInvestido * 100).toFixed(1) : '0.0';
-  const maxPatr     = final.patrimonio || 1;
+  const final        = evoAnual[evoAnual.length - 1] || {};
+  const crescPct     = divMensalInicial > 0 ? (((final.divMensal||0) - divMensalInicial) / divMensalInicial * 100).toFixed(0) : 0;
+  const yoc          = totalInvestido > 0 ? ((final.divMensal||0) * 12 / totalInvestido * 100).toFixed(1) : '0.0';
+  const maxPatr      = final.patrimonio || 1;
 
   const linhasTabela = evoAnual.map((e, i) => {
     const isLast = i === evoAnual.length - 1;
@@ -3386,7 +3389,7 @@ function renderReinvResult(totalInvestido, divAnual, results){
     <div class="reinv-hero">
       <div class="reinv-hero-t">Renda Mensal no Final do Período</div>
       <div class="reinv-hero-val">${fR(final.divMensal || 0)}<span style="font-size:14px;font-weight:500;color:var(--td)">/mês</span></div>
-      <div class="reinv-hero-sub">vs ${fR(rendaInicial)} no início · +${crescPct}% de crescimento</div>
+      <div class="reinv-hero-sub">vs ${fR(divMensalInicial)} no início · +${crescPct}% de crescimento</div>
     </div>
 
     <div class="reinv-kpis">
@@ -3399,7 +3402,7 @@ function renderReinvResult(totalInvestido, divAnual, results){
         <div class="reinv-kpi-v" style="color:var(--p)">${(final.cotas || 0).toLocaleString('pt-BR')}</div>
       </div>
       <div class="reinv-kpi">
-        <div class="reinv-kpi-l">Cotas Recompradas</div>
+        <div class="reinv-kpi-l">Cotas Adquiridas</div>
         <div class="reinv-kpi-v" style="color:var(--ui2)">+${(final.cotasAcum || 0).toLocaleString('pt-BR')}</div>
       </div>
       <div class="reinv-kpi">
@@ -3424,14 +3427,15 @@ function renderReinvResult(totalInvestido, divAnual, results){
         <div>PATRIMÔNIO</div>
         <div style="text-align:right">RENDA/MÊS</div>
         <div style="text-align:right">TOTAL COTAS</div>
-        <div style="text-align:right">RECOMPRADAS</div>
+        <div style="text-align:right">ADQUIRIDAS</div>
       </div>
       ${linhasTabela}
     </div>
     <div style="font-size:9px;color:var(--td);text-align:center;padding-top:10px">
-      ⚠ Preço médio por cota: ${precoMedio > 0 ? fR(precoMedio) : '—'}. Dividendos futuros podem variar.
+      ⚠ Preço médio por cota: ${precoMedio > 0 ? fR(precoMedio) : '—'} · R$${divPorCota.toFixed(4)}/cota/mês. Dividendos futuros podem variar.
     </div>`;
 }
+
 
 function simAdvTab(anos, btn){
   if(btn){
@@ -3446,12 +3450,15 @@ function simAdvTab(anos, btn){
   const cotasIni   = window._simCotasIniciais || 0;
   const precoMedio = cotasIni > 0 ? investido / cotasIni : 0;
   const aporteMs   = parseFloat(document.getElementById('sim-aporte-mensal')?.value||'0') || 0;
-  const taxaMensal = divAnual / investido / 12;
 
   if(investido <= 0){
     wrap.innerHTML = '<div style="color:var(--td);font-size:12px">Execute uma simulação primeiro.</div>';
     return;
   }
+
+  // divPorCota mensal = quanto cada cota paga por mês
+  const divMensalInicial = divAnual / 12;
+  const divPorCota       = cotasIni > 0 ? divMensalInicial / cotasIni : 0;
 
   const meses = anos * 12;
   let cotas     = cotasIni;
@@ -3460,7 +3467,7 @@ function simAdvTab(anos, btn){
   const evoAnual = [];
 
   for(let m = 1; m <= meses; m++){
-    const divMes   = cotas * taxaMensal;
+    const divMes   = cotas * divPorCota;
     const cotasDiv = precoMedio > 0 ? divMes   / precoMedio : 0;
     const cotasAp  = precoMedio > 0 ? aporteMs / precoMedio : 0;
     cotas     += cotasDiv + cotasAp;
@@ -3471,7 +3478,7 @@ function simAdvTab(anos, btn){
         ano:       m / 12,
         cotas:     Math.round(cotas),
         cotasAcum: Math.round(cotasAcum),
-        divMensal: cotas * taxaMensal,
+        divMensal: cotas * divPorCota,
         divAcum:   Math.round(divAcum),
         patrimonio:Math.round(cotas * precoMedio),
       });
@@ -3479,14 +3486,14 @@ function simAdvTab(anos, btn){
   }
 
   const final = evoAnual[evoAnual.length - 1] || {};
-  const yoc   = investido > 0 ? (final.divMensal * 12 / investido * 100).toFixed(1) : '0.0';
+  const yoc   = investido > 0 ? ((final.divMensal||0) * 12 / investido * 100).toFixed(1) : '0.0';
 
-  // Marcos: 4 pontos distribuídos no período
-  const step   = Math.max(1, Math.floor(anos / 4));
+  // 4 marcos distribuídos no período
+  const step   = Math.max(1, Math.round(anos / 4));
   const marcos = [];
-  for(let a = step; a <= anos; a += step) marcos.push(evoAnual[a - 1]);
-  if(marcos[marcos.length-1]?.ano !== anos) marcos.push(evoAnual[anos - 1]);
-  const marcosLimpos = marcos.filter(Boolean).slice(0, 4);
+  for(let a = step; a < anos; a += step) if(evoAnual[a-1]) marcos.push(evoAnual[a-1]);
+  if(evoAnual[anos-1]) marcos.push(evoAnual[anos-1]);
+  const marcosLimpos = marcos.slice(0, 4);
 
   const cards = marcosLimpos.map(e => `
     <div class="sim-proj-card">
@@ -3498,7 +3505,7 @@ function simAdvTab(anos, btn){
 
   const aporteLinha = aporteMs > 0
     ? `<div style="font-size:10px;color:var(--td);background:rgba(255,196,0,.06);border:1px solid rgba(255,196,0,.2);border-radius:8px;padding:8px 12px;margin-bottom:14px">
-        💰 Aporte de <strong style="color:var(--a)">${fR(aporteMs)}/mês</strong> aplicado integralmente em cotas.
+        💰 Aporte de <strong style="color:var(--a)">${fR(aporteMs)}/mês</strong> aplicado integralmente em cotas ao preço de ${fR(precoMedio)}/cota.
       </div>` : '';
 
   wrap.innerHTML = `
@@ -3526,6 +3533,9 @@ function simAdvTab(anos, btn){
         <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">YIELD ON COST</div>
         <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--p)">${yoc}%</div>
       </div>
+    </div>
+    <div style="font-size:9px;color:var(--td);text-align:center;padding-top:10px">
+      ⚠ R$${divPorCota.toFixed(4)}/cota/mês · preço médio R$${precoMedio.toFixed(2)}/cota. Valores futuros podem variar.
     </div>`;
 }
 /* ── NEWS ── */
