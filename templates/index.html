@@ -3164,6 +3164,145 @@ function getReinvAnos(){
   return _reinvAnos;
 }
 
+async function runSimulador(){
+  const total=parseFloat($("sim-val").value)||0;
+  const dist=$("sim-dist").value;
+  const sel=simData.filter(d=>simSel.has(d.symbol));
+  if(!total||!sel.length){
+    alert("Preencha o valor e selecione pelo menos um ativo.");return;
+  }
+
+  // Mostra loading
+  $("sim-result").innerHTML='<div class="empty-box"><div class="loading" style="grid-column:unset;padding:20px"><div class="sp"></div>CALCULANDO...</div></div>';
+  $("sim-calendar").innerHTML='';
+  $("sim-detail").innerHTML='';
+
+  try{
+    const body={
+      symbols: sel.map(d=>({sym:d.symbol,tipo:d.tipo})),
+      valor_total: total,
+      distribuicao: dist,
+      pct: simPct,
+    };
+    const data=await apiFetch("/api/simulate",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)
+    });
+
+    const {results,total_mensal,total_anual,total_inv,yield_medio}=data;
+    const totalInvestido = total_inv || 0;
+    const mx=Math.max(...results.map(r=>r.mensal_estimado),0.01);
+
+    // Painel de resumo
+    $("sim-result").innerHTML=`
+      <div class="sim-pt">📊 Resultado</div>
+      <div class="income-box">
+        <div class="income-lbl">Renda Mensal Estimada</div>
+        <div class="income-val">${fR(total_mensal)}</div>
+        <div class="income-sub">por mês · baseado no histórico real de dividendos</div>
+      </div>
+      <div class="kpi-row">
+        <div class="kbox"><div class="kbox-l">Renda Anual</div><div class="kbox-v" style="color:var(--a)">${fR(total_anual)}</div></div>
+        <div class="kbox"><div class="kbox-l">Yield Médio</div><div class="kbox-v" style="color:var(--g)">${yield_medio.toFixed(2)}%</div></div>
+        <div class="kbox"><div class="kbox-l">Total Investido</div><div class="kbox-v" style="color:var(--tb)">${fR(total_inv)}</div></div>
+      </div>
+      <div class="bar-title">Distribuição da Renda</div>
+      ${results.sort((a,b)=>b.mensal_estimado-a.mensal_estimado).map(r=>`
+        <div class="bar-row">
+          <div class="bar-lbl">${r.sym}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(r.mensal_estimado/mx*100).toFixed(1)}%"><span>${fR(r.mensal_estimado)}/mês</span></div></div>
+          <div class="bar-val">${fR(r.mensal_estimado)}</div>
+        </div>`).join("")}
+      <div style="font-size:9px;color:var(--td);text-align:center;padding-top:10px;border-top:1px solid var(--bd);margin-top:10px">⚠ Baseado no histórico real. Dividendos passados não garantem retornos futuros.</div>`;
+
+    // Calendário de pagamentos por empresa
+    $("sim-calendar").innerHTML=`
+      <div class="stitle" style="margin-top:24px">
+        <div class="sl">Calendário de Pagamentos por Empresa</div>
+        <div class="sr">próximos 12 meses · ${results.filter(r=>r.projected&&r.projected.length).length} ativos com histórico</div>
+      </div>
+      <div class="cal-grid">
+        ${results.map(r=>{
+          const hasProj=r.projected&&r.projected.length>0;
+          return`<div class="cal-card">
+            <div class="cal-header">
+              <div>
+                <div class="cal-sym">${r.sym}</div>
+                <div class="cal-name">${r.name}</div>
+                <div class="cal-cotas">${r.cotas>0?r.cotas.toLocaleString("pt-BR")+" cotas · "+fR(r.investido)+" investidos":"—"}</div>
+              </div>
+              <div style="text-align:right">
+                ${pill(r.tipo)}
+                <div class="cal-freq" style="margin-top:5px">${r.freq_label||"—"}</div>
+              </div>
+            </div>
+            <div class="cal-summary">
+              <div class="cal-s"><div class="cal-s-l">Por Cota</div><div class="cal-s-v" style="color:var(--a)">${r.last_value>0?fR(r.last_value):"—"}</div></div>
+              <div class="cal-s"><div class="cal-s-l">Mensal Est.</div><div class="cal-s-v" style="color:var(--g)">${fR(r.mensal_estimado)}</div></div>
+              <div class="cal-s"><div class="cal-s-l">Anual Est.</div><div class="cal-s-v" style="color:var(--a)">${fR(r.anual_estimado)}</div></div>
+            </div>
+            <div class="cal-payments">
+              <div class="cal-pay-title">Próximos pagamentos projetados</div>
+              ${hasProj
+                ?r.projected.slice(0,6).map(p=>`
+                  <div class="pay-row ${p.is_next?"next":""}">
+                    <div>
+                      <div class="pay-date">${p.date_str}${p.is_next?'<span class="pay-next-badge">PRÓXIMO</span>':""}</div>
+                    </div>
+                    <div style="text-align:right">
+                      <div class="pay-val">${fR(p.value_total)}</div>
+                      <div class="pay-cota">R$${p.value_cota.toFixed(4)}/cota</div>
+                    </div>
+                  </div>`).join("")
+                :'<div class="no-pay">📊 Sem histórico de dividendos<br>suficiente para projeção</div>'
+              }
+            </div>
+          </div>`;
+        }).join("")}
+      </div>`;
+
+    // Tabela detalhada
+    $("sim-detail").innerHTML=`
+      <div class="stitle"><div class="sl" style="font-size:12px">Tabela Resumo</div></div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Ativo</th><th>Tipo</th><th>Cotas</th><th>Investido</th><th>Frequência</th><th>Yield</th><th>Mensal Est.</th><th style="text-align:right">Anual Est.</th></tr></thead>
+          <tbody>
+            ${results.map(r=>`<tr>
+              <td><div class="td-sym">${r.sym}</div><div class="td-sub">${r.name}</div></td>
+              <td>${pill(r.tipo)}</td>
+              <td>${r.cotas>0?r.cotas.toLocaleString("pt-BR"):"—"}</td>
+              <td>${fR(r.investido)}</td>
+              <td><span style="font-size:9px;padding:2px 7px;border-radius:4px;background:rgba(0,176,255,.08);color:var(--ui2);border:1px solid rgba(0,176,255,.2)">${r.freq_label||"—"}</span></td>
+              <td>${r.div_yield>0?`<span class="yieldb">${r.div_yield.toFixed(2)}%</span>`:"—"}</td>
+              <td style="color:var(--g);font-family:var(--sans);font-size:13px;font-weight:800">${fR(r.mensal_estimado)}</td>
+              <td style="text-align:right;color:var(--a);font-weight:700">${fR(r.anual_estimado)}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
+
+    // Ativar projeções avançadas
+    const simAdv = $("sim-advanced");
+    if(simAdv){
+      simAdv.style.display = "block";
+      // Salvar dados para projeções
+      window._simTotalInvestido = totalInvestido;
+      window._simDivAnual = results.reduce((s,r)=>s+(r.anual_estimado||0),0);
+      window._simDyMedio = totalInvestido>0 ? (window._simDivAnual/totalInvestido*100) : 0;
+      window._simCotasIniciais = results.reduce((s,r)=>s+(r.cotas||0), 0);
+      const curTab = document.querySelector(".sim-adv-tab.on")||document.querySelector(".sim-adv-tab");
+      simAdvTab(parseInt(curTab?.dataset?.anos||'5'), curTab);
+    }
+
+    // Reinvestimento
+    const _divAnualTotal = results.reduce((s,r)=>s+(r.anual_estimado||0),0);
+    renderReinvResult(totalInvestido, _divAnualTotal, results);
+  }catch(e){
+    $("sim-result").innerHTML=`<div class="errmsg">⚠ Erro na simulação: ${e.message}</div>`;
+  }
+}
 function renderReinvResult(totalInvestido, divAnual, results){
   const wrap = document.getElementById('sim-reinv-result');
   const chk  = document.getElementById('chk-reinv');
