@@ -2125,6 +2125,36 @@ body.light .gr-wm-cover{background:#ffffff}
       </div>
       <div class="alist" id="alist"><div class="loading"><div class="sp"></div></div></div>
 
+      <!-- APORTE MENSAL -->
+      <div style="background:var(--bg3);border:1px solid rgba(255,196,0,.2);border-radius:12px;padding:14px 16px;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span style="font-size:16px">💰</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--tb);letter-spacing:.5px">Aporte Mensal</div>
+            <div style="font-size:10px;color:var(--td)">Valor adicional investido todo mês</div>
+          </div>
+        </div>
+        <div class="pfxwrap"><input class="sim-inp" id="sim-aporte-mensal" type="number" min="0" step="100" placeholder="0" style="padding-left:32px"></div>
+      </div>
+
+      <!-- PERÍODO DE PROJEÇÃO -->
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-top:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--tb);letter-spacing:.5px;margin-bottom:10px">⏱ Período de Projeção</div>
+        <div class="sim-period-tabs" id="sim-period-tabs">
+          <div class="sim-period-tab on" data-anos="1" onclick="selectPeriod(1,this)">1 Ano</div>
+          <div class="sim-period-tab" data-anos="2" onclick="selectPeriod(2,this)">2 Anos</div>
+          <div class="sim-period-tab" data-anos="5" onclick="selectPeriod(5,this)">5 Anos</div>
+          <div class="sim-period-tab" data-anos="10" onclick="selectPeriod(10,this)">10 Anos</div>
+          <div class="sim-period-tab" data-anos="custom" onclick="selectPeriod('custom',this)">Personalizado</div>
+        </div>
+        <div id="sim-period-custom" style="display:none;margin-top:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <input class="sim-inp" id="inp-anos-custom" type="number" min="1" max="50" placeholder="Ex: 7" style="width:80px;text-align:center">
+            <span style="font-size:11px;color:var(--td)">anos</span>
+          </div>
+        </div>
+      </div>
+
       <!-- REINVESTIMENTO -->
       <div class="sim-reinv-box" id="sim-reinv-box">
         <div class="sim-reinv-header" onclick="toggleReinvPanel()">
@@ -2141,22 +2171,8 @@ body.light .gr-wm-cover{background:#ffffff}
           </label>
         </div>
         <div class="sim-reinv-body" id="sim-reinv-body" style="display:none">
-          <label class="sim-lbl" style="margin-top:12px">⏱ Período de Simulação</label>
-          <div class="sim-period-tabs" id="sim-period-tabs">
-            <div class="sim-period-tab on" data-anos="1" onclick="selectPeriod(1,this)">1 Ano</div>
-            <div class="sim-period-tab" data-anos="2" onclick="selectPeriod(2,this)">2 Anos</div>
-            <div class="sim-period-tab" data-anos="5" onclick="selectPeriod(5,this)">5 Anos</div>
-            <div class="sim-period-tab" data-anos="10" onclick="selectPeriod(10,this)">10 Anos</div>
-            <div class="sim-period-tab" data-anos="custom" onclick="selectPeriod('custom',this)">Personalizado</div>
-          </div>
-          <div id="sim-period-custom" style="display:none;margin-top:8px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <input class="sim-inp" id="inp-anos-custom" type="number" min="1" max="50" placeholder="Ex: 7" style="width:80px;text-align:center">
-              <span style="font-size:11px;color:var(--td)">anos</span>
-            </div>
-          </div>
-          <div class="sim-reinv-note">
-            📌 Os dividendos recebidos serão usados para comprar mais cotas, acelerando os ganhos ao longo do tempo.
+          <div class="sim-reinv-note" style="margin-top:10px">
+            📌 Os dividendos recebidos serão usados para comprar mais cotas, acelerando os ganhos ao longo do tempo. Se um aporte mensal estiver configurado, ele também será reinvestido.
           </div>
         </div>
       </div>
@@ -2180,13 +2196,13 @@ body.light .gr-wm-cover{background:#ffffff}
   <div id="sim-advanced" style="display:none;margin-top:28px">
     <div class="stitle" style="margin-bottom:16px">
       <div class="sl">🚀 Projeções Avançadas de Dividendos</div>
-      <div class="sr" style="font-size:10px;color:var(--td)">Com reinvestimento automático dos dividendos</div>
+      <div class="sr" style="font-size:10px;color:var(--td)">Cenário A: só dividendos · Cenário B: dividendos + aporte mensal</div>
     </div>
     <div class="sim-adv-tabs">
-      <div class="sim-adv-tab on" onclick="simAdvTab(5,this)">5 Anos</div>
-      <div class="sim-adv-tab" onclick="simAdvTab(10,this)">10 Anos</div>
-      <div class="sim-adv-tab" onclick="simAdvTab(20,this)">20 Anos</div>
-      <div class="sim-adv-tab" onclick="simAdvTab(30,this)">30 Anos</div>
+      <div class="sim-adv-tab on" data-anos="5" onclick="simAdvTab(5,this)">5 Anos</div>
+      <div class="sim-adv-tab" data-anos="10" onclick="simAdvTab(10,this)">10 Anos</div>
+      <div class="sim-adv-tab" data-anos="20" onclick="simAdvTab(20,this)">20 Anos</div>
+      <div class="sim-adv-tab" data-anos="30" onclick="simAdvTab(30,this)">30 Anos</div>
     </div>
     <div id="sim-adv-result"></div>
   </div>
@@ -3148,6 +3164,39 @@ function getReinvAnos(){
   return _reinvAnos;
 }
 
+function calcScenario(totalInvestido, divAnual, cotasIniciais, precoMedioCota, anos, aporteMs){
+  const meses = anos * 12;
+  const taxaMensal = divAnual / totalInvestido / 12;
+  let patrimonio = totalInvestido;
+  let cotas = cotasIniciais;
+  let divAcum = 0;
+  let cotasAcum = 0;
+  let totalAportado = 0;
+  const evoAnual = [];
+  for(let m=1; m<=meses; m++){
+    const divMes = patrimonio * taxaMensal;
+    divAcum += divMes;
+    const reinvest = divMes + aporteMs;
+    const novasCotas = precoMedioCota > 0 ? reinvest / precoMedioCota : 0;
+    cotas += novasCotas;
+    cotasAcum += novasCotas;
+    patrimonio += reinvest;
+    totalAportado += aporteMs;
+    if(m % 12 === 0){
+      evoAnual.push({
+        ano: m/12,
+        patrimonio: Math.round(patrimonio),
+        cotas: Math.round(cotas),
+        cotasAcum: Math.round(cotasAcum),
+        divMensal: Math.round(divMes),
+        divAcum: Math.round(divAcum),
+        totalAportado: Math.round(totalAportado),
+      });
+    }
+  }
+  return evoAnual;
+}
+
 function renderReinvResult(totalInvestido, divAnual, results){
   const wrap = document.getElementById('sim-reinv-result');
   const chk = document.getElementById('chk-reinv');
@@ -3157,115 +3206,129 @@ function renderReinvResult(totalInvestido, divAnual, results){
   }
 
   const anos = getReinvAnos();
-  const meses = anos * 12;
-  const taxaMensal = divAnual / totalInvestido / 12;
-
-  // Calcular preço médio por cota de todos os ativos selecionados
   const cotasIniciais = results.reduce((s,r)=>s+(r.cotas||0), 0);
   const precoMedioCota = cotasIniciais > 0 ? totalInvestido / cotasIniciais : 0;
+  const aporteMs = parseFloat(document.getElementById('sim-aporte-mensal')?.value||'0')||0;
 
-  let patrimonio = totalInvestido;
-  let cotas = cotasIniciais;
-  let divAcum = 0;
-  let cotasAcum = 0;
+  // Cenário A: apenas reinvestimento de dividendos
+  const eA = calcScenario(totalInvestido, divAnual, cotasIniciais, precoMedioCota, anos, 0);
+  // Cenário B: dividendos + aporte mensal
+  const eB = aporteMs > 0 ? calcScenario(totalInvestido, divAnual, cotasIniciais, precoMedioCota, anos, aporteMs) : null;
 
-  const evoMensal = [];
-  for(let m=1; m<=meses; m++){
-    const divMes = patrimonio * taxaMensal;
-    divAcum += divMes;
-    // comprar cotas com os dividendos
-    const novasCotas = precoMedioCota > 0 ? divMes / precoMedioCota : 0;
-    cotas += novasCotas;
-    cotasAcum += novasCotas;
-    patrimonio += divMes;
-    evoMensal.push({
-      mes: m,
-      ano: Math.ceil(m/12),
-      patrimonio: Math.round(patrimonio),
-      cotas: Math.round(cotas),
-      cotasAcum: Math.round(cotasAcum),
-      divMensal: Math.round(divMes),
-      divAcum: Math.round(divAcum),
-    });
-  }
+  const finalA = eA[eA.length-1] || {};
+  const finalB = eB ? eB[eB.length-1] || {} : null;
+  const maxPatrA = finalA.patrimonio || 1;
+  const maxPatrB = finalB ? finalB.patrimonio || 1 : 1;
+  const rendaInicialMes = Math.round(divAnual / 12);
 
-  // Pontos anuais
-  const evoAnual = [];
-  for(let a=1; a<=anos; a++){
-    const ponto = evoMensal.find(e=>e.mes===a*12) || evoMensal[evoMensal.length-1];
-    evoAnual.push({...ponto, ano:a});
-  }
+  const yocA = totalInvestido > 0 ? (finalA.divMensal*12/totalInvestido*100) : 0;
+  const yocB = finalB && totalInvestido > 0 ? (finalB.divMensal*12/totalInvestido*100) : 0;
 
-  const final = evoAnual[evoAnual.length-1] || {};
-  const maxPatr = final.patrimonio || 1;
-  const rendaMensalFinal = final.divMensal || 0;
-  const yoc = totalInvestido > 0 ? (rendaMensalFinal*12/totalInvestido*100) : 0;
+  const tabelaA = eA.map((e,i)=>{
+    const isLast = i===eA.length-1;
+    const pct = ((e.patrimonio/maxPatrA)*100).toFixed(1);
+    return `<div class="reinv-year-row ${isLast?'highlight':''}">
+      <div style="font-weight:700;color:${isLast?'var(--ui2)':'var(--tb)'};font-size:12px">${e.ano}A</div>
+      <div><div class="reinv-bar-wrap"><div class="reinv-bar" style="width:${pct}%"></div></div><div style="font-size:9px;color:var(--td);margin-top:3px">${fR(e.patrimonio)}</div></div>
+      <div style="text-align:right;color:var(--g);font-weight:700">${fR(e.divMensal)}</div>
+      <div style="text-align:right"><span class="reinv-cotas-pill">+${e.cotasAcum.toLocaleString('pt-BR')}</span></div>
+      <div style="text-align:right;color:var(--td)">${e.cotas.toLocaleString('pt-BR')}</div>
+    </div>`;
+  }).join('');
+
+  const tabelaB = eB ? eB.map((e,i)=>{
+    const isLast = i===eB.length-1;
+    const pct = ((e.patrimonio/maxPatrB)*100).toFixed(1);
+    return `<div class="reinv-year-row ${isLast?'highlight':''}">
+      <div style="font-weight:700;color:${isLast?'var(--ui2)':'var(--tb)'};font-size:12px">${e.ano}A</div>
+      <div><div class="reinv-bar-wrap"><div class="reinv-bar" style="width:${pct}%;background:linear-gradient(90deg,var(--a),var(--g))"></div></div><div style="font-size:9px;color:var(--td);margin-top:3px">${fR(e.patrimonio)}</div></div>
+      <div style="text-align:right;color:var(--g);font-weight:700">${fR(e.divMensal)}</div>
+      <div style="text-align:right"><span class="reinv-cotas-pill" style="background:rgba(255,196,0,.12);border-color:rgba(255,196,0,.3);color:var(--a)">+${e.cotasAcum.toLocaleString('pt-BR')}</span></div>
+      <div style="text-align:right;color:var(--td)">${e.cotas.toLocaleString('pt-BR')}</div>
+    </div>`;
+  }).join('') : '';
+
+  const secB = eB ? `
+    <div style="margin-top:24px">
+      <div class="stitle" style="margin-bottom:14px">
+        <div class="sl" style="color:var(--a)">💰 Cenário B · Reinvestindo Dividendos + Aporte Mensal de ${fR(aporteMs)}</div>
+        <div class="sr" style="font-size:10px;color:var(--td)">${anos} ano${anos>1?'s':''} · dividendos + aporte todo mês</div>
+      </div>
+      <div class="reinv-hero" style="border-color:rgba(255,196,0,.2);background:linear-gradient(135deg,rgba(255,196,0,.06),transparent)">
+        <div class="reinv-hero-t">Renda Mensal no Final (Cenário B)</div>
+        <div class="reinv-hero-val" style="color:var(--a)">${fR(finalB.divMensal||0)}<span style="font-size:14px;font-weight:500;color:var(--td)">/mês</span></div>
+        <div class="reinv-hero-sub">vs ${fR(rendaInicialMes)} inicial · ${finalB.divMensal>rendaInicialMes?'+':''}${rendaInicialMes>0?((finalB.divMensal-rendaInicialMes)/rendaInicialMes*100).toFixed(0):0}% de crescimento</div>
+      </div>
+      <div class="reinv-kpis">
+        <div class="reinv-kpi"><div class="reinv-kpi-l">Patrimônio Final</div><div class="reinv-kpi-v" style="color:var(--ui1)">${fR(finalB.patrimonio||0)}</div></div>
+        <div class="reinv-kpi"><div class="reinv-kpi-l">Dividendos Recebidos</div><div class="reinv-kpi-v" style="color:var(--g)">${fR(finalB.divAcum||0)}</div></div>
+        <div class="reinv-kpi"><div class="reinv-kpi-l">Cotas Recompradas</div><div class="reinv-kpi-v" style="color:var(--a)">+${(finalB.cotasAcum||0).toLocaleString('pt-BR')}</div></div>
+        <div class="reinv-kpi"><div class="reinv-kpi-l">Total de Cotas</div><div class="reinv-kpi-v" style="color:var(--p)">${(finalB.cotas||0).toLocaleString('pt-BR')}</div></div>
+        <div class="reinv-kpi"><div class="reinv-kpi-l">Total Aportado</div><div class="reinv-kpi-v" style="color:var(--td)">${fR((finalB.totalAportado||0)+totalInvestido)}</div></div>
+        <div class="reinv-kpi"><div class="reinv-kpi-l">Yield on Cost</div><div class="reinv-kpi-v" style="color:var(--a)">${yocB.toFixed(1)}%</div></div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;overflow:hidden">
+        <div class="reinv-year-row header">
+          <div>ANO</div><div>PATRIMÔNIO</div>
+          <div style="text-align:right">RENDA/MÊS</div>
+          <div style="text-align:right">COTAS RECOMP.</div>
+          <div style="text-align:right">TOTAL COTAS</div>
+        </div>
+        ${tabelaB}
+      </div>
+    </div>` : '';
 
   wrap.style.display='block';
   wrap.innerHTML=`
     <div class="stitle" style="margin-bottom:16px">
-      <div class="sl">♻ Simulação com Reinvestimento de Dividendos</div>
-      <div class="sr" style="font-size:10px;color:var(--td)">${anos} ano${anos>1?'s':''} · recompra de cotas a cada mês</div>
+      <div class="sl">♻ Projeção de Reinvestimento</div>
+      <div class="sr" style="font-size:10px;color:var(--td)">${anos} ano${anos>1?'s':''} · ${eB?'2 cenários comparados':'reinvestimento de dividendos'}</div>
     </div>
 
+    ${eB?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      <div style="background:rgba(0,176,255,.06);border:1px solid rgba(0,176,255,.2);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:4px">CENÁRIO A · SÓ DIVIDENDOS</div>
+        <div style="font-family:var(--sans);font-size:18px;font-weight:800;color:var(--ui1)">${fR(finalA.divMensal||0)}<span style="font-size:11px;color:var(--td)">/mês</span></div>
+        <div style="font-size:10px;color:var(--td);margin-top:3px">${(finalA.cotas||0).toLocaleString('pt-BR')} cotas</div>
+      </div>
+      <div style="background:rgba(255,196,0,.06);border:1px solid rgba(255,196,0,.2);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:4px">CENÁRIO B · + APORTE ${fR(aporteMs)}/MÊS</div>
+        <div style="font-family:var(--sans);font-size:18px;font-weight:800;color:var(--a)">${fR(finalB?finalB.divMensal||0:0)}<span style="font-size:11px;color:var(--td)">/mês</span></div>
+        <div style="font-size:10px;color:var(--td);margin-top:3px">${((finalB&&finalB.cotas)||0).toLocaleString('pt-BR')} cotas</div>
+      </div>
+    </div>`:''}
+
+    <div class="stitle" style="margin-bottom:14px">
+      <div class="sl" style="color:var(--ui2)">📈 Cenário A · Recomprando apenas com Dividendos</div>
+      <div class="sr" style="font-size:10px;color:var(--td)">${anos} ano${anos>1?'s':''} · sem aportes adicionais</div>
+    </div>
     <div class="reinv-hero">
-      <div class="reinv-hero-t">Renda Mensal no Final do Período</div>
-      <div class="reinv-hero-val">${fR(rendaMensalFinal)}<span style="font-size:14px;font-weight:500;color:var(--td)">/mês</span></div>
-      <div class="reinv-hero-sub">vs ${fR(Math.round(divAnual/12))} inicial · crescimento de ${divAnual>0?((rendaMensalFinal-divAnual/12)/(divAnual/12)*100).toFixed(0):0}%</div>
+      <div class="reinv-hero-t">Renda Mensal no Final (Cenário A)</div>
+      <div class="reinv-hero-val">${fR(finalA.divMensal||0)}<span style="font-size:14px;font-weight:500;color:var(--td)">/mês</span></div>
+      <div class="reinv-hero-sub">vs ${fR(rendaInicialMes)} inicial · +${rendaInicialMes>0?((finalA.divMensal-rendaInicialMes)/rendaInicialMes*100).toFixed(0):0}% de crescimento</div>
     </div>
-
     <div class="reinv-kpis">
-      <div class="reinv-kpi">
-        <div class="reinv-kpi-l">Patrimônio Final</div>
-        <div class="reinv-kpi-v" style="color:var(--ui1)">${fR(final.patrimonio||0)}</div>
-      </div>
-      <div class="reinv-kpi">
-        <div class="reinv-kpi-l">Dividendos Acumulados</div>
-        <div class="reinv-kpi-v" style="color:var(--a)">${fR(final.divAcum||0)}</div>
-      </div>
-      <div class="reinv-kpi">
-        <div class="reinv-kpi-l">Cotas Recompradas</div>
-        <div class="reinv-kpi-v" style="color:var(--g)">+${(final.cotasAcum||0).toLocaleString('pt-BR')}</div>
-      </div>
-      <div class="reinv-kpi">
-        <div class="reinv-kpi-l">Total de Cotas Final</div>
-        <div class="reinv-kpi-v" style="color:var(--p)">${(final.cotas||0).toLocaleString('pt-BR')}</div>
-      </div>
-      <div class="reinv-kpi">
-        <div class="reinv-kpi-l">Yield on Cost Final</div>
-        <div class="reinv-kpi-v" style="color:var(--a)">${yoc.toFixed(1)}%</div>
-      </div>
-      <div class="reinv-kpi">
-        <div class="reinv-kpi-l">Ganho de Patrimônio</div>
-        <div class="reinv-kpi-v" style="color:var(--g)">+${fR((final.patrimonio||0)-totalInvestido)}</div>
-      </div>
+      <div class="reinv-kpi"><div class="reinv-kpi-l">Patrimônio Final</div><div class="reinv-kpi-v" style="color:var(--ui1)">${fR(finalA.patrimonio||0)}</div></div>
+      <div class="reinv-kpi"><div class="reinv-kpi-l">Dividendos Recebidos</div><div class="reinv-kpi-v" style="color:var(--g)">${fR(finalA.divAcum||0)}</div></div>
+      <div class="reinv-kpi"><div class="reinv-kpi-l">Cotas Recompradas</div><div class="reinv-kpi-v" style="color:var(--ui2)">+${(finalA.cotasAcum||0).toLocaleString('pt-BR')}</div></div>
+      <div class="reinv-kpi"><div class="reinv-kpi-l">Total de Cotas</div><div class="reinv-kpi-v" style="color:var(--p)">${(finalA.cotas||0).toLocaleString('pt-BR')}</div></div>
+      <div class="reinv-kpi"><div class="reinv-kpi-l">Investido Inicial</div><div class="reinv-kpi-v" style="color:var(--td)">${fR(totalInvestido)}</div></div>
+      <div class="reinv-kpi"><div class="reinv-kpi-l">Yield on Cost</div><div class="reinv-kpi-v" style="color:var(--a)">${yocA.toFixed(1)}%</div></div>
     </div>
-
     <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;overflow:hidden">
       <div class="reinv-year-row header">
-        <div>ANO</div>
-        <div>EVOLUÇÃO DO PATRIMÔNIO</div>
+        <div>ANO</div><div>PATRIMÔNIO</div>
         <div style="text-align:right">RENDA/MÊS</div>
         <div style="text-align:right">COTAS RECOMP.</div>
         <div style="text-align:right">TOTAL COTAS</div>
       </div>
-      ${evoAnual.map((e,i)=>{
-        const isLast = i===evoAnual.length-1;
-        const pct = ((e.patrimonio/maxPatr)*100).toFixed(1);
-        return`<div class="reinv-year-row ${isLast?'highlight':''}">
-          <div style="font-weight:700;color:${isLast?'var(--ui2)':'var(--tb)'};font-size:12px">${e.ano}A</div>
-          <div>
-            <div class="reinv-bar-wrap"><div class="reinv-bar" style="width:${pct}%"></div></div>
-            <div style="font-size:9px;color:var(--td);margin-top:3px">${fR(e.patrimonio)}</div>
-          </div>
-          <div style="text-align:right;color:var(--g);font-weight:700">${fR(e.divMensal)}</div>
-          <div style="text-align:right"><span class="reinv-cotas-pill">+${e.cotasAcum.toLocaleString('pt-BR')}</span></div>
-          <div style="text-align:right;color:var(--td)">${e.cotas.toLocaleString('pt-BR')}</div>
-        </div>`;
-      }).join('')}
+      ${tabelaA}
     </div>
+
+    ${secB}
+
     <div style="font-size:9px;color:var(--td);text-align:center;padding-top:10px">
-      ⚠ Simulação baseada no yield atual. Preço médio por cota: ${precoMedioCota>0?fR(precoMedioCota):'—'}. Resultado real pode variar.
+      ⚠ Baseado no último dividendo pago e yield atual. Preço médio por cota: ${precoMedioCota>0?fR(precoMedioCota):'—'}. Resultado real pode variar.
     </div>`;
 }
 
@@ -3396,11 +3459,14 @@ async function runSimulador(){
       window._simTotalInvestido = totalInvestido;
       window._simDivAnual = results.reduce((s,r)=>s+(r.anual_estimado||0),0);
       window._simDyMedio = totalInvestido>0 ? (window._simDivAnual/totalInvestido*100) : 0;
-      simAdvTab(5, document.querySelector(".sim-adv-tab.on")||document.querySelector(".sim-adv-tab"));
+      window._simCotasIniciais = results.reduce((s,r)=>s+(r.cotas||0), 0);
+      const curTab = document.querySelector(".sim-adv-tab.on")||document.querySelector(".sim-adv-tab");
+      simAdvTab(parseInt(curTab?.dataset?.anos||'5'), curTab);
     }
 
     // Reinvestimento
-    renderReinvResult(totalInvestido, results.reduce((s,r)=>s+(r.anual_estimado||0),0), results);
+    const _divAnualTotal = results.reduce((s,r)=>s+(r.anual_estimado||0),0);
+    renderReinvResult(totalInvestido, _divAnualTotal, results);
   }catch(e){
     $("sim-result").innerHTML=`<div class="errmsg">⚠ Erro na simulação: ${e.message}</div>`;
   }
@@ -3416,63 +3482,113 @@ function simAdvTab(anos, btn){
   const investido = window._simTotalInvestido||0;
   const divAnual  = window._simDivAnual||0;
   const dyPct     = window._simDyMedio||0;
+  const cotasIni  = window._simCotasIniciais||0;
+  const precoMedio= cotasIni > 0 ? investido / cotasIni : 0;
+  const aporteMs  = parseFloat(document.getElementById('sim-aporte-mensal')?.value||'0')||0;
 
   if(investido<=0){ wrap.innerHTML='<div style="color:var(--td);font-size:12px">Execute uma simulação primeiro.</div>'; return; }
 
-  // Projeção com reinvestimento
-  const meses = anos * 12;
-  const taxaMensal = dyPct/100/12;
-  let patrimonio = investido;
-  let divAcum = 0;
-  const evolucao = [];
-  for(let m=0;m<=meses;m++){
-    const divMes = patrimonio * taxaMensal;
-    if(m>0){
-      divAcum += divMes;
-      patrimonio += divMes; // reinvestimento
+  // Função de evolução
+  function projetar(aporteExtra){
+    const meses = anos * 12;
+    const taxaMensal = dyPct/100/12;
+    let patrimonio = investido;
+    let cotas = cotasIni;
+    let divAcum = 0;
+    let cotasAcum = 0;
+    const evolucao = [];
+    for(let m=0;m<=meses;m++){
+      const divMes = patrimonio * taxaMensal;
+      if(m>0){
+        divAcum += divMes;
+        const reinvest = divMes + aporteExtra;
+        const novasCotas = precoMedio > 0 ? reinvest / precoMedio : 0;
+        cotas += novasCotas;
+        cotasAcum += novasCotas;
+        patrimonio += reinvest;
+      }
+      if(m%12===0) evolucao.push({
+        ano:m/12, patrimonio:Math.round(patrimonio),
+        divAcum:Math.round(divAcum), divMensal:Math.round(divMes),
+        cotas:Math.round(cotas), cotasAcum:Math.round(cotasAcum)
+      });
     }
-    if(m%12===0) evolucao.push({ano:m/12, patrimonio:Math.round(patrimonio), divAcum:Math.round(divAcum), divMensal:Math.round(divMes)});
+    return evolucao;
   }
 
-  const final = evolucao[evolucao.length-1]||{};
-  const yoc = investido>0 ? (final.divMensal*12/investido*100) : 0;
+  const evoA = projetar(0);
+  const evoB = aporteMs > 0 ? projetar(aporteMs) : null;
+  const finalA = evoA[evoA.length-1]||{};
+  const finalB = evoB ? evoB[evoB.length-1]||{} : null;
+  const yocA = investido>0 ? (finalA.divMensal*12/investido*100) : 0;
+  const yocB = finalB && investido>0 ? (finalB.divMensal*12/investido*100) : 0;
 
-  // Mini marcos
-  const markos = evolucao.filter(e=>e.ano>0&&e.ano%Math.ceil(anos/4)===0||e.ano===anos);
-  let projHtml = `<div class="sim-proj-grid">`;
-  markos.slice(0,4).forEach(e=>{
-    projHtml += `<div class="sim-proj-card">
-      <div class="sim-proj-year">${e.ano} ANO${e.ano>1?'S':''}</div>
-      <div class="sim-proj-val">R$ ${e.patrimonio.toLocaleString("pt-BR")}</div>
-      <div class="sim-proj-rend">Renda: R$ ${e.divMensal.toLocaleString("pt-BR")}/mês</div>
-      <div class="sim-proj-yoc">YoC: ${(e.divMensal*12/investido*100).toFixed(1)}%</div>
+  // Marco cards por período
+  const marcosA = evoA.filter(e=>e.ano>0 && (e.ano%(Math.ceil(anos/4))===0 || e.ano===anos)).slice(0,4);
+  const marcosB = evoB ? evoB.filter(e=>e.ano>0 && (e.ano%(Math.ceil(anos/4))===0 || e.ano===anos)).slice(0,4) : [];
+
+  function projCards(marcos, cor){
+    return `<div class="sim-proj-grid">${marcos.map(e=>`
+      <div class="sim-proj-card">
+        <div class="sim-proj-year">${e.ano} ANO${e.ano>1?'S':''}</div>
+        <div class="sim-proj-val" style="color:${cor}">R$ ${e.patrimonio.toLocaleString('pt-BR')}</div>
+        <div class="sim-proj-rend">Renda: R$ ${e.divMensal.toLocaleString('pt-BR')}/mês</div>
+        <div style="font-size:10px;color:var(--td);margin-top:2px">${e.cotas.toLocaleString('pt-BR')} cotas</div>
+        <div class="sim-proj-yoc">YoC: ${(e.divMensal*12/investido*100).toFixed(1)}%</div>
+      </div>`).join('')}</div>`;
+  }
+
+  function resumoCards(final, yoc, cor){
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:16px">
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px">
+        <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">PATRIMÔNIO FINAL</div>
+        <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:${cor}">R$ ${(final.patrimonio||0).toLocaleString('pt-BR')}</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px">
+        <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">DIVIDENDOS ACUMULADOS</div>
+        <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--a)">R$ ${(final.divAcum||0).toLocaleString('pt-BR')}</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px">
+        <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">RENDA MENSAL FINAL</div>
+        <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--g)">R$ ${(final.divMensal||0).toLocaleString('pt-BR')}</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px">
+        <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">COTAS TOTAIS</div>
+        <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--p)">${(final.cotas||0).toLocaleString('pt-BR')}</div>
+        <div style="font-size:9px;color:var(--td);margin-top:3px">+${(final.cotasAcum||0).toLocaleString('pt-BR')} recompradas</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px">
+        <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">YIELD ON COST</div>
+        <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--p)">${yoc.toFixed(1)}%</div>
+      </div>
     </div>`;
-  });
-  projHtml += `</div>`;
+  }
 
-  // Resumo final
-  projHtml += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:16px">
-    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px">
-      <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">PATRIMÔNIO FINAL</div>
-      <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--ui1)">R$ ${(final.patrimonio||0).toLocaleString("pt-BR")}</div>
-    </div>
-    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px">
-      <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">DIVIDENDOS ACUMULADOS</div>
-      <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--a)">R$ ${(final.divAcum||0).toLocaleString("pt-BR")}</div>
-    </div>
-    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px">
-      <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">RENDA MENSAL FINAL</div>
-      <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--g)">R$ ${(final.divMensal||0).toLocaleString("pt-BR")}</div>
-    </div>
-    <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:14px">
-      <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">YIELD ON COST</div>
-      <div style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--p)">${yoc.toFixed(1)}%</div>
-    </div>
-  </div>`;
+  const comparativo = evoB ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+      <div style="background:rgba(0,176,255,.06);border:1px solid rgba(0,176,255,.2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">CENÁRIO A · SÓ DIVIDENDOS</div>
+        <div style="font-family:var(--sans);font-size:22px;font-weight:800;color:var(--ui1)">${fR(finalA.divMensal||0)}<span style="font-size:11px;color:var(--td)">/mês</span></div>
+        <div style="font-size:11px;color:var(--td);margin-top:4px">${(finalA.cotas||0).toLocaleString('pt-BR')} cotas · YoC ${yocA.toFixed(1)}%</div>
+      </div>
+      <div style="background:rgba(255,196,0,.06);border:1px solid rgba(255,196,0,.2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:9px;color:var(--td);letter-spacing:1px;margin-bottom:6px">CENÁRIO B · +${fR(aporteMs)}/MÊS</div>
+        <div style="font-family:var(--sans);font-size:22px;font-weight:800;color:var(--a)">${fR(finalB?finalB.divMensal||0:0)}<span style="font-size:11px;color:var(--td)">/mês</span></div>
+        <div style="font-size:11px;color:var(--td);margin-top:4px">${((finalB&&finalB.cotas)||0).toLocaleString('pt-BR')} cotas · YoC ${yocB.toFixed(1)}%</div>
+      </div>
+    </div>` : '';
 
-  wrap.innerHTML = projHtml;
+  wrap.innerHTML = `
+    ${comparativo}
+    <div style="font-size:11px;font-weight:700;color:var(--ui2);letter-spacing:1px;margin-bottom:10px;text-transform:uppercase">📈 Cenário A · Apenas Reinvestindo Dividendos</div>
+    ${projCards(marcosA,'var(--ui1)')}
+    ${resumoCards(finalA, yocA, 'var(--ui1)')}
+    ${evoB ? `
+    <div style="font-size:11px;font-weight:700;color:var(--a);letter-spacing:1px;margin:24px 0 10px;text-transform:uppercase">💰 Cenário B · Dividendos + Aporte Mensal de ${fR(aporteMs)}</div>
+    ${projCards(marcosB,'var(--a)')}
+    ${resumoCards(finalB||{}, yocB, 'var(--a)')}` : ''}
+  `;
 }
-
 /* ── NEWS ── */
 async function loadNews(force=false){
   if(newsLoaded&&!force)return;
