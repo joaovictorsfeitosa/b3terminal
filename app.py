@@ -868,10 +868,13 @@ def get_history(symbol):
 # td_out   : outputsize (number of data points to request)
 # ttl      : cache lifetime in seconds
 CHART_PERIOD_MAP = {
+    "1d":   {"interval": "5min",   "td_out": 78,    "ttl": 120},   # 6.5h * 12 bars
+    "5d":   {"interval": "15min",  "td_out": 130,   "ttl": 300},   # 5 dias * 26 bars
     "1mo":  {"interval": "1day",   "td_out": 35,    "ttl": 600},
     "3mo":  {"interval": "1day",   "td_out": 95,    "ttl": 600},
     "6mo":  {"interval": "1day",   "td_out": 185,   "ttl": 900},
     "1y":   {"interval": "1day",   "td_out": 365,   "ttl": 1800},
+    "2y":   {"interval": "1day",   "td_out": 730,   "ttl": 3600},
     "5y":   {"interval": "1week",  "td_out": 265,   "ttl": 3600},
     "max":  {"interval": "1month", "td_out": 5000,  "ttl": 7200},
 }
@@ -923,11 +926,28 @@ def twelvedata_chart(symbol, period="1mo"):
             print(f"  TwelveData {sym} ({period}): empty values")
             return []
 
+        # Detect if intraday (1d/5d) — values have full datetime not just date
+        is_intraday = period in ("1d", "5d")
         out, seen = [], set()
         for v in values:
             try:
-                date_str = (v.get("datetime") or "")[:10]  # keep YYYY-MM-DD
-                if not date_str or date_str in seen:
+                dt_raw = (v.get("datetime") or "")
+                if not dt_raw:
+                    continue
+                # For intraday keep full datetime as "time" key (unix ts for LightweightCharts)
+                # For daily/weekly keep YYYY-MM-DD
+                if is_intraday:
+                    # dt_raw: "2024-03-15 10:30:00"
+                    try:
+                        dt_obj = datetime.strptime(dt_raw[:16], "%Y-%m-%d %H:%M")
+                        import calendar as _cal
+                        time_val = int(_cal.timegm(dt_obj.timetuple()))
+                    except Exception:
+                        time_val = dt_raw[:16]
+                else:
+                    time_val = dt_raw[:10]  # keep YYYY-MM-DD
+                key = str(time_val)
+                if key in seen:
                     continue
                 cl = float(v.get("close") or 0)
                 if cl <= 0:
@@ -936,9 +956,9 @@ def twelvedata_chart(symbol, period="1mo"):
                 hi = float(v.get("high")   or 0) or cl
                 lo = float(v.get("low")    or 0) or cl
                 vol = int(float(v.get("volume") or 0))
-                seen.add(date_str)
+                seen.add(key)
                 out.append({
-                    "time":   date_str,
+                    "time":   time_val,
                     "open":   round(op, 2),
                     "high":   round(hi, 2),
                     "low":    round(lo, 2),
@@ -2509,3 +2529,246 @@ def debug_brapi(symbol):
     }
     result["token_configured"] = bool(BRAPI_TOKEN)
     return jsonify(result)
+
+
+# ── SCANNER B3 — busca e filtra ativos com múltiplos critérios ───────────────
+
+_SCANNER_ACOES = [
+    "WEGE3","ITUB4","BBAS3","PETR4","VALE3","EGIE3","TAEE11","BBDC4","PRIO3",
+    "RDOR3","FLRY3","VIVT3","CMIG4","BBSE3","LREN3","MGLU3","HAPV3","CXSE3",
+    "SAPR11","ABEV3","RENT3","TOTS3","EQTL3","CPFE3","SUZB3","GGBR4","JBSS3",
+    "SBSP3","ENGI11","BPAC11","SANB11","KLBN11","TAEE4","TRPL4","CPLE6","ENBR3",
+    "SLCE3","AGRO3","BRFS3","BEEF3","SMTO3","CSNA3","USIM5","KEPL3","LEVE3",
+    "PSSA3","MULT3","CCRO3","RAIL3","ECOR3","EMBR3","RAIZ4","IRBR3","CMIN3",
+]
+_SCANNER_FIIS = [
+    "MXRF11","KNRI11","HGLG11","XPML11","VISC11","BRCO11","BTLG11","GGRC11",
+    "BCFF11","CPTS11","KNCR11","KNIP11","RBRF11","RBRR11","HCTR11","VCRI11",
+    "XPLG11","LVBI11","VGIR11","HSML11","PVBI11","MALL11","HGBS11","ALZR11",
+    "GARE11","MGFF11","HGRU11","VINO11","TRXF11","RECR11","MCCI11","IRDM11",
+    "JSRE11","BCIA11","OUJP11","HABT11","RECI11","GTWR11","SNFF11","URPR11",
+]
+_SCANNER_ETFS = [
+    "BOVA11","IVVB11","SMAL11","DIVO11","HASH11","GOLD11","SPXI11","NTNB11",
+    "FIND11","MATB11","ISUS11","XINA11","ACWI11",
+]
+_SCANNER_BDRS = [
+    "AAPL34","AMZO34","GOGL34","MSFT34","TSLA34","META34","NVDC34","NFLX34",
+    "GOOGL34","JPMC34","VISA34","PYPL34","ADBE34",
+]
+
+@app.route("/api/scanner")
+@login_required
+def scanner_b3():
+    tipo    = request.args.get("tipo", "todos").lower()
+    dy_min  = request.args.get("dy_min",  type=float, default=None)
+    dy_max  = request.args.get("dy_max",  type=float, default=None)
+    pl_min  = request.args.get("pl_min",  type=float, default=None)
+    pl_max  = request.args.get("pl_max",  type=float, default=None)
+    pvp_min = request.args.get("pvp_min", type=float, default=None)
+    pvp_max = request.args.get("pvp_max", type=float, default=None)
+    roe_min = request.args.get("roe_min", type=float, default=None)
+    vol_min = request.args.get("vol_min", type=float, default=None)
+    setor_f = request.args.get("setor",   default="").lower()
+    ordenar = request.args.get("ordenar", default="dy")
+    limite  = min(int(request.args.get("limite", 60)), 100)
+
+    syms = []
+    if tipo in ("acoes", "todos"):  syms += _SCANNER_ACOES
+    if tipo in ("fiis",  "todos"):  syms += _SCANNER_FIIS
+    if tipo in ("etfs",  "todos"):  syms += _SCANNER_ETFS
+    if tipo in ("bdrs",  "todos"):  syms += _SCANNER_BDRS
+    if not syms: syms = _SCANNER_ACOES + _SCANNER_FIIS
+
+    ck = f"scn_{tipo}_{dy_min}_{dy_max}_{pl_min}_{pl_max}_{pvp_min}_{pvp_max}_{roe_min}_{vol_min}_{setor_f}_{ordenar}_{limite}"
+    cached = cache_get(ck, ttl=300)
+    if cached: return jsonify(cached)
+
+    quotes = brapi_quotes(syms) or []
+    if not quotes:
+        return jsonify({"results": [], "total": 0})
+
+    results = []
+    for q in quotes:
+        sym   = q.get("symbol", "")
+        fii   = _is_fii(sym)
+        is_etf = sym in _SCANNER_ETFS
+        is_bdr = sym in _SCANNER_BDRS
+
+        price = float(q.get("regularMarketPrice") or 0)
+        chg   = float(q.get("regularMarketChangePercent") or 0)
+        vol   = int(q.get("regularMarketVolume") or 0)
+        dy    = float(q.get("dividendYield") or 0)
+        pl    = float(q.get("priceEarnings") or 0)
+        pb    = float(q.get("priceToBook") or 0)
+        roe_r = q.get("returnOnEquity")
+        roe   = float(roe_r or 0) * 100 if roe_r is not None else 0
+        mcap  = float(q.get("marketCap") or 0)
+        w52l  = float(q.get("fiftyTwoWeekLow") or 0)
+        w52h  = float(q.get("fiftyTwoWeekHigh") or 0)
+        name  = (q.get("shortName") or sym)[:28]
+
+        if dy == 0:
+            static = _DIV_DB.get(sym)
+            if static: dy = static["dy"] * 100
+
+        sector = _SECTOR_MAP.get(sym, "FII" if fii else ("ETF" if is_etf else ("BDR" if is_bdr else "Outros")))
+
+        if price <= 0: continue
+        if dy_min  is not None and dy  < dy_min:  continue
+        if dy_max  is not None and dy  > dy_max:  continue
+        if pl_min  is not None and pl  < pl_min:  continue
+        if pl_max  is not None and (pl <= 0 or pl > pl_max): continue
+        if pvp_min is not None and pb  < pvp_min: continue
+        if pvp_max is not None and (pb <= 0 or pb > pvp_max): continue
+        if roe_min is not None and roe < roe_min: continue
+        if vol_min is not None and vol < vol_min: continue
+        if setor_f and setor_f not in sector.lower() and setor_f not in name.lower(): continue
+
+        dist_52 = None
+        if w52h > w52l and w52h != w52l and price > 0:
+            dist_52 = round((price - w52l) / (w52h - w52l) * 100, 1)
+
+        sc = 0
+        if dy >= 10: sc += 25
+        elif dy >= 7: sc += 20
+        elif dy >= 5: sc += 15
+        elif dy >= 3: sc += 10
+        if pl > 0:
+            if pl < 8: sc += 25
+            elif pl < 15: sc += 18
+            elif pl < 25: sc += 12
+        elif fii and pb > 0:
+            if pb < 0.9: sc += 25
+            elif pb < 1.0: sc += 20
+            elif pb < 1.1: sc += 14
+        if roe >= 20: sc += 20
+        elif roe >= 12: sc += 15
+        elif roe >= 6: sc += 8
+
+        results.append({
+            "symbol": sym, "name": name, "sector": sector,
+            "tipo": "FII" if fii else ("ETF" if is_etf else ("BDR" if is_bdr else "AÇÃO")),
+            "price": round(price,2), "change": round(chg,2), "volume": vol,
+            "dy": round(dy,2), "pl": round(pl,2), "pvp": round(pb,2),
+            "roe": round(roe,2), "mcap": mcap, "dist_52": dist_52,
+            "score": sc, "fii": fii,
+        })
+
+    ord_map = {
+        "dy":     lambda x: -(x["dy"] or 0),
+        "pl":     lambda x: (x["pl"] if x["pl"] > 0 else 9999),
+        "pvp":    lambda x: (x["pvp"] if x["pvp"] > 0 else 9999),
+        "roe":    lambda x: -(x["roe"] or 0),
+        "change": lambda x: -(x["change"] or 0),
+        "price":  lambda x: x["price"],
+        "volume": lambda x: -(x["volume"] or 0),
+        "score":  lambda x: -(x["score"] or 0),
+    }
+    results.sort(key=ord_map.get(ordenar, ord_map["dy"]))
+    results = results[:limite]
+    out = {"results": results, "total": len(results), "tipo": tipo}
+    cache_set(ck, out)
+    return jsonify(out)
+
+
+# ── Independência Financeira v2 — simulação completa ─────────────────────────
+@app.route("/api/independencia/v2", methods=["POST"])
+@login_required
+def simulador_independencia_v2():
+    data = request.json or {}
+    patrimonio_atual = float(data.get("patrimonio_atual", 0))
+    aporte_mensal    = float(data.get("aporte_mensal", 0))
+    aporte_anual     = float(data.get("aporte_anual", 0))
+    rentabilidade    = float(data.get("rentabilidade", 10.0))
+    inflacao         = float(data.get("inflacao", 4.5))
+    dy_inicial       = float(data.get("dy_inicial", 8.0))
+    crescimento_div  = float(data.get("crescimento_div", 3.0))
+    ir_aliquota      = float(data.get("ir_aliquota", 15.0))
+    reinvestir_div   = bool(data.get("reinvestir_div", True))
+    renda_desejada   = float(data.get("renda_desejada", 5000))
+    idade_atual      = int(data.get("idade_atual", 30))
+    anos_simulacao   = int(min(data.get("anos_simulacao", 30), 50))
+
+    rent_real_aa = ((1 + rentabilidade/100) / (1 + inflacao/100) - 1) * 100
+    pat_necessario = (renda_desejada * 12 / (rent_real_aa/100)) if rent_real_aa > 0 else 0
+
+    def simular(taxa_aa_pct, nome):
+        taxa_men  = (1 + taxa_aa_pct/100) ** (1/12) - 1
+        dy_aa = dy_inicial / 100
+        taxa_dy_men = dy_aa / 12
+        pat = patrimonio_atual
+        total_aportado = patrimonio_atual
+        total_divs = 0.0
+        total_ir = 0.0
+        evolucao = []
+        anos_obj = None
+
+        for m in range(1, anos_simulacao * 12 + 1):
+            rend = pat * taxa_men
+            ir_m = rend * (ir_aliquota / 100)
+            total_ir += ir_m
+            div_m = pat * taxa_dy_men * (1 - ir_aliquota/100/2)
+            total_divs += div_m
+
+            if reinvestir_div:
+                pat += (rend - ir_m) + div_m
+            else:
+                pat += (rend - ir_m)
+
+            pat += aporte_mensal
+            total_aportado += aporte_mensal
+            if m % 12 == 0:
+                pat += aporte_anual
+                total_aportado += aporte_anual
+                dy_aa *= (1 + crescimento_div/100)
+                taxa_dy_men = dy_aa / 12
+                ano_idx = m // 12
+                renda_men = pat * taxa_dy_men * (1 - ir_aliquota/100/2)
+                evolucao.append({
+                    "ano": idade_atual + ano_idx,
+                    "ano_idx": ano_idx,
+                    "patrimonio": round(pat, 2),
+                    "patrimonio_real": round(pat / (1+inflacao/100)**ano_idx, 2),
+                    "renda_mensal": round(renda_men, 2),
+                    "renda_real": round(renda_men / (1+inflacao/100)**ano_idx, 2),
+                    "total_aportado": round(total_aportado, 2),
+                    "total_dividendos": round(total_divs, 2),
+                })
+                if anos_obj is None and renda_men >= renda_desejada:
+                    anos_obj = ano_idx
+
+        pf = evolucao[-1]["patrimonio"] if evolucao else 0
+        rf = evolucao[-1]["renda_mensal"] if evolucao else 0
+        return {
+            "nome": nome,
+            "taxa_anual_pct": round(taxa_aa_pct, 2),
+            "patrimonio_final": round(pf, 2),
+            "renda_mensal": round(rf, 2),
+            "total_aportado": round(total_aportado, 2),
+            "total_dividendos": round(total_divs, 2),
+            "total_ir": round(total_ir, 2),
+            "rendimentos_liquidos": round(pf - total_aportado, 2),
+            "anos_para_objetivo": anos_obj,
+            "pct_objetivo": round(rf / renda_desejada * 100, 1) if renda_desejada > 0 else 0,
+            "evolucao": evolucao,
+        }
+
+    r = rentabilidade
+    conservador = simular(max(r * 0.65, 3.0), "conservador")
+    moderado    = simular(r, "moderado")
+    otimista    = simular(min(r * 1.35, r + 6), "otimista")
+
+    return jsonify({
+        "conservador": conservador,
+        "moderado": moderado,
+        "otimista": otimista,
+        "meta": {
+            "renda_desejada": renda_desejada,
+            "pat_necessario": round(pat_necessario, 2),
+            "rentabilidade_nominal": round(rentabilidade, 2),
+            "rentabilidade_real": round(rent_real_aa, 2),
+            "inflacao": round(inflacao, 2),
+            "ir_aliquota": round(ir_aliquota, 2),
+        },
+    })
