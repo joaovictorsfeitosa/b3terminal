@@ -26,7 +26,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_size":       5,
     "max_overflow":    2,
     "connect_args":    {"sslmode": "require", "connect_timeout": 10}
-    if not _db_url.startswith("sqlite") else {},
+    if "sqlite" not in _db_url else {},
 }
 app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
 
@@ -139,7 +139,6 @@ _DIV_DB = {
     "SUZB3":  {"last_div": 0.700, "dy": 0.040, "freq": 2},
     "IRBR3":  {"last_div": 0.050, "dy": 0.025, "freq": 4},
     "FLRY3":  {"last_div": 0.180, "dy": 0.030, "freq": 4},
-    "HAPV3":  {"last_div": 0.100, "dy": 0.020, "freq": 2},
     "BRAP4":  {"last_div": 1.200, "dy": 0.090, "freq": 2},
     "SANB11": {"last_div": 0.400, "dy": 0.065, "freq": 4},
     "COGN3":  {"last_div": 0.050, "dy": 0.020, "freq": 2},
@@ -193,21 +192,85 @@ def rate_limit_check(ip, max_req=10, window=300):
         hits.append(now); _rl_store[ip] = hits
     return True
 
+def _start_rl_cleanup():
+    """Thread daemon que limpa entradas antigas do rate limiter a cada 5 minutos."""
+    def _clean():
+        while True:
+            time.sleep(300)
+            now = time.time()
+            with _rl_lock:
+                for ip in list(_rl_store.keys()):
+                    _rl_store[ip] = [t for t in _rl_store[ip] if now - t < 300]
+                    if not _rl_store[ip]:
+                        del _rl_store[ip]
+    t = threading.Thread(target=_clean, daemon=True, name="rl-cleanup")
+    t.start()
+
+_start_rl_cleanup()
+
 @login_manager.user_loader
 def load_user(uid):
     return User.query.get(int(uid))
 
 _cache, _lock = {}, threading.Lock()
 
-def cache_get(key, ttl=300):
+# TTLs por prefixo de chave — dados mais voláteis têm TTL menor
+_CACHE_TTL_MAP = {
+    "bq_":    300,    # quotes: 5 min
+    "qm_":    300,    # mini quotes: 5 min
+    "bh_":    600,    # brapi history: 10 min
+    "td_1d":  120,    # twelvdata intraday: 2 min
+    "td_5d":  300,    # 5 min
+    "td_1mo": 600,    # 10 min
+    "td_3mo": 600,    # 10 min
+    "td_6mo": 900,    # 15 min
+    "td_1y":  1800,   # 30 min
+    "td_2y":  3600,   # 1h
+    "td_5y":  3600,   # 1h
+    "td_max": 7200,   # 2h — histórico longo raramente muda
+    "hist_":  600,    # history endpoint: 10 min
+    "div3_":  3600,   # dividends: 1h
+    "asset_": 600,    # asset page: 10 min
+    "news_":  900,    # news: 15 min
+}
+
+def _get_ttl(key: str, default: int = 300) -> int:
+    for prefix, ttl in _CACHE_TTL_MAP.items():
+        if key.startswith(prefix):
+            return ttl
+    return default
+
+def cache_get(key, ttl=None):
+    effective_ttl = ttl if ttl is not None else _get_ttl(key)
     with _lock:
         if key in _cache:
             data, ts = _cache[key]
-            if time.time() - ts < ttl: return data
+            if time.time() - ts < effective_ttl:
+                return data
+            else:
+                del _cache[key]   # remove expirado imediatamente
     return None
 
 def cache_set(key, data):
-    with _lock: _cache[key] = (data, time.time())
+    with _lock:
+        _cache[key] = (data, time.time())
+
+def _start_cache_cleanup():
+    """Evict entradas expiradas do cache a cada 10 minutos para controlar memória."""
+    def _clean():
+        while True:
+            time.sleep(600)
+            now = time.time()
+            with _lock:
+                for k in list(_cache.keys()):
+                    _, ts = _cache[k]
+                    max_ttl = _get_ttl(k, 7200)
+                    if now - ts > max_ttl:
+                        del _cache[k]
+    t = threading.Thread(target=_clean, daemon=True, name="cache-cleanup")
+    t.start()
+
+_start_cache_cleanup()
 
 def brapi_get(path, params=None):
     p = dict(params or {})
@@ -629,8 +692,42 @@ def brapi_dividends(symbol, cotas=1):
         except Exception as e:
             print(f"  BRAPI dividends fallback {sym}: {e}")
 
+    # ── 3. Fallback final: base estática _DIV_DB ────────────────────────────────
+    # Quando TwelveData e BRAPI retornam vazio, reconstrói histórico estimado
+    # a partir da base curada manualmente — garante que o calendário nunca fica vazio
     if not payments:
-        return None
+        static = _DIV_DB.get(sym)
+        if static:
+            freq         = static["freq"]
+            last_div     = static["last_div"]
+            payment_day  = static.get("payment_day", 15)
+            today_s      = date.today()
+
+            # Meses de pagamento por frequência
+            _freq_months_map = {
+                12: list(range(1, 13)),
+                4:  [3, 6, 9, 12],
+                2:  [6, 12],
+                1:  [12],
+            }
+            static_freq_months = _freq_months_map.get(freq, [12])
+
+            # Gera 18 meses retroativos de histórico estimado
+            for i in range(18, 0, -1):
+                past = today_s - relativedelta(months=i)
+                if past.month in static_freq_months:
+                    day = min(payment_day, calendar.monthrange(past.year, past.month)[1])
+                    payments.append({
+                        "year":     past.year,
+                        "month":    past.month,
+                        "day":      day,
+                        "value":    round(last_div, 6),
+                        "date_str": date(past.year, past.month, day).strftime("%d/%m/%Y"),
+                        "source":   "static_db",
+                    })
+            print(f"  brapi_dividends {sym}: usando _DIV_DB ({len(payments)} pagamentos estimados)")
+        else:
+            return None
 
     # ── Separar pagamentos futuros DECLARADOS dos históricos ──────────────────
     today_dt  = datetime.utcnow()
@@ -854,11 +951,26 @@ def get_index(symbol):
 @app.route("/api/history/<symbol>")
 @login_required
 def get_history(symbol):
-    sym=symbol.upper().strip().replace(".SA",""); period=request.args.get("period","1mo")
-    ck=f"hist_{sym}_{period}"; cached=cache_get(ck,ttl=600)
-    if cached: return jsonify(cached)
-    data=brapi_history(sym,period)
-    if data: cache_set(ck,data)
+    sym    = symbol.upper().strip().replace(".SA", "")
+    period = request.args.get("period", "1mo")
+    # TTL varia por período: dados longos mudam menos
+    _ttl_map = {"1d": 120, "5d": 300, "1mo": 600, "3mo": 600,
+                "6mo": 900, "1y": 1800, "2y": 3600, "5y": 3600, "max": 7200}
+    ttl = _ttl_map.get(period, 600)
+    ck  = f"hist_{sym}_{period}"
+    cached = cache_get(ck, ttl=ttl)
+    if cached:
+        return jsonify(cached)
+    # 1º — TwelveData (suporta todos os períodos)
+    data = twelvedata_chart(sym, period)
+    # 2º — BRAPI chart fallback (limitado mas confiável para curtos)
+    if not data:
+        data = brapi_chart_fallback(sym, period)
+    # 3º — brapi_history legado
+    if not data:
+        data = brapi_history(sym, period)
+    if data:
+        cache_set(ck, data)
     return jsonify(data or [])
 
 # ── Chart endpoint for Análise Gráfica ────────────────────────────────────────
@@ -1044,18 +1156,69 @@ def get_chart(symbol):
 @app.route("/api/asset/<symbol>")
 @login_required
 def get_asset(symbol):
-    sym=symbol.upper().strip().replace(".SA",""); ck=f"asset_{sym}"
-    cached=cache_get(ck,ttl=600)
-    if cached: return jsonify(cached)
-    res=brapi_quotes([sym])
-    if not res: return jsonify({"error":"não encontrado"}),404
-    quote=res[0]; div_h=brapi_dividends(sym)
-    divs_raw=div_h["history"][:12] if div_h else []
-    div_proj={"freq_label":div_h["freq_label"],"avg_value":div_h["avg_value"],
-              "last_value":div_h["last_value"],"months_paid":div_h["months_paid"],
-              "projected":div_h["projected"][:6]} if div_h else None
-    result={**quote,"dividends":divs_raw,"div_projection":div_proj}
-    cache_set(ck,result); return jsonify(result)
+    sym    = symbol.upper().strip().replace(".SA", "")
+    ck     = f"asset_{sym}"
+    cached = cache_get(ck, ttl=600)
+    if cached:
+        return jsonify(cached)
+
+    res = brapi_quotes([sym])
+    if not res:
+        return jsonify({"error": "não encontrado"}), 404
+
+    quote  = res[0]
+    div_h  = brapi_dividends(sym)
+    static = _DIV_DB.get(sym, {})
+
+    # Histórico de dividendos — até 24 meses para calcular crescimento
+    divs_raw = div_h["history"][:24] if div_h else []
+
+    # Projeção enriquecida com mais dados
+    div_proj = {
+        "freq_label":       div_h["freq_label"],
+        "avg_value":        div_h["avg_value"],
+        "last_value":       div_h["last_value"],
+        "months_paid":      div_h["months_paid"],
+        "projected":        div_h["projected"][:12],
+        "total_pagamentos": div_h.get("total_pagamentos", 0),
+        "has_declared":     div_h.get("has_declared", False),
+    } if div_h else None
+
+    # Crescimento YoY dos proventos
+    div_growth_pct = None
+    if divs_raw and len(divs_raw) >= 13:
+        last_12 = sum(d["value"] for d in divs_raw[:12])
+        prev_12 = sum(d["value"] for d in divs_raw[12:24])
+        if prev_12 > 0:
+            div_growth_pct = round((last_12 / prev_12 - 1) * 100, 2)
+
+    # DY da base estática como referência quando BRAPI retorna null
+    dy_static = round(static.get("dy", 0) * 100, 2) if static.get("dy") else None
+
+    result = {
+        **quote,
+        "dividends":           divs_raw,
+        "div_projection":      div_proj,
+        "div_growth_pct":      div_growth_pct,
+        "dy_static":           dy_static,
+        # Indicadores fundamentalistas mapeados explicitamente
+        "priceEarnings":       quote.get("priceEarnings"),
+        "priceToBook":         quote.get("priceToBook"),
+        "roe":                 quote.get("roe") or quote.get("returnOnEquity"),
+        "debtToEquity":        quote.get("debtToEquity"),
+        "grossMargins":        quote.get("grossMargins"),
+        "revenueGrowth":       quote.get("revenueGrowth"),
+        "earningsPerShare":    quote.get("earningsPerShare"),
+        "currentRatio":        quote.get("currentRatio"),
+        "marketCap":           quote.get("marketCap"),
+        "regularMarketVolume": quote.get("regularMarketVolume"),
+        "fiftyTwoWeekHigh":    quote.get("fiftyTwoWeekHigh"),
+        "fiftyTwoWeekLow":     quote.get("fiftyTwoWeekLow"),
+        "static_data":         static if static else None,
+        "is_fii":              _is_fii(sym),
+    }
+    cache_set(ck, result)
+    return jsonify(result)
 
 @app.route("/api/simulate",methods=["POST"])
 @login_required
@@ -1151,9 +1314,10 @@ def simulate():
         if div_h and div_h.get("projected"):
             _nfreq = len(div_h["freq_months"])
         else:
-            _nfreq = freq_est if 'freq_est' in dir() or True else 4
-            try: _nfreq = freq_est
-            except NameError: _nfreq = 4
+            try:
+                _nfreq = freq_est
+            except NameError:
+                _nfreq = sd.get("freq_est", 4) if 'sd' in locals() else 4
 
         results.append({
             "sym":              sym,
