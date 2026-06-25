@@ -12,49 +12,90 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#040810;--bg2:#080e18;--bg3:#0d1520;--bd:#172030;
-  --g:#00e676;--gd:rgba(0,230,118,.08);--gb:rgba(0,230,118,.15);
-  --ui1:#00e5b0;--ui2:#00b0ff;--ui-grd:linear-gradient(135deg,#00e5b0,#00b0ff);
-  --r:#ff3d57;--rd:rgba(255,61,87,.08);
-  --a:#ffc400;--ad:rgba(255,196,0,.08);
+  /* ── Fundos ─────────────────────────────────────── */
+  --bg:#030710;--bg2:#07101c;--bg3:#0b1624;--bg4:#111f30;
+  --bd:#1a2d42;--bd2:#243d57;--bd3:#2e4f6a;
+
+  /* ── Marca ──────────────────────────────────────── */
+  --ui1:#00e5b0;--ui2:#00b4ff;
+  --ui-grd:linear-gradient(135deg,#00e5b0 0%,#00b4ff 100%);
+  --ui-grd-v:linear-gradient(180deg,#00e5b0 0%,#00b4ff 100%);
+  --ui-glow:0 0 32px rgba(0,229,176,.22),0 0 8px rgba(0,180,255,.12);
+
+  /* ── Semânticas ─────────────────────────────────── */
+  --g:#00e676;--gd:rgba(0,230,118,.08);--gb:rgba(0,230,118,.14);
+  --r:#ff3d57;--rd:rgba(255,61,87,.08);--rb:rgba(255,61,87,.14);
+  --a:#f59e0b;--ad:rgba(245,158,11,.08);
   --b:#38bdf8;--bld:rgba(56,189,248,.08);
-  --p:#c084fc;--pd:rgba(192,132,252,.08);
-  --t:#94a8be;--td:#2e4560;--tb:#ddeeff;
-  --mono:'Space Mono',monospace;--sans:'Syne',sans-serif;
-  --shadow:0 4px 24px rgba(0,0,0,.5);
-  --glow:0 0 20px rgba(0,229,176,.15);
-  --ui1:#00e5b0;--ui2:#00b0ff;
-  --ui-grd:linear-gradient(135deg,#00e5b0,#00b0ff);
+  --p:#a78bfa;--pd:rgba(167,139,250,.08);
+
+  /* ── Texto ──────────────────────────────────────── */
+  --t:#8ba4be;--t2:#6b87a0;--td:#2a3f57;--tb:#e2f0ff;--tw:#ffffff;
+
+  /* ── Tipografia ─────────────────────────────────── */
+  --mono:'Space Mono',monospace;
+  --sans:'Syne',sans-serif;
+  --fs-xs:10px;--fs-sm:11px;--fs-base:13px;--fs-md:15px;
+  --fs-lg:18px;--fs-xl:22px;--fs-2xl:28px;--fs-3xl:36px;
+  --lh:1.6;--lh-tight:1.25;
+
+  /* ── Espaçamento (4px grid) ─────────────────────── */
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:20px;
+  --sp-6:24px;--sp-8:32px;--sp-10:40px;--sp-12:48px;
+
+  /* ── Bordas ─────────────────────────────────────── */
+  --r-sm:6px;--r-md:10px;--r-lg:14px;--r-xl:18px;--r-2xl:24px;--r-full:9999px;
+
+  /* ── Sombras ────────────────────────────────────── */
+  --shadow-sm:0 2px 8px rgba(0,0,0,.35);
+  --shadow:0 4px 20px rgba(0,0,0,.5);
+  --shadow-lg:0 8px 40px rgba(0,0,0,.6);
+  --shadow-xl:0 16px 60px rgba(0,0,0,.7);
+  --glow:0 0 24px rgba(0,229,176,.18);
+
+  /* ── Transições ─────────────────────────────────── */
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-bounce:cubic-bezier(.34,1.56,.64,1);
+  --dur-fast:120ms;--dur-base:200ms;--dur-slow:350ms;
 }
-html,body{background:var(--bg);color:var(--t);font-family:var(--mono);font-size:13px;min-height:100vh}
-body::before{content:'';position:fixed;inset:0;background:
-  radial-gradient(ellipse at 15% 0%,rgba(0,176,255,.04) 0%,transparent 50%),
-  radial-gradient(ellipse at 85% 100%,rgba(56,189,248,.03) 0%,transparent 50%);
-  pointer-events:none;z-index:0}
+html,body{background:var(--bg);color:var(--t);font-family:var(--mono);font-size:var(--fs-base);min-height:100vh;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%,rgba(0,229,176,.06) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 110%,rgba(0,180,255,.05) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 30% at 50% 50%,rgba(0,229,176,.02) 0%,transparent 70%)}
 ::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:var(--bg2)}
-::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
-::-webkit-scrollbar-thumb:hover{background:var(--td)}
-input,select,button{font-family:var(--mono);font-size:12px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:var(--r-full)}
+::-webkit-scrollbar-thumb:hover{background:var(--bd3)}
+input,select,button,textarea{font-family:var(--mono);font-size:var(--fs-sm)}
 a{text-decoration:none;color:inherit}
+/* ── Animações globais ──────────────────────────────────────────────────── */
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
 @keyframes tkrun{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse{0%,100%{opacity:.5}50%{opacity:.9}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes pulse{0%,100%{opacity:.45}50%{opacity:.9}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+/* ── Utilities ─────────────────────────────────────────────────────────── */
+.glass{background:rgba(7,16,28,.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--bd)}
+.grad-text{background:var(--ui-grd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 
 /* INDEX CARDS */
-.idx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:22px}
-.idx-card{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:15px;
-  position:relative;overflow:hidden;transition:all .2s;cursor:default}
-.idx-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,176,255,.03),transparent);pointer-events:none}
-.idx-card:hover{border-color:rgba(0,176,255,.3);transform:translateY(-1px)}
-.idx-n{font-size:9px;color:var(--td);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
-.idx-v{font-family:var(--sans);font-size:18px;font-weight:800;color:var(--tb);letter-spacing:-1px;margin-bottom:4px}
-.idx-c{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;display:inline-block}
-.idx-c.up{background:rgba(0,230,118,.1);color:var(--g);border:1px solid rgba(0,230,118,.2)}
-.idx-c.dn{background:var(--rd);color:var(--r);border:1px solid rgba(255,61,87,.2)}
+.idx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:var(--sp-3);margin-bottom:var(--sp-6)}
+.idx-card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r-lg);padding:var(--sp-4);
+  position:relative;overflow:hidden;transition:border-color var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out);cursor:default}
+.idx-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.025) 0%,transparent 60%);pointer-events:none}
+.idx-card:hover{border-color:var(--bd2);transform:translateY(-2px);box-shadow:var(--shadow)}
+.idx-n{font-size:var(--fs-xs);color:var(--t2);letter-spacing:2px;text-transform:uppercase;margin-bottom:var(--sp-2);font-weight:700}
+.idx-v{font-family:var(--sans);font-size:var(--fs-xl);font-weight:800;color:var(--tb);letter-spacing:-1px;margin-bottom:var(--sp-1);line-height:1}
+.idx-c{font-size:var(--fs-xs);font-weight:700;padding:3px 9px;border-radius:var(--r-full);display:inline-flex;align-items:center;gap:3px;letter-spacing:.5px}
+.idx-c.up{background:var(--gb);color:var(--g);border:1px solid rgba(0,230,118,.2)}
+.idx-c.dn{background:var(--rb);color:var(--r);border:1px solid rgba(255,61,87,.2)}
 
 /* ══════════════════════════════════════════════
    HEADER — premium redesign
@@ -1533,25 +1574,7 @@ body:not(.light) .gr-wm-cover{background:#080e18}
 body.light .gr-wm-cover{background:#ffffff}
 
 /* ── HEATMAP ──────────────────────────────────────────────────────── */
-.hm-sector{margin-bottom:24px}
-.hm-sector-title{font-family:var(--sans);font-size:10px;font-weight:800;color:var(--td);letter-spacing:2.5px;text-transform:uppercase;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--bd)}
-.hm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px}
-.hm-cell{
-  border-radius:10px;padding:10px 10px 8px;cursor:pointer;
-  transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden;
-  border:1px solid rgba(255,255,255,.04);
-}
-.hm-cell:hover{transform:scale(1.04);box-shadow:0 4px 20px rgba(0,0,0,.4);z-index:2}
-.hm-sym{font-family:var(--sans);font-size:11px;font-weight:800;color:#fff;margin-bottom:3px;letter-spacing:.3px}
-.hm-chg{font-size:13px;font-weight:800;font-family:var(--sans);line-height:1}
-.hm-price{font-size:8px;margin-top:3px;opacity:.75;font-family:var(--mono)}
-.hm-cell.pos-hi  {background:rgba(0,200,83,.55)}
-.hm-cell.pos-med {background:rgba(0,200,83,.28)}
-.hm-cell.pos-low {background:rgba(0,200,83,.12)}
-.hm-cell.neutral {background:rgba(30,47,68,.9);border-color:var(--bd)}
-.hm-cell.neg-low {background:rgba(255,61,87,.12)}
-.hm-cell.neg-med {background:rgba(255,61,87,.28)}
-.hm-cell.neg-hi  {background:rgba(255,61,87,.55)}
+/* Heatmap legacy classes removed — active system uses c-pp/c-p/c-pl/c-n/c-nl/c-m/c-mm */
 
 /* ── PORTFOLIO SCORE ──────────────────────────────────────────────── */
 .score-wrap{
@@ -1632,10 +1655,9 @@ body.light .gr-wm-cover{background:#ffffff}
 .hm-refresh-btn:hover{border-color:var(--ui1);color:var(--ui1)}
 
 /* Grid de setores */
-#hm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-@media(max-width:800px){
-  #hm-grid{grid-template-columns:1fr}
-}
+#hm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:1100px){#hm-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:800px){#hm-grid{grid-template-columns:1fr}}
 
 .hm-sector-card{
   background:var(--bg2);border:1px solid var(--bd);border-radius:14px;
@@ -1815,45 +1837,66 @@ body.light .gr-wm-cover{background:#ffffff}
 .if-tl-val{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--tb)}
 
 /* ── CONSULTOR IA ───────────────────────────────────────────────── */
-.ia-page{display:flex;flex-direction:column;height:calc(100vh - 110px);max-height:900px}
-.ia-hero{background:linear-gradient(135deg,rgba(0,229,176,.08),rgba(56,189,248,.05));
-  border:1px solid rgba(0,229,176,.15);border-radius:16px;padding:20px 24px;margin-bottom:16px;
-  display:flex;align-items:center;gap:16px}
-.ia-avatar{width:48px;height:48px;border-radius:14px;background:var(--ui-grd);
-  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.ia-hero-t{font-family:var(--sans);font-size:18px;font-weight:800;
-  background:var(--ui-grd);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.ia-hero-s{font-size:11px;color:var(--td);margin-top:2px}
-.ia-chat-wrap{flex:1;overflow-y:auto;padding:4px 0 8px;min-height:200px}
-.ia-msg{display:flex;gap:10px;margin-bottom:14px;animation:fadeUp .2s ease}
+/* ══════════════════════════════════════════════════════════
+   CONSULTOR IA — Premium Layout
+══════════════════════════════════════════════════════════ */
+.ia-page{display:flex;flex-direction:column;min-height:calc(100vh - 130px)}
+.ia-header{display:flex;align-items:center;justify-content:space-between;padding:var(--sp-5) var(--sp-6);background:linear-gradient(135deg,rgba(0,229,176,.06) 0%,rgba(0,180,255,.04) 100%);border:1px solid rgba(0,229,176,.14);border-radius:var(--r-xl);margin-bottom:var(--sp-5);gap:var(--sp-4);flex-wrap:wrap}
+.ia-header-left{display:flex;align-items:center;gap:var(--sp-4)}
+.ia-header-actions{display:flex;align-items:center;gap:var(--sp-3)}
+.ia-avatar-wrap{position:relative;width:44px;height:44px;flex-shrink:0}
+.ia-avatar-ring{position:absolute;inset:-2px;border-radius:var(--r-lg);background:var(--ui-grd);opacity:.4;animation:pulse 2.5s ease-in-out infinite}
+.ia-avatar-icon{position:relative;width:44px;height:44px;border-radius:var(--r-md);background:var(--ui-grd);display:grid;place-items:center;font-family:var(--sans);font-size:20px;font-weight:900;color:#000;z-index:1}
+.ia-hero-t{font-family:var(--sans);font-size:var(--fs-lg);font-weight:800;color:var(--tb);letter-spacing:-.3px}
+.ia-hero-s{font-size:var(--fs-xs);color:var(--t2);margin-top:3px;letter-spacing:.5px}
+.ia-model-badge{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;border-radius:var(--r-full);background:rgba(0,229,176,.08);border:1px solid rgba(0,229,176,.2);color:var(--ui1)}
+.ia-clear-btn{width:32px;height:32px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r-md);display:grid;place-items:center;cursor:pointer;color:var(--t2);transition:all var(--dur-base) var(--ease-out)}
+.ia-clear-btn:hover{border-color:var(--r);color:var(--r);background:var(--rd)}
+.ia-layout{display:grid;grid-template-columns:1fr 230px;gap:var(--sp-5);flex:1;align-items:start}
+@media(max-width:900px){.ia-layout{grid-template-columns:1fr}}
+.ia-sidebar{display:flex;flex-direction:column;gap:var(--sp-3)}
+@media(max-width:900px){.ia-sidebar{display:none}}
+.ia-chat-col{display:flex;flex-direction:column;gap:var(--sp-3);min-height:0}
+.ia-chat-wrap{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r-xl);padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-4);overflow-y:auto;max-height:52vh;min-height:260px;scroll-behavior:smooth}
+.ia-msg{display:flex;gap:var(--sp-3);animation:fadeUp var(--dur-slow) var(--ease-out)}
 .ia-msg.user{flex-direction:row-reverse}
-.ia-bubble{max-width:78%;padding:12px 16px;border-radius:14px;font-size:12px;line-height:1.6}
-.ia-bubble.user{background:var(--ui-grd);color:#000;border-radius:14px 14px 4px 14px}
-.ia-bubble.assistant{background:var(--bg3);border:1px solid var(--bd);color:var(--t);
-  border-radius:14px 14px 14px 4px}
-.ia-bubble strong{font-weight:700}
+.ia-avatar-sm{width:28px;height:28px;border-radius:var(--r-md);background:var(--ui-grd);display:grid;place-items:center;flex-shrink:0;font-family:var(--sans);font-size:12px;font-weight:900;color:#000;align-self:flex-start}
+.ia-bubble{max-width:82%;padding:var(--sp-4) var(--sp-5);border-radius:var(--r-lg);font-size:var(--fs-sm);line-height:var(--lh)}
+.ia-bubble.user{background:var(--ui-grd);color:#000;border-radius:var(--r-lg) var(--r-lg) var(--r-sm) var(--r-lg);font-weight:600}
+.ia-bubble.assistant{background:var(--bg3);border:1px solid var(--bd);color:var(--t);border-radius:var(--r-lg) var(--r-lg) var(--r-lg) var(--r-sm)}
+.ia-bubble.assistant p{margin-bottom:var(--sp-2)}.ia-bubble.assistant p:last-child{margin-bottom:0}
+.ia-bubble strong{font-weight:700;color:var(--tb)}
 .ia-bubble em{font-style:italic;color:var(--ui1)}
-.ia-typing-dots{display:flex;gap:4px;align-items:center;padding:12px 16px;
-  background:var(--bg3);border:1px solid var(--bd);border-radius:14px;width:fit-content}
-.ia-typing-dots span{width:6px;height:6px;border-radius:50%;background:var(--ui1);
-  animation:blink 1.2s ease infinite}
-.ia-typing-dots span:nth-child(2){animation-delay:.3s}
-.ia-typing-dots span:nth-child(3){animation-delay:.6s}
-.ia-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-.ia-chip{padding:7px 14px;border-radius:20px;font-size:10px;font-weight:700;
-  letter-spacing:.5px;cursor:pointer;border:1px solid var(--bd);background:var(--bg3);
-  color:var(--t);transition:all .2s;white-space:nowrap}
-.ia-chip:hover{border-color:var(--ui1);color:var(--ui1);background:rgba(0,229,176,.06)}
-.ia-input-row{display:flex;gap:8px;margin-top:8px}
-.ia-inp{flex:1;background:var(--bg3);border:1px solid var(--bd);border-radius:12px;
-  padding:12px 16px;color:var(--t);font-family:var(--mono);font-size:12px;outline:none;
-  resize:none;transition:.2s;min-height:44px;max-height:100px}
-.ia-inp:focus{border-color:var(--ui1);box-shadow:0 0 0 3px rgba(0,229,176,.08)}
-.ia-send-btn{background:var(--ui-grd);color:#000;border:none;border-radius:12px;
-  padding:12px 18px;cursor:pointer;font-size:16px;transition:.2s;flex-shrink:0;align-self:flex-end}
-.ia-send-btn:hover{opacity:.85;transform:translateY(-1px)}
-.ia-send-btn:disabled{opacity:.4;cursor:default;transform:none}
-.ia-status{font-size:10px;color:var(--td);padding:4px 0;letter-spacing:.5px}
+.ia-bubble code{background:var(--bg4);border:1px solid var(--bd);border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:10px;color:var(--ui2)}
+.ia-bubble table{width:100%;border-collapse:collapse;margin:var(--sp-3) 0;font-size:var(--fs-xs)}
+.ia-bubble th{background:var(--bg4);padding:6px 10px;text-align:left;color:var(--tb);font-weight:700;border-bottom:1px solid var(--bd)}
+.ia-bubble td{padding:6px 10px;border-bottom:1px solid var(--bd);color:var(--t)}
+.ia-bubble ul,.ia-bubble ol{padding-left:18px;margin:var(--sp-2) 0}
+.ia-bubble li{margin-bottom:4px}
+.ia-bubble hr{border:none;border-top:1px solid var(--bd);margin:var(--sp-3) 0}
+.ia-typing-dots{display:flex;gap:5px;align-items:center;background:var(--bg3);border:1px solid var(--bd);padding:12px 16px;border-radius:var(--r-lg) var(--r-lg) var(--r-lg) var(--r-sm);width:fit-content}
+.ia-typing-dots span{width:7px;height:7px;border-radius:50%;background:var(--ui1);animation:pulse 1.2s ease-in-out infinite}
+.ia-typing-dots span:nth-child(2){animation-delay:.25s}.ia-typing-dots span:nth-child(3){animation-delay:.5s}
+.ia-chips{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+.ia-chip{padding:7px 14px;border-radius:var(--r-full);font-size:var(--fs-xs);font-weight:700;letter-spacing:.3px;cursor:pointer;background:var(--bg2);border:1px solid var(--bd);color:var(--t2);transition:all var(--dur-base) var(--ease-out);white-space:nowrap}
+.ia-chip:hover{border-color:var(--ui1);color:var(--ui1);background:rgba(0,229,176,.06);transform:translateY(-1px)}
+.ia-status{font-size:var(--fs-xs);color:var(--t2);padding:2px 0;letter-spacing:.5px;min-height:18px}
+.ia-input-area{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r-xl);padding:var(--sp-3) var(--sp-4);transition:border-color var(--dur-base)}
+.ia-input-area:focus-within{border-color:var(--ui1);box-shadow:0 0 0 3px rgba(0,229,176,.07)}
+.ia-inp{width:100%;background:transparent;border:none;outline:none;color:var(--tb);font-size:var(--fs-sm);line-height:var(--lh);resize:none;min-height:44px;max-height:120px}
+.ia-inp::placeholder{color:var(--td)}
+.ia-input-actions{display:flex;align-items:center;justify-content:space-between;margin-top:var(--sp-2)}
+.ia-input-hint{font-size:9px;color:var(--td);letter-spacing:.5px}
+.ia-send-btn{background:var(--ui-grd);color:#000;border:none;border-radius:var(--r-md);width:34px;height:34px;display:grid;place-items:center;cursor:pointer;transition:all var(--dur-base) var(--ease-out);flex-shrink:0}
+.ia-send-btn:hover:not(:disabled){transform:translateY(-1px) scale(1.05);box-shadow:var(--ui-glow)}
+.ia-send-btn:disabled{opacity:.35;cursor:default;transform:none}
+.ia-sidebar-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t2);margin-bottom:var(--sp-2)}
+.ia-cap-list{display:flex;flex-direction:column;gap:2px}
+.ia-cap{display:flex;align-items:flex-start;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-md);font-size:var(--fs-xs);color:var(--t2);transition:background var(--dur-fast);line-height:var(--lh-tight)}
+.ia-cap:hover{background:var(--bg2)}
+.ia-cap-ico{font-size:14px;flex-shrink:0;width:20px;text-align:center}
+.ia-cap strong{color:var(--tb);display:block;font-size:var(--fs-xs);margin-bottom:1px}
+.ia-disclaimer{margin-top:var(--sp-3);font-size:9px;color:var(--t2);line-height:var(--lh);padding:var(--sp-3);background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.12);border-radius:var(--r-md)}
 
 /* ── SIMULADOR AVANÇADO ─────────────────────────────────────────── */
 .sim-adv-tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
@@ -1907,6 +1950,58 @@ body.light .gr-wm-cover{background:#ffffff}
   .reinv-year-row,.reinv-year-row.header{grid-template-columns:45px 1fr 90px;font-size:10px}
   .reinv-year-row>:nth-child(4),.reinv-year-row>:nth-child(5),.reinv-year-row.header>:nth-child(4),.reinv-year-row.header>:nth-child(5){display:none}
 }
+/* ── Scanner B3 ── */
+.scn-tipo{padding:6px 14px;border-radius:20px;border:1px solid var(--bd);background:var(--bg2);
+  color:var(--td);font-size:10px;font-weight:700;cursor:pointer;transition:.2s;letter-spacing:.5px}
+.scn-tipo.on{background:var(--ui-grd);color:#000;border-color:transparent}
+.scn-filter{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;
+  color:var(--tb);font-size:11px;width:100%;transition:.2s;font-family:var(--mono)}
+.scn-filter:focus{outline:none;border-color:var(--ui1)}
+.scn-preset{padding:5px 12px;border-radius:12px;border:1px solid var(--bd);background:var(--bg2);
+  color:var(--td);font-size:10px;cursor:pointer;transition:.2s}
+.scn-preset:hover{border-color:var(--ui1);color:var(--ui1)}
+.scn-table{width:100%;border-collapse:collapse;font-size:11px}
+.scn-table th{padding:9px 10px;text-align:left;font-size:9px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--td);border-bottom:1px solid var(--bd);font-weight:700;white-space:nowrap}
+.scn-table td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04);
+  white-space:nowrap;vertical-align:middle}
+.scn-table tr:hover td{background:rgba(255,255,255,.03)}
+.scn-table tr:hover{cursor:pointer}
+.scn-sym{font-family:var(--mono);font-weight:700;color:var(--ui1);font-size:12px}
+.scn-name{color:var(--td);font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.scn-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.5px}
+.scn-badge-fii{background:rgba(0,176,255,.15);color:var(--ui1)}
+.scn-badge-etf{background:rgba(196,148,78,.15);color:var(--a)}
+.scn-badge-bdr{background:rgba(123,104,238,.15);color:#a78bfa}
+.scn-badge-acao{background:rgba(0,200,83,.1);color:#00c853}
+.scn-wrap{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.scn-stat{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;text-align:center}
+.scn-stat-val{font-family:var(--mono);font-size:18px;font-weight:800;color:var(--ui1)}
+.scn-stat-lbl{font-size:9px;color:var(--td);margin-top:3px;letter-spacing:.5px;text-transform:uppercase}
+/* ── Independência Premium ── */
+.if2-kpi{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:18px;text-align:center}
+.if2-kpi-val{font-family:var(--mono);font-size:22px;font-weight:800;line-height:1.1}
+.if2-kpi-lbl{font-size:10px;color:var(--td);margin-top:5px;letter-spacing:.5px;text-transform:uppercase}
+.if2-kpi-sub{font-size:10px;color:var(--td);margin-top:3px}
+.if2-scenario{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:20px;transition:.2s}
+.if2-scenario:hover{border-color:var(--ui1)}
+.if2-sc-title{font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-bottom:12px}
+.if2-sc-pat{font-family:var(--mono);font-size:24px;font-weight:800;margin-bottom:4px}
+.if2-sc-renda{font-size:13px;font-weight:700;margin-bottom:8px}
+.if2-sc-detail{font-size:10px;color:var(--td);line-height:1.6}
+.if2-progress{height:5px;background:var(--bd);border-radius:3px;margin-top:10px;overflow:hidden}
+.if2-progress-bar{height:5px;border-radius:3px;transition:width 1s ease}
+.if2-chart-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.if2-chart-tab{padding:5px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--bg3);
+  color:var(--td);font-size:10px;cursor:pointer;transition:.2s}
+.if2-chart-tab.on{background:rgba(0,176,255,.15);border-color:var(--ui1);color:var(--ui1)}
+.if2-timeline{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:16px}
+.if2-tl-card{background:var(--bg3);border:1px solid var(--bd);border-radius:10px;padding:12px;text-align:center}
+.if2-tl-year{font-size:9px;color:var(--td);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.if2-tl-pat{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--tb)}
+.if2-tl-renda{font-size:10px;color:var(--ui1);margin-top:3px}
+.if2-goal-bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin:10px 0}
+.if2-goal-fill{height:8px;border-radius:4px;background:var(--ui-grd);transition:width 1.2s ease}
 </style>
 </head>
 <body>
@@ -2215,7 +2310,7 @@ body.light .gr-wm-cover{background:#ffffff}
   <div class="hm-header">
     <div>
       <div class="hm-title">🔥 Heatmap da B3</div>
-      <div class="hm-sub">Variação do dia · 8 setores · 30 ativos principais</div>
+      <div class="hm-sub">Variação do dia · 10 setores · 46 ativos principais</div>
     </div>
     <div class="hm-controls">
       <div class="hm-legend">
@@ -2359,113 +2454,282 @@ body.light .gr-wm-cover{background:#ffffff}
 </div></div>
 
 <!-- ══════════════════════════════════════════════════════════════
-     SCANNER B3
+     SCANNER B3 — PREMIUM
      ══════════════════════════════════════════════════════════════ -->
 <div class="page" id="page-radar"><div class="wrap">
   <div class="radar-hero">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
       <div>
-        <div class="radar-hero-t">🔭 Scanner de Oportunidades B3</div>
-        <div style="font-size:12px;color:var(--td)">Análise automática do mercado · Ativos com potencial identificados em tempo real</div>
+        <div class="radar-hero-t">🔭 Scanner B3</div>
+        <div style="font-size:12px;color:var(--td)">Busca inteligente · Filtros avançados · Ações, FIIs, ETFs e BDRs</div>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
-        <span id="radar-upd" style="font-size:10px;color:var(--td)">—</span>
-        <button onclick="radarLoad(true)" style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;
+        <span id="scanner-upd" style="font-size:10px;color:var(--td)">—</span>
+        <button onclick="scannerLoad(true)" style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;
           padding:7px 14px;font-size:10px;font-weight:700;cursor:pointer;color:var(--t);transition:.2s"
-          onmouseover="this.style.borderColor='var(--ui1)'" onmouseout="this.style.borderColor='var(--bd)'">↺ ATUALIZAR</button>
+          onmouseover="this.style.borderColor='var(--ui1)'" onmouseout="this.style.borderColor='var(--bd)'">↺ BUSCAR</button>
       </div>
     </div>
   </div>
 
-  <div id="radar-content">
+  <!-- Tipo de ativo -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+    <button class="scn-tipo on" data-tipo="todos"   onclick="scnSetTipo(this)">Todos</button>
+    <button class="scn-tipo"    data-tipo="acoes"   onclick="scnSetTipo(this)">Ações</button>
+    <button class="scn-tipo"    data-tipo="fiis"    onclick="scnSetTipo(this)">FIIs</button>
+    <button class="scn-tipo"    data-tipo="etfs"    onclick="scnSetTipo(this)">ETFs</button>
+    <button class="scn-tipo"    data-tipo="bdrs"    onclick="scnSetTipo(this)">BDRs</button>
+  </div>
+
+  <!-- Filtros -->
+  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:18px">
+    <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--td);font-weight:700;margin-bottom:14px">🔧 Filtros</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">
+      <div>
+        <label style="font-size:10px;color:var(--td);display:block;margin-bottom:4px">DY Mínimo (%)</label>
+        <input class="scn-filter" id="scn-dy-min" type="number" placeholder="ex: 5" step="0.5" min="0">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--td);display:block;margin-bottom:4px">DY Máximo (%)</label>
+        <input class="scn-filter" id="scn-dy-max" type="number" placeholder="ex: 20" step="0.5" min="0">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--td);display:block;margin-bottom:4px">P/L Máximo</label>
+        <input class="scn-filter" id="scn-pl-max" type="number" placeholder="ex: 15" step="1" min="0">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--td);display:block;margin-bottom:4px">P/VP Máximo</label>
+        <input class="scn-filter" id="scn-pvp-max" type="number" placeholder="ex: 1.2" step="0.1" min="0">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--td);display:block;margin-bottom:4px">ROE Mínimo (%)</label>
+        <input class="scn-filter" id="scn-roe-min" type="number" placeholder="ex: 10" step="1" min="0">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--td);display:block;margin-bottom:4px">Ordenar por</label>
+        <select class="scn-filter" id="scn-ordenar" style="width:100%">
+          <option value="dy">Dividend Yield</option>
+          <option value="score">Score</option>
+          <option value="pl">P/L</option>
+          <option value="pvp">P/VP</option>
+          <option value="roe">ROE</option>
+          <option value="change">Variação dia</option>
+          <option value="volume">Volume</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button onclick="scannerLoad(true)" style="background:var(--ui-grd);color:#000;border:none;border-radius:8px;padding:8px 20px;font-size:11px;font-weight:700;cursor:pointer;transition:.2s">🔍 APLICAR FILTROS</button>
+      <button onclick="scnClearFilters()" style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:8px 16px;font-size:11px;cursor:pointer;color:var(--td);transition:.2s">✕ Limpar</button>
+    </div>
+  </div>
+
+  <!-- Presets rápidos -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+    <span style="font-size:10px;color:var(--td);align-self:center">Presets:</span>
+    <button class="scn-preset" onclick="scnPreset('alto_dy')">💰 Alto DY</button>
+    <button class="scn-preset" onclick="scnPreset('baratas')">📉 Baratas (P/L &lt;10)</button>
+    <button class="scn-preset" onclick="scnPreset('fiis_premium')">🏢 FIIs Premium</button>
+    <button class="scn-preset" onclick="scnPreset('roe_alto')">🚀 Alto ROE</button>
+    <button class="scn-preset" onclick="scnPreset('fundamentos')">⭐ Melhores Fundamentos</button>
+  </div>
+
+  <!-- Resultado -->
+  <div id="scanner-content">
     <div class="loading"><div class="sp"></div>ESCANEANDO MERCADO…</div>
+  </div>
+
+  <!-- Radar antigo separado -->
+  <div style="margin-top:32px;border-top:1px solid var(--bd);padding-top:24px">
+    <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--td);font-weight:700;margin-bottom:16px">📡 Radar de Oportunidades</div>
+    <div id="radar-content">
+      <div class="loading"><div class="sp"></div>ESCANEANDO MERCADO…</div>
+    </div>
   </div>
 </div></div>
 
 <!-- ══════════════════════════════════════════════════════════════
-     SIMULADOR DE INDEPENDÊNCIA FINANCEIRA
+     SIMULADOR DE INDEPENDÊNCIA FINANCEIRA — PREMIUM
      ══════════════════════════════════════════════════════════════ -->
 <div class="page" id="page-independencia"><div class="wrap">
   <div class="if-hero">
-    <div class="if-hero-t">🎯 Simulador de Independência Financeira</div>
-    <div style="font-size:12px;color:var(--td)">Calcule quando você atingirá a liberdade financeira · 3 cenários · Projeção patrimonial visual</div>
+    <div class="if-hero-t">🎯 Independência Financeira</div>
+    <div style="font-size:12px;color:var(--td)">Planejamento patrimonial completo · Inflação · Imposto de Renda · Reinvestimento de dividendos · 3 cenários</div>
   </div>
 
-  <div class="if-form-grid">
-    <div class="if-field">
-      <label class="if-label">Patrimônio Atual (R$)</label>
-      <input class="if-input" id="if-patrimonio" type="number" placeholder="100000" min="0">
-    </div>
-    <div class="if-field">
-      <label class="if-label">Aporte Mensal (R$)</label>
-      <input class="if-input" id="if-aporte" type="number" placeholder="2000" min="0">
-    </div>
-    <div class="if-field">
-      <label class="if-label">Rentabilidade Anual (%)</label>
-      <input class="if-input" id="if-rent" type="number" placeholder="10" step="0.1" min="0">
-    </div>
-    <div class="if-field">
-      <label class="if-label">Idade Atual</label>
-      <input class="if-input" id="if-idade" type="number" placeholder="30" min="18" max="80">
-    </div>
-    <div class="if-field">
-      <label class="if-label">Idade de Aposentadoria</label>
-      <input class="if-input" id="if-apos" type="number" placeholder="60" min="20" max="100">
-    </div>
-    <div class="if-field">
-      <label class="if-label">Objetivo Patrimonial (R$)</label>
-      <input class="if-input" id="if-objetivo" type="number" placeholder="2000000" min="0">
+  <!-- Dashboard de inputs -->
+  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:22px;margin-bottom:20px">
+    <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--td);font-weight:700;margin-bottom:16px">📋 Dados do Investidor</div>
+    <div class="if-form-grid">
+      <div class="if-field">
+        <label class="if-label">Patrimônio Atual (R$)</label>
+        <input class="if-input" id="if-patrimonio" type="number" placeholder="100.000" min="0">
+      </div>
+      <div class="if-field">
+        <label class="if-label">Aporte Mensal (R$)</label>
+        <input class="if-input" id="if-aporte" type="number" placeholder="2.000" min="0">
+      </div>
+      <div class="if-field">
+        <label class="if-label">Aporte Anual Extra (R$)</label>
+        <input class="if-input" id="if-aporte-anual" type="number" placeholder="10.000" min="0">
+      </div>
+      <div class="if-field">
+        <label class="if-label">Renda Mensal Desejada (R$)</label>
+        <input class="if-input" id="if-renda-desejada" type="number" placeholder="5.000" min="0">
+      </div>
+      <div class="if-field">
+        <label class="if-label">Idade Atual</label>
+        <input class="if-input" id="if-idade" type="number" placeholder="30" min="18" max="80">
+      </div>
+      <div class="if-field">
+        <label class="if-label">Anos de Simulação</label>
+        <input class="if-input" id="if-anos" type="number" placeholder="30" min="1" max="50">
+      </div>
     </div>
   </div>
-  <button class="if-btn" onclick="ifSimular()">▶ SIMULAR INDEPENDÊNCIA FINANCEIRA</button>
+
+  <!-- Parâmetros avançados -->
+  <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:22px;margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;cursor:pointer" onclick="ifToggleAdv()">
+      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--td);font-weight:700">⚙️ Parâmetros Avançados</div>
+      <span id="if-adv-arrow" style="color:var(--td);font-size:12px">▼</span>
+    </div>
+    <div id="if-adv-fields">
+      <div class="if-form-grid">
+        <div class="if-field">
+          <label class="if-label">Rentabilidade Nominal a.a. (%)</label>
+          <input class="if-input" id="if-rent" type="number" placeholder="10" step="0.1" min="0" value="10">
+        </div>
+        <div class="if-field">
+          <label class="if-label">Inflação a.a. (%)</label>
+          <input class="if-input" id="if-inflacao" type="number" placeholder="4.5" step="0.1" min="0" value="4.5">
+        </div>
+        <div class="if-field">
+          <label class="if-label">DY Inicial da Carteira (%)</label>
+          <input class="if-input" id="if-dy" type="number" placeholder="8" step="0.5" min="0" value="8">
+        </div>
+        <div class="if-field">
+          <label class="if-label">Crescimento Dividendos a.a. (%)</label>
+          <input class="if-input" id="if-div-growth" type="number" placeholder="3" step="0.5" min="0" value="3">
+        </div>
+        <div class="if-field">
+          <label class="if-label">Alíquota IR (%)</label>
+          <input class="if-input" id="if-ir" type="number" placeholder="15" step="1" min="0" max="30" value="15">
+        </div>
+        <div class="if-field" style="display:flex;align-items:center;gap:10px;padding-top:20px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;color:var(--tb)">
+            <input type="checkbox" id="if-reinvestir" checked style="accent-color:var(--ui1);width:16px;height:16px">
+            Reinvestir dividendos
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Presets de perfil -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+    <span style="font-size:10px;color:var(--td);align-self:center">Perfil:</span>
+    <button class="scn-preset" onclick="ifPreset('conservador')">🔵 Conservador</button>
+    <button class="scn-preset" onclick="ifPreset('moderado')">🟢 Moderado</button>
+    <button class="scn-preset" onclick="ifPreset('agressivo')">🔴 Agressivo</button>
+    <button class="scn-preset" onclick="ifPreset('fiis')">🏢 Foco em FIIs</button>
+  </div>
+
+  <button class="if-btn" onclick="ifSimular()">▶ CALCULAR INDEPENDÊNCIA FINANCEIRA</button>
 
   <div id="if-result" style="margin-top:24px"></div>
 </div></div>
 
 <!-- ══════════════════════════════════════════════════════════════
-     CONSULTOR IA
+     CONSULTOR IA — Premium Redesign
      ══════════════════════════════════════════════════════════════ -->
 <div class="page" id="page-consultor-ia"><div class="wrap ia-page">
-  <div class="ia-hero">
-    <div class="ia-avatar">🤖</div>
-    <div>
-      <div class="ia-hero-t">MERIDIAN AI — Consultor Financeiro</div>
-      <div class="ia-hero-s">Assessoria financeira personalizada · Análise de carteira · Estratégias de investimento</div>
+
+  <!-- Header premium -->
+  <div class="ia-header">
+    <div class="ia-header-left">
+      <div class="ia-avatar-wrap">
+        <div class="ia-avatar-ring"></div>
+        <div class="ia-avatar-icon">M</div>
+      </div>
+      <div>
+        <div class="ia-hero-t">MERIDIAN <span class="grad-text">AI</span></div>
+        <div class="ia-hero-s">Analista financeiro especializado · B3 · FIIs · Ações · Renda Fixa · Internacional</div>
+      </div>
     </div>
-    <div style="margin-left:auto">
-      <button onclick="iaClearChat()" style="background:none;border:1px solid var(--bd);border-radius:8px;
-        padding:6px 12px;font-size:10px;color:var(--td);cursor:pointer;transition:.2s"
-        onmouseover="this.style.borderColor='var(--r)';this.style.color='var(--r)'"
-        onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--td)'">🗑 Limpar</button>
+    <div class="ia-header-actions">
+      <div id="ia-model-badge" class="ia-model-badge">Claude Sonnet</div>
+      <button class="ia-clear-btn" onclick="iaClearChat()" title="Limpar conversa">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button>
     </div>
   </div>
 
-  <div class="ia-chat-wrap" id="ia-msgs">
-    <div class="ia-msg">
-      <div class="ia-bubble assistant">
-        👋 Olá! Sou o <strong>MERIDIAN AI</strong>, seu consultor financeiro virtual.<br><br>
-        Posso ajudar com análise de carteira, estratégias de investimento, explicar indicadores financeiros, simular cenários e muito mais.<br><br>
-        <em>Como posso ajudar você hoje?</em>
+  <!-- Layout: chat principal -->
+  <div class="ia-layout">
+    <div class="ia-chat-col">
+      <!-- Mensagens -->
+      <div class="ia-chat-wrap" id="ia-msgs">
+        <div class="ia-msg">
+          <div class="ia-avatar-sm">M</div>
+          <div class="ia-bubble assistant">
+            <p>Olá! Sou o <strong>MERIDIAN AI</strong> — um analista financeiro especializado no mercado brasileiro e internacional.</p>
+            <p style="margin-top:10px">Posso ajudar com análise fundamentalista, FIIs, estratégias de dividendos, planejamento de independência financeira, tributação e muito mais.</p>
+            <p style="margin-top:10px;color:var(--t2);font-size:10px">💡 Dica: se você tiver ativos na sua carteira, posso analisá-la diretamente.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chips de sugestão -->
+      <div class="ia-chips" id="ia-chips">
+        <button class="ia-chip" onclick="iaChip(this)">📊 Analise minha carteira</button>
+        <button class="ia-chip" onclick="iaChip(this)">🏢 Como escolher um bom FII?</button>
+        <button class="ia-chip" onclick="iaChip(this)">💰 Renda passiva de R$5.000/mês</button>
+        <button class="ia-chip" onclick="iaChip(this)">📈 Qual a diferença entre P/L e P/VP?</button>
+        <button class="ia-chip" onclick="iaChip(this)">🌍 Como investir no exterior?</button>
+        <button class="ia-chip" onclick="iaChip(this)">⚖️ Planejamento FIRE no Brasil</button>
+        <button class="ia-chip" onclick="iaChip(this)">🔍 Explique Yield on Cost</button>
+        <button class="ia-chip" onclick="iaChip(this)">📉 Como funciona DARF de ações?</button>
+      </div>
+
+      <!-- Status -->
+      <div id="ia-status" class="ia-status"></div>
+
+      <!-- Input area -->
+      <div class="ia-input-area">
+        <textarea class="ia-inp" id="ia-inp"
+          placeholder="Pergunte sobre ações, FIIs, dividendos, tributação, mercado internacional..."
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();iaSend()}"
+          rows="1"
+          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+        <div class="ia-input-actions">
+          <span class="ia-input-hint">Enter para enviar · Shift+Enter para nova linha</span>
+          <button class="ia-send-btn" id="ia-send-btn" onclick="iaSend()" title="Enviar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar de capacidades -->
+    <div class="ia-sidebar">
+      <div class="ia-sidebar-title">ESPECIALIDADES</div>
+      <div class="ia-cap-list">
+        <div class="ia-cap"><span class="ia-cap-ico">🇧🇷</span><div><strong>Mercado B3</strong><br>Ações, FIIs, ETFs, BDRs</div></div>
+        <div class="ia-cap"><span class="ia-cap-ico">💵</span><div><strong>Internacional</strong><br>Stocks, REITs, ETFs globais</div></div>
+        <div class="ia-cap"><span class="ia-cap-ico">💰</span><div><strong>Dividendos</strong><br>DY, YoC, CAGR, calendários</div></div>
+        <div class="ia-cap"><span class="ia-cap-ico">📐</span><div><strong>Fundamentalista</strong><br>P/L, P/VP, ROE, ROIC, EBITDA</div></div>
+        <div class="ia-cap"><span class="ia-cap-ico">🏦</span><div><strong>Renda Fixa</strong><br>Tesouro, CDB, LCI, LCA, CRI</div></div>
+        <div class="ia-cap"><span class="ia-cap-ico">📋</span><div><strong>Tributação</strong><br>IR, DARF, isenções, come-cotas</div></div>
+        <div class="ia-cap"><span class="ia-cap-ico">🎯</span><div><strong>FIRE / IF</strong><br>Planejamento, regra dos 4%</div></div>
+        <div class="ia-cap"><span class="ia-cap-ico">₿</span><div><strong>Cripto</strong><br>BTC, ETH, DeFi conceitos</div></div>
+      </div>
+      <div class="ia-disclaimer">
+        ⚠️ O MERIDIAN AI oferece análise educacional. Para decisões de alto impacto, consulte um assessor certificado (CFP/CEA).
       </div>
     </div>
   </div>
 
-  <div class="ia-chips" id="ia-chips">
-    <div class="ia-chip" onclick="iaChip(this)">📊 Analisar minha carteira</div>
-    <div class="ia-chip" onclick="iaChip(this)">💰 Estratégia de dividendos</div>
-    <div class="ia-chip" onclick="iaChip(this)">🏢 O que são FIIs?</div>
-    <div class="ia-chip" onclick="iaChip(this)">📈 Como diversificar?</div>
-    <div class="ia-chip" onclick="iaChip(this)">🎯 Renda passiva de R$5.000/mês</div>
-    <div class="ia-chip" onclick="iaChip(this)">⚖️ P/L vs P/VP</div>
-  </div>
-
-  <div id="ia-status" class="ia-status"></div>
-  <div class="ia-input-row">
-    <textarea class="ia-inp" id="ia-inp" placeholder="Faça sua pergunta sobre investimentos..."
-      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();iaSend()}"
-      rows="1" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
-    <button class="ia-send-btn" id="ia-send-btn" onclick="iaSend()">➤</button>
-  </div>
 </div></div>
 
 <!-- ══════════════════════════════════════════════════════════════
@@ -4083,7 +4347,7 @@ function goTab(btn){
   if(tab==="simulador"&&!simLoaded)  loadSimData();
   if(tab==="noticias"&&!newsLoaded)  loadNews();
   if(tab==="score-pro"&&!_spLoaded){ _spLoaded=true; spLoadRanking("geral",document.querySelector(".sp-tab.on")||document.querySelector(".sp-tab")); }
-  if(tab==="radar"&&!_radarLoaded){ _radarLoaded=true; radarLoad(); }
+  if(tab==="radar"&&!_radarLoaded){ _radarLoaded=true; radarLoad(); scannerLoad(); }
   if(tab==="consultor-ia") iaOnOpen();
 }
 
@@ -4363,6 +4627,7 @@ const GC_PERIODS = [
   {k:"3mo",l:"3M"},
   {k:"6mo",l:"6M"},
   {k:"1y", l:"1A"},
+  {k:"2y", l:"2A"},
   {k:"5y", l:"5A"},
   {k:"max",l:"MAX"},
 ];
@@ -4859,76 +5124,25 @@ function gcToggleInd(ind){
 ══════════════════════════════════════════════════════════ */
 
 const HM_SECTORS = {
-  "Bancos":    ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11"],
-  "Petróleo":  ["PETR4","PRIO3","RECV3","UGPA3"],
-  "Mineração": ["VALE3","GGBR4","CSNA3"],
-  "Energia":   ["EGIE3","TAEE11","CPFE3","CMIG4"],
-  "Varejo":    ["LREN3","MGLU3","NTCO3"],
-  "Saúde":     ["RDOR3","HAPV3","FLRY3"],
-  "Agro":      ["JBSS3","AGRO3","MRFG3"],
-  "FIIs":      ["HGLG11","MXRF11","XPML11","KNRI11","MALL11"],
+  "Bancos":    ["ITUB4","BBDC4","BBAS3","SANB11","BPAC11","BMGB4"],
+  "Petróleo":  ["PETR4","PETR3","PRIO3","RECV3","UGPA3","RRRP3"],
+  "Mineração": ["VALE3","GGBR4","CSNA3","BRAP4","USIM5"],
+  "Energia":   ["EGIE3","TAEE11","CPFE3","CMIG4","ENGI11","AURE3"],
+  "Varejo":    ["LREN3","MGLU3","NTCO3","ARZZ3","SOMA3"],
+  "Saúde":     ["RDOR3","HAPV3","FLRY3","DASA3"],
+  "Agro":      ["JBSS3","AGRO3","MRFG3","SLCE3","SMTO3"],
+  "Tech":      ["TOTVS3","POSI3","CASH3","LWSA3"],
+  "Telecom":   ["VIVT3","TIMS3"],
+  "FIIs":      ["HGLG11","MXRF11","XPML11","KNRI11","MALL11","VISC11"],
 };
 
 const HM_ICONS = {
   "Bancos":"🏦","Petróleo":"🛢️","Mineração":"⛏️","Energia":"⚡",
-  "Varejo":"🛒","Saúde":"🏥","Agro":"🌾","FIIs":"🏢",
+  "Varejo":"🛒","Saúde":"🏥","Agro":"🌾","Tech":"💻","Telecom":"📡","FIIs":"🏢",
 };
 
 let _hmCache = {};     // {SYMBOL: {price,change,name}}
-let _hmLoading = false;
-
-function hmCellClass(chg){
-  if(chg >=  4) return "c-pp";
-  if(chg >=  1.5) return "c-p";
-  if(chg >   0.1) return "c-pl";
-  if(chg >= -0.1) return "c-n";
-  if(chg >= -1.5) return "c-nl";
-  if(chg >= -4)   return "c-m";
-  return "c-mm";
-}
-
-function hmChgColor(chg){
-  return chg > 0.05 ? "#00e676" : chg < -0.05 ? "#ff3d57" : "var(--td)";
-}
-
-function hmFmt(n){
-  return n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
-}
-
-function hmBuildSectorCard(name, syms, data){
-  const cells = syms.map(sym=>{
-    const d = data[sym];
-    if(!d) return `<div class="hm-cell skeleton"></div>`;
-    const cls   = hmCellClass(d.change);
-    const color = hmChgColor(d.change);
-    const sign  = d.change > 0 ? "+" : "";
-    return `<div class="hm-cell ${cls}"
-      onclick="goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${sym}'),120)"
-      title="${d.name} · R$ ${hmFmt(d.price)} · ${sign}${d.change.toFixed(2)}%">
-      <div class="hm-cell-sym">${sym}</div>
-      <div class="hm-cell-chg" style="color:${color}">${sign}${d.change.toFixed(2)}%</div>
-      <div class="hm-cell-price">R$ ${hmFmt(d.price)}</div>
-    </div>`;
-  }).join("");
-
-  // Média do setor
-  const loaded = syms.filter(s=>data[s]);
-  const avg = loaded.length
-    ? loaded.reduce((s,sym)=>s+data[sym].change,0)/loaded.length
-    : null;
-  const avgTxt = avg!==null
-    ? `${avg>=0?"+":""}${avg.toFixed(2)}%`
-    : "…";
-  const avgCls = avg===null?"neu":avg>0.05?"pos":avg<-0.05?"neg":"neu";
-
-  return `<div class="hm-sector-card" id="hm-sec-${name.replace(/\s/g,"")}">
-    <div class="hm-sector-head">
-      <div class="hm-sector-name">${HM_ICONS[name]||""} ${name}</div>
-      <div class="hm-sector-avg ${avgCls}">${avgTxt}</div>
-    </div>
-    <div class="hm-cells">${cells}</div>
-  </div>`;
-}
+function hmCellClass(chg){\n  if(chg >=  4) return \"c-pp\";\n  if(chg >=  1.5) return \"c-p\";\n  if(chg >   0.1) return \"c-pl\";\n  if(chg >= -0.1) return \"c-n\";\n  if(chg >= -1.5) return \"c-nl\";\n  if(chg >= -4)   return \"c-m\";\n  return \"c-mm\";\n}\n\nfunction hmChgColor(chg){\n  if(chg >=  1.5) return \"var(--g)\";\n  if(chg >   0.1) return \"rgba(0,230,118,.7)\";\n  if(chg >= -0.1) return \"var(--td)\";\n  if(chg >= -1.5) return \"rgba(255,61,87,.7)\";\n  return \"var(--r)\";\n}\n\nfunction hmFmt(n){\n  if(n==null||isNaN(n)) return \"–\";\n  return n.toLocaleString(\"pt-BR\",{minimumFractionDigits:2,maximumFractionDigits:2});\n}\n\nfunction hmBuildSectorCard(name, syms, data){\n  const cells = syms.map(sym=>{\n    const d = data[sym];\n    if(!d) return `<div class=\"hm-cell skeleton\" aria-label=\"Carregando ${sym}\"></div>`;\n    const chg   = (d.change != null && !isNaN(d.change)) ? d.change : 0;\n    const price = (d.price  != null && !isNaN(d.price))  ? d.price  : 0;\n    const cls   = hmCellClass(chg);\n    const color = hmChgColor(chg);\n    const sign  = chg > 0 ? \"+\" : \"\";\n    const vol   = d.volume ? (d.volume >= 1e6 ? (d.volume/1e6).toFixed(1)+\"M\" : d.volume >= 1e3 ? (d.volume/1e3).toFixed(0)+\"K\" : d.volume) : \"\";\n    const nameTip = (d.name||sym).replace(/\"/g,\"'\");\n    return `<div class=\"hm-cell ${cls}\"\n      role=\"button\" tabindex=\"0\"\n      onclick=\"goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${sym}'),120)\"\n      onkeydown=\"if(event.key==='Enter'||event.key===' ')this.click()\"\n      title=\"${nameTip}&#10;Preço: R$ ${hmFmt(price)}&#10;Variação: ${sign}${chg.toFixed(2)}%${vol?'&#10;Vol: '+vol:''}\">\n      <div class=\"hm-cell-sym\">${sym}</div>\n      <div class=\"hm-cell-chg\" style=\"color:${color}\">${sign}${chg.toFixed(2)}%</div>\n      <div class=\"hm-cell-price\">R$ ${hmFmt(price)}</div>\n    </div>`;\n  }).join(\"\");\n\n  const loaded = syms.filter(s=>data[s] && data[s].change!=null);\n  const avg = loaded.length\n    ? loaded.reduce((s,sym)=>s+(data[sym].change||0),0)/loaded.length\n    : null;\n  const avgTxt = avg!==null\n    ? `${avg>=0?\"+\":\"\"}${avg.toFixed(2)}%`\n    : \"…\";\n  const avgCls = avg===null?\"neu\":avg>0.1?\"pos\":avg<-0.1?\"neg\":\"neu\";\n\n  return `<div class=\"hm-sector-card\" id=\"hm-sec-${name.replace(/[\\s/]/g,\"\")}\">\n    <div class=\"hm-sector-head\">\n      <div class=\"hm-sector-name\">${HM_ICONS[name]||\"\"} ${name}</div>\n      <div class=\"hm-sector-avg ${avgCls}\">${avgTxt}</div>\n    </div>\n    <div class=\"hm-cells\">${cells}</div>\n  </div>`;\n}
 
 async function hmFetchSector(name, syms){
   const symsStr = syms.join(",");
@@ -4963,39 +5177,62 @@ async function hmLoadAll(force=false){
   if(dot)    dot.className    = "hm-live-dot";
   if(status) status.textContent = "Atualizando…";
 
-  // Mostra skeletons imediatamente
+  // Skeletons imediatos para feedback visual
   grid.innerHTML = Object.entries(HM_SECTORS).map(([name,syms])=>
     hmBuildSectorCard(name, syms, {})
   ).join("");
 
-  try{
-    // UMA única chamada — o servidor busca tudo sequencialmente sem rate limit
-    const data = await apiFetch("/api/heatmap-all");
+  let retries = 0;
+  const MAX_RETRIES = 2;
 
-    if(data && typeof data === "object"){
-      // Popula cache local e re-renderiza cada setor
-      Object.entries(data).forEach(([name, cells])=>{
-        (cells||[]).forEach(d=>{ if(d && d.symbol) _hmCache[d.symbol]=d; });
-        const card = document.getElementById(`hm-sec-${name.replace(/\s/g,"")}`);
-        if(card){
-          const tmp = document.createElement("div");
-          tmp.innerHTML = hmBuildSectorCard(name, HM_SECTORS[name]||[], _hmCache);
-          const newCard = tmp.firstChild;
-          if(newCard){
-            newCard.style.animation = "hmFadeIn .3s ease both";
-            card.replaceWith(newCard);
-          }
-        }
+  while(retries <= MAX_RETRIES){
+    try{
+      const ctrl = new AbortController();
+      const tid  = setTimeout(()=>ctrl.abort(), 25000);
+      const resp = await fetch("/api/heatmap-all", {
+        credentials:"same-origin",
+        signal: ctrl.signal
       });
+      clearTimeout(tid);
+
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+
+      if(data && typeof data === "object"){
+        Object.entries(data).forEach(([name, cells])=>{
+          (cells||[]).forEach(d=>{ if(d && d.symbol) _hmCache[d.symbol]=d; });
+          // ID usa mesma lógica do hmBuildSectorCard
+          const cardId = "hm-sec-" + name.replace(/[\s/]/g,"");
+          const card = document.getElementById(cardId);
+          if(card){
+            const tmp = document.createElement("div");
+            tmp.innerHTML = hmBuildSectorCard(name, HM_SECTORS[name]||[], _hmCache);
+            const newCard = tmp.firstChild;
+            if(newCard){
+              newCard.style.animation = "hmFadeIn .35s ease both";
+              card.replaceWith(newCard);
+            }
+          }
+        });
+      }
+      break; // sucesso — sai do loop
+    }catch(e){
+      retries++;
+      if(retries > MAX_RETRIES){
+        console.warn("Heatmap falhou após", MAX_RETRIES, "tentativas:", e.message);
+        if(dot)    dot.className = "hm-live-dot err";
+        if(status) status.textContent = "Sem dados — clique ↺ para tentar";
+        _hmLoading = false;
+        return;
+      }
+      await new Promise(r=>setTimeout(r, 2000 * retries)); // backoff
     }
-  }catch(e){
-    console.warn("Heatmap:", e.message);
   }
 
   // Footer stats
   const allLoaded = Object.values(_hmCache);
-  const pos  = allLoaded.filter(d=>d.change >  0.05).length;
-  const neg  = allLoaded.filter(d=>d.change < -0.05).length;
+  const pos  = allLoaded.filter(d=>d.change >  0.1).length;
+  const neg  = allLoaded.filter(d=>d.change < -0.1).length;
   const flat = allLoaded.length - pos - neg;
   const footer = $("hm-footer-stats");
   if(footer && allLoaded.length){
@@ -5009,10 +5246,21 @@ async function hmLoadAll(force=false){
   if(dot)    dot.className = ok ? "hm-live-dot" : "hm-live-dot err";
   if(status) status.textContent = ok
     ? new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})
-    : "Sem dados — tente novamente";
+    : "Sem dados — clique ↺";
 
   _hmLoading = false;
 }
+
+// Auto-refresh a cada 3 minutos quando a aba heatmap está ativa
+let _hmAutoRefresh = null;
+function hmStartAutoRefresh(){
+  if(_hmAutoRefresh) clearInterval(_hmAutoRefresh);
+  _hmAutoRefresh = setInterval(()=>{
+    const activeTab = document.querySelector(".tab.on");
+    if(activeTab && activeTab.dataset.tab === "heatmap") hmLoadAll();
+  }, 180000);
+}
+hmStartAutoRefresh();
 
 /* ══════════════════════════════════════════════════════════
    SCORE DE SAÚDE DA CARTEIRA
@@ -5997,18 +6245,141 @@ async function spAbrirAtivo(sym){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SCANNER B3
+// SCANNER B3 — PREMIUM
 // ═══════════════════════════════════════════════════════════════
-let _radarLoaded = false;
+let _radarLoaded   = false;
+let _scannerTipo   = "todos";
+let _scannerLoaded = false;
+
+function scnSetTipo(btn){
+  _scannerTipo = btn.dataset.tipo;
+  document.querySelectorAll(".scn-tipo").forEach(b=>b.classList.remove("on"));
+  btn.classList.add("on");
+}
+
+function scnClearFilters(){
+  ["scn-dy-min","scn-dy-max","scn-pl-max","scn-pvp-max","scn-roe-min"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = "";
+  });
+  const ord = document.getElementById("scn-ordenar");
+  if(ord) ord.value = "dy";
+}
+
+function scnPreset(name){
+  scnClearFilters();
+  const presets = {
+    alto_dy:      {dy_min:"8", ordenar:"dy", tipo:"todos"},
+    baratas:      {pl_max:"10", ordenar:"pl", tipo:"acoes"},
+    fiis_premium: {dy_min:"9", pvp_max:"1.1", ordenar:"dy", tipo:"fiis"},
+    roe_alto:     {roe_min:"15", ordenar:"roe", tipo:"acoes"},
+    fundamentos:  {dy_min:"4", roe_min:"10", ordenar:"score", tipo:"acoes"},
+  };
+  const p = presets[name]; if(!p) return;
+  if(p.dy_min)  { const el=document.getElementById("scn-dy-min");  if(el) el.value=p.dy_min; }
+  if(p.pl_max)  { const el=document.getElementById("scn-pl-max");  if(el) el.value=p.pl_max; }
+  if(p.pvp_max) { const el=document.getElementById("scn-pvp-max"); if(el) el.value=p.pvp_max; }
+  if(p.roe_min) { const el=document.getElementById("scn-roe-min"); if(el) el.value=p.roe_min; }
+  if(p.ordenar) { const el=document.getElementById("scn-ordenar"); if(el) el.value=p.ordenar; }
+  if(p.tipo){
+    _scannerTipo = p.tipo;
+    document.querySelectorAll(".scn-tipo").forEach(b=>b.classList.toggle("on",b.dataset.tipo===p.tipo));
+  }
+  scannerLoad(true);
+}
+
+async function scannerLoad(force=false){
+  const wrap = document.getElementById("scanner-content");
+  if(!wrap) return;
+  if(!force && _scannerLoaded) return;
+  _scannerLoaded = true;
+
+  const dyMin  = document.getElementById("scn-dy-min")?.value  || "";
+  const dyMax  = document.getElementById("scn-dy-max")?.value  || "";
+  const plMax  = document.getElementById("scn-pl-max")?.value  || "";
+  const pvpMax = document.getElementById("scn-pvp-max")?.value || "";
+  const roeMin = document.getElementById("scn-roe-min")?.value || "";
+  const ord    = document.getElementById("scn-ordenar")?.value || "dy";
+
+  let qs = `tipo=${_scannerTipo}&ordenar=${ord}&limite=60`;
+  if(dyMin)  qs += `&dy_min=${dyMin}`;
+  if(dyMax)  qs += `&dy_max=${dyMax}`;
+  if(plMax)  qs += `&pl_max=${plMax}`;
+  if(pvpMax) qs += `&pvp_max=${pvpMax}`;
+  if(roeMin) qs += `&roe_min=${roeMin}`;
+
+  wrap.innerHTML = '<div class="loading"><div class="sp"></div>ESCANEANDO MERCADO…</div>';
+
+  try{
+    const d = await apiFetch(`/api/scanner?${qs}`);
+    const items = d.results || [];
+    const upd = document.getElementById("scanner-upd");
+    if(upd) upd.textContent = `${items.length} ativos encontrados`;
+
+    if(!items.length){
+      wrap.innerHTML = '<div class="empty-box"><span class="ei">🔍</span><span class="et">Nenhum ativo encontrado com esses filtros</span></div>';
+      return;
+    }
+
+    // Stats rápidas
+    const avgDY = items.reduce((s,a)=>s+(a.dy||0),0)/items.length;
+    const avgPL = items.filter(a=>a.pl>0).reduce((s,a)=>s+(a.pl||0),0)/Math.max(1,items.filter(a=>a.pl>0).length);
+    const nFII  = items.filter(a=>a.fii).length;
+
+    const statsHtml = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:18px">
+        <div class="scn-stat"><div class="scn-stat-val">${items.length}</div><div class="scn-stat-lbl">Ativos</div></div>
+        <div class="scn-stat"><div class="scn-stat-val">${avgDY.toFixed(1)}%</div><div class="scn-stat-lbl">DY Médio</div></div>
+        <div class="scn-stat"><div class="scn-stat-val">${avgPL>0?avgPL.toFixed(1):"—"}</div><div class="scn-stat-lbl">P/L Médio</div></div>
+        <div class="scn-stat"><div class="scn-stat-val">${nFII}</div><div class="scn-stat-lbl">FIIs</div></div>
+      </div>`;
+
+    // Tabela
+    const rows = items.map(a=>{
+      const chgCls = a.change >= 0 ? "pos" : "neg";
+      const chgPfx = a.change >= 0 ? "+" : "";
+      const typeBadge = a.fii ? `<span class="scn-badge scn-badge-fii">FII</span>`
+        : a.is_etf ? `<span class="scn-badge scn-badge-etf">ETF</span>`
+        : a.tipo==="BDR" ? `<span class="scn-badge scn-badge-bdr">BDR</span>`
+        : `<span class="scn-badge scn-badge-acao">AÇÃO</span>`;
+      const dist52 = a.dist_52 != null ? `<span style="font-size:9px;color:var(--td)">${a.dist_52.toFixed(0)}% da mín</span>` : "";
+      return `<tr onclick="goTabByName('graficos');setTimeout(()=>gcLoadAsset('${a.symbol}'),150)" style="cursor:pointer">
+        <td><div class="scn-sym">${a.symbol}</div><div class="scn-name">${a.name}</div></td>
+        <td>${typeBadge}</td>
+        <td style="color:var(--td);font-size:10px">${a.sector}</td>
+        <td style="font-family:var(--mono);font-weight:700">R$ ${(a.price||0).toFixed(2)}</td>
+        <td class="${chgCls}" style="font-weight:700">${chgPfx}${(a.change||0).toFixed(2)}%</td>
+        <td style="color:var(--ui1);font-weight:700">${a.dy>0?a.dy.toFixed(2)+"%":"—"}</td>
+        <td>${a.pl>0?a.pl.toFixed(1):"—"}</td>
+        <td>${a.pvp>0?a.pvp.toFixed(2):"—"}</td>
+        <td>${a.roe>0?a.roe.toFixed(1)+"%":"—"}</td>
+        <td>${dist52}</td>
+      </tr>`;
+    }).join("");
+
+    wrap.innerHTML = statsHtml + `
+      <div class="scn-wrap" style="overflow-x:auto">
+        <table class="scn-table">
+          <thead><tr>
+            <th>ATIVO</th><th>TIPO</th><th>SETOR</th>
+            <th>PREÇO</th><th>VAR%</th><th>DY</th>
+            <th>P/L</th><th>P/VP</th><th>ROE</th><th>52 SEM</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }catch(e){
+    wrap.innerHTML=`<div class="empty-box"><span class="ei">⚠️</span><span class="et">Erro: ${e.message}</span></div>`;
+  }
+}
 
 async function radarLoad(force){
-  const wrap = $("radar-content");
+  const wrap = document.getElementById("radar-content");
   if(!wrap) return;
   wrap.innerHTML = '<div class="loading"><div class="sp"></div>ESCANEANDO MERCADO…</div>';
   try{
-    const res = await fetch("/api/radar");
-    const d = await res.json();
-    const upd = $("radar-upd");
+    const d = await apiFetch("/api/radar");
+    const upd = document.getElementById("radar-upd");
     if(upd) upd.textContent = "Atualizado às " + (d.atualizado_em||"");
 
     function radarCards(items, cls){
@@ -6054,125 +6425,279 @@ async function radarLoad(force){
         </div>
       </div>`;
   }catch(e){
-    wrap.innerHTML=`<div class="empty-box"><span class="ei">⚠️</span><span class="et">Erro ao carregar radar</span><span>${e.message}</span></div>`;
+    wrap.innerHTML=`<div class="empty-box"><span class="ei">⚠️</span><span class="et">Erro ao carregar radar: ${e.message}</span></div>`;
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SIMULADOR DE INDEPENDÊNCIA FINANCEIRA
+// SIMULADOR DE INDEPENDÊNCIA FINANCEIRA — PREMIUM
 // ═══════════════════════════════════════════════════════════════
 function fmtBRL(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtBRLdec(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtM(v){ return v>=1e9?`R$ ${(v/1e9).toFixed(1)}B`:v>=1e6?`R$ ${(v/1e6).toFixed(1)}M`:`R$ ${(v/1e3).toFixed(0)}K`; }
+
+let _ifAdvOpen = true;
+
+function ifToggleAdv(){
+  _ifAdvOpen = !_ifAdvOpen;
+  const f = document.getElementById("if-adv-fields");
+  const a = document.getElementById("if-adv-arrow");
+  if(f) f.style.display = _ifAdvOpen ? "" : "none";
+  if(a) a.textContent = _ifAdvOpen ? "▼" : "▶";
+}
+
+function ifPreset(nome){
+  const presets = {
+    conservador: {rent:6,  inflacao:4.5, dy:6,  divGrowth:2, ir:15},
+    moderado:    {rent:10, inflacao:4.5, dy:8,  divGrowth:3, ir:15},
+    agressivo:   {rent:14, inflacao:4.5, dy:10, divGrowth:4, ir:15},
+    fiis:        {rent:12, inflacao:4.5, dy:11, divGrowth:3, ir:0},
+  };
+  const p = presets[nome]; if(!p) return;
+  const set = (id, v) => { const el=document.getElementById(id); if(el) el.value=v; };
+  set("if-rent", p.rent);
+  set("if-inflacao", p.inflacao);
+  set("if-dy", p.dy);
+  set("if-div-growth", p.divGrowth);
+  set("if-ir", p.ir);
+}
+
+function ifBuildSVGChart(datasets, ylabel=""){
+  // datasets: [{label, color, points:[{x,y}]}]
+  const W=700, H=200, PAD=14;
+  const allY = datasets.flatMap(d=>d.points.map(p=>p.y));
+  const maxY = Math.max(...allY) || 1;
+  const minY = Math.min(0,...allY);
+  const allX = datasets[0]?.points.length || 1;
+
+  const px = (i,n) => PAD + (i/(n-1||1))*(W-PAD*2);
+  const py = y => H - PAD - ((y-minY)/(maxY-minY||1))*(H-PAD*2);
+
+  const paths = datasets.map(ds=>{
+    const pts = ds.points.map((p,i)=>`${px(i,ds.points.length).toFixed(1)},${py(p.y).toFixed(1)}`).join(" ");
+    const fill = ds.fill ? `<polygon points="${px(0,ds.points.length)},${py(0)} ${pts} ${px(ds.points.length-1,ds.points.length)},${py(0)}" fill="${ds.color}" opacity=".12"/>` : "";
+    return `${fill}<polyline points="${pts}" fill="none" stroke="${ds.color}" stroke-width="${ds.width||2}" stroke-linejoin="round" ${ds.dash?'stroke-dasharray="5,4"':''}/>`;
+  }).join("");
+
+  // X axis labels every 5 years
+  const xs = datasets[0].points.filter((_,i)=>i%5===0||i===datasets[0].points.length-1).map(p=>{
+    const i = datasets[0].points.indexOf(p);
+    return `<text x="${px(i,datasets[0].points.length).toFixed(1)}" y="${H+2}" fill="var(--td)" font-size="9" text-anchor="middle">${p.label||p.x}</text>`;
+  }).join("");
+
+  // Y labels
+  const yLabels = [0, 0.25, 0.5, 0.75, 1].map(pct=>{
+    const v = minY + pct*(maxY-minY);
+    return `<text x="0" y="${py(v).toFixed(1)}" fill="var(--td)" font-size="8" dominant-baseline="middle">${fmtM(v)}</text>`;
+  }).join("");
+
+  const legend = datasets.map(d=>`<rect x="0" y="0" width="10" height="3" fill="${d.color}" rx="1"/><text x="14" y="4" fill="${d.color}" font-size="9">${d.label}</text>`)
+    .map((s,i)=>`<g transform="translate(${i*100},0)">${s}</g>`).join("");
+
+  return `<svg viewBox="0 0 ${W+40} ${H+28}" xmlns="http://www.w3.org/2000/svg" style="width:100%;overflow:visible">
+    <g transform="translate(38,0)">${paths}${xs}</g>
+    <g transform="translate(0,0)">${yLabels}</g>
+    <g transform="translate(38,${H+16})">${legend}</g>
+  </svg>`;
+}
+
+let _ifData = null;
+let _ifChartMode = "patrimonio";
+
+function ifRenderChart(mode){
+  _ifChartMode = mode;
+  document.querySelectorAll(".if2-chart-tab").forEach(t=>t.classList.toggle("on",t.dataset.mode===mode));
+  const container = document.getElementById("if-chart-container");
+  if(!container || !_ifData) return;
+
+  const colors = {conservador:"#38bdf8", moderado:"var(--ui1)", otimista:"#ffd740"};
+  const cenarios = ["conservador","moderado","otimista"];
+
+  let datasets = [];
+  cenarios.forEach(nome=>{
+    const ev = _ifData[nome]?.evolucao || [];
+    if(!ev.length) return;
+    let field;
+    if(mode==="patrimonio")      field = "patrimonio";
+    else if(mode==="pat_real")   field = "patrimonio_real";
+    else if(mode==="renda")      field = "renda_mensal";
+    else if(mode==="renda_real") field = "renda_real";
+    else if(mode==="dividendos") field = "total_dividendos";
+    const points = ev.map(e=>({x:e.ano, y:e[field]||0, label:e.ano_idx}));
+    datasets.push({label:nome.charAt(0).toUpperCase()+nome.slice(1), color:colors[nome], points, fill:nome==="moderado", width:nome==="moderado"?2.5:1.8, dash:nome!=="moderado"});
+  });
+
+  container.innerHTML = `<div style="overflow-x:auto">${ifBuildSVGChart(datasets)}</div>`;
+}
 
 async function ifSimular(){
-  const patrimonio = parseFloat($("if-patrimonio").value)||0;
-  const aporte     = parseFloat($("if-aporte").value)||0;
-  const rent       = parseFloat($("if-rent").value)||10;
-  const idade      = parseInt($("if-idade").value)||30;
-  const apos       = parseInt($("if-apos").value)||60;
-  const objetivo   = parseFloat($("if-objetivo").value)||0;
+  const patrimonio     = parseFloat(document.getElementById("if-patrimonio")?.value)||0;
+  const aporte         = parseFloat(document.getElementById("if-aporte")?.value)||0;
+  const aporteAnual    = parseFloat(document.getElementById("if-aporte-anual")?.value)||0;
+  const rendaDesejada  = parseFloat(document.getElementById("if-renda-desejada")?.value)||5000;
+  const idade          = parseInt(document.getElementById("if-idade")?.value)||30;
+  const anosSimul      = parseInt(document.getElementById("if-anos")?.value)||30;
+  const rent           = parseFloat(document.getElementById("if-rent")?.value)||10;
+  const inflacao       = parseFloat(document.getElementById("if-inflacao")?.value)||4.5;
+  const dy             = parseFloat(document.getElementById("if-dy")?.value)||8;
+  const divGrowth      = parseFloat(document.getElementById("if-div-growth")?.value)||3;
+  const ir             = parseFloat(document.getElementById("if-ir")?.value)||15;
+  const reinvestir     = document.getElementById("if-reinvestir")?.checked !== false;
 
-  const res_el = $("if-result");
+  const res_el = document.getElementById("if-result");
   res_el.innerHTML = '<div class="loading"><div class="sp"></div>CALCULANDO PROJEÇÃO…</div>';
 
   try{
-    const res = await fetch("/api/independencia",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({patrimonio_atual:patrimonio,aporte_mensal:aporte,
-        rentabilidade:rent,idade_atual:idade,idade_aposentadoria:apos,objetivo})
+    const res = await fetch("/api/independencia/v2",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        patrimonio_atual: patrimonio, aporte_mensal: aporte,
+        aporte_anual: aporteAnual, rentabilidade: rent,
+        inflacao, dy_inicial: dy, crescimento_div: divGrowth,
+        ir_aliquota: ir, reinvestir_div: reinvestir,
+        renda_desejada: rendaDesejada, idade_atual: idade,
+        anos_simulacao: anosSimul
+      })
     });
     const d = await res.json();
+    _ifData = d;
 
-    // Cards dos cenários
-    let scenariosHtml = `<div class="if-scenarios">`;
-    const labels = {conservador:{emoji:"🔵",color:"#38bdf8"}, realista:{emoji:"🟢",color:"var(--ui1)"}, otimista:{emoji:"🟡",color:"var(--a)"}};
-    for(const [nome, cfg] of Object.entries(labels)){
-      const c = d[nome]||{};
-      if(c.erro){ scenariosHtml += `<div class="if-scenario ${nome}"><div class="if-sc-title">${cfg.emoji} ${nome.toUpperCase()}</div><div style="color:var(--td)">Dados insuficientes</div></div>`; continue; }
-      const anos_obj = c.anos_para_objetivo!=null ? `<div style="font-size:10px;margin-top:4px;color:${cfg.color}">🎯 Obj. em ${c.anos_para_objetivo} anos</div>` : "";
-      scenariosHtml += `
-        <div class="if-scenario ${nome}">
-          <div class="if-sc-title">${cfg.emoji} ${nome.toUpperCase()}</div>
-          <div class="if-sc-taxa" style="margin-bottom:8px">${c.taxa_anual_pct}% a.a.</div>
-          <div class="if-sc-valor" style="color:${cfg.color}">${fmtBRL(c.patrimonio_final)}</div>
-          <div class="if-sc-renda">Renda: ${fmtBRLdec(c.renda_mensal)}/mês</div>
-          <div style="font-size:10px;color:var(--td)">Aportado: ${fmtBRL(c.total_aportado)}</div>
-          <div style="font-size:10px;color:var(--ui1)">Rendimentos: ${fmtBRL(c.rendimentos)}</div>
-          ${anos_obj}
-        </div>`;
-    }
-    scenariosHtml += `</div>`;
+    const meta = d.meta || {};
+    const mod  = d.moderado || {};
 
-    // Gráfico de evolução patrimonial (SVG simples)
-    const evolucao = d.realista?.evolucao || [];
-    let chartHtml = "";
-    if(evolucao.length > 1){
-      const maxP = Math.max(...evolucao.map(e=>e.patrimonio));
-      const points = evolucao.map((e,i)=>{
-        const x = (i/(evolucao.length-1))*700;
-        const y = 200 - (e.patrimonio/maxP)*180;
-        return `${x},${y}`;
-      }).join(" ");
-      const pointsCons = (d.conservador?.evolucao||[]).map((e,i)=>{
-        const x = (i/(evolucao.length-1))*700;
-        const y = 200 - (e.patrimonio/maxP)*180;
-        return `${x},${y}`;
-      }).join(" ");
-      const pointsOtim = (d.otimista?.evolucao||[]).map((e,i)=>{
-        const x = (i/(evolucao.length-1))*700;
-        const y = 200 - (e.patrimonio/maxP)*180;
-        return `${x},${y}`;
-      }).join(" ");
-      // Labels do eixo X
-      const xlabels = evolucao.filter((_,i)=>i%5===0||i===evolucao.length-1).map((e,j,arr)=>{
-        const orig_i = evolucao.findIndex(ev=>ev===e);
-        const x = (orig_i/(evolucao.length-1))*700;
-        return `<text x="${x}" y="218" fill="var(--td)" font-size="9" text-anchor="middle">${e.ano}</text>`;
-      }).join("");
+    // ── KPI Dashboard ──────────────────────────────────────────────────────
+    const patNec    = meta.pat_necessario || 0;
+    const patAtual  = mod.patrimonio_final || 0;
+    const rendaFin  = mod.renda_mensal || 0;
+    const pctGoal   = rendaDesejada > 0 ? Math.min(100, (rendaFin/rendaDesejada)*100) : 0;
+    const anosObj   = mod.anos_para_objetivo;
 
-      chartHtml = `
-        <div class="if-chart-wrap">
-          <div class="if-chart-title">📈 Evolução Patrimonial (Cenário Realista)</div>
-          <div style="overflow-x:auto">
-            <svg viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:300px">
-              <defs>
-                <linearGradient id="ifGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="var(--ui1)" stop-opacity=".25"/>
-                  <stop offset="100%" stop-color="var(--ui1)" stop-opacity="0"/>
-                </linearGradient>
-              </defs>
-              ${pointsCons?`<polyline points="${pointsCons}" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4,3" opacity=".5"/>`:''}
-              ${pointsOtim?`<polyline points="${pointsOtim}" fill="none" stroke="var(--a)" stroke-width="1.5" stroke-dasharray="4,3" opacity=".5"/>`:''}
-              <polygon points="0,200 ${points} 700,200" fill="url(#ifGrad)"/>
-              <polyline points="${points}" fill="none" stroke="var(--ui1)" stroke-width="2.5" stroke-linejoin="round"/>
-              ${xlabels}
-              <text x="4" y="212" fill="var(--td)" font-size="8">— Conservador</text>
-              <text x="4" y="224" fill="var(--a)" font-size="8">— Otimista</text>
-            </svg>
-          </div>
-        </div>`;
-    }
-
-    // Projeção de renda mensal por anos
-    const milestones = [5,10,20,30];
-    const today_year = new Date().getFullYear();
-    let projHtml = `<div class="stitle" style="margin-bottom:12px"><div class="sl">Projeção por Marco Temporal</div></div>
-      <div class="sim-proj-grid">`;
-    for(const anos of milestones){
-      const ev = ((d.realista && d.realista.evolucao) || []).find(function(e){ return e.ano === (idade + anos); });
-      projHtml += `<div class="sim-proj-card">
-        <div class="sim-proj-year">${anos} ANOS</div>
-        <div class="sim-proj-val">${ev?fmtBRL(ev.patrimonio):'-'}</div>
-        <div class="sim-proj-rend">${ev?fmtBRLdec(ev.renda_mensal)+'/mês':'-'}</div>
+    const kpiHtml = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:22px">
+        <div class="if2-kpi">
+          <div class="if2-kpi-val" style="color:var(--ui1)">${fmtM(patAtual)}</div>
+          <div class="if2-kpi-lbl">Patrimônio Final</div>
+          <div class="if2-kpi-sub">Cenário Moderado</div>
+        </div>
+        <div class="if2-kpi">
+          <div class="if2-kpi-val" style="color:#ffd740">${fmtBRLdec(rendaFin)}</div>
+          <div class="if2-kpi-lbl">Renda/Mês</div>
+          <div class="if2-kpi-sub">${(meta.rentabilidade_real||0).toFixed(1)}% a.a. real</div>
+        </div>
+        <div class="if2-kpi">
+          <div class="if2-kpi-val" style="color:${anosObj?'#00c853':'var(--td)'}">${anosObj?anosObj+" anos":"—"}</div>
+          <div class="if2-kpi-lbl">Até Independência</div>
+          <div class="if2-kpi-sub">Renda ≥ ${fmtBRLdec(rendaDesejada)}/mês</div>
+        </div>
+        <div class="if2-kpi">
+          <div class="if2-kpi-val" style="color:#c084fc">${fmtM(patNec)}</div>
+          <div class="if2-kpi-lbl">Patrimônio Necessário</div>
+          <div class="if2-kpi-sub">Para renda desejada</div>
+        </div>
+        <div class="if2-kpi">
+          <div class="if2-kpi-val" style="color:#38bdf8">${fmtM(mod.total_dividendos||0)}</div>
+          <div class="if2-kpi-lbl">Total Dividendos</div>
+          <div class="if2-kpi-sub">Recebidos no período</div>
+        </div>
+        <div class="if2-kpi">
+          <div class="if2-kpi-val" style="color:var(--r)">${fmtM(mod.total_ir||0)}</div>
+          <div class="if2-kpi-lbl">Total IR Pago</div>
+          <div class="if2-kpi-sub">${meta.ir_aliquota||0}% alíquota</div>
+        </div>
+      </div>
+      <div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;color:var(--td)">Progresso em direção à independência financeira</span>
+          <span style="font-size:12px;font-weight:700;color:var(--ui1)">${pctGoal.toFixed(0)}%</span>
+        </div>
+        <div class="if2-goal-bar">
+          <div class="if2-goal-fill" style="width:${pctGoal}%"></div>
+        </div>
       </div>`;
-    }
-    projHtml += `</div>`;
 
-    res_el.innerHTML = scenariosHtml + chartHtml + projHtml;
+    // ── Cenários ──────────────────────────────────────────────────────────
+    const cenarios = [
+      {nome:"conservador", emoji:"🔵", color:"#38bdf8"},
+      {nome:"moderado",    emoji:"🟢", color:"var(--ui1)"},
+      {nome:"otimista",    emoji:"🟡", color:"#ffd740"},
+    ];
+    const scHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:22px">
+      ${cenarios.map(c=>{
+        const sc = d[c.nome]||{};
+        const pct = rendaDesejada>0?Math.min(100,(sc.renda_mensal||0)/rendaDesejada*100):0;
+        return `<div class="if2-scenario">
+          <div class="if2-sc-title" style="color:${c.color}">${c.emoji} ${c.nome.toUpperCase()}</div>
+          <div style="font-size:10px;color:var(--td);margin-bottom:10px">${sc.taxa_anual_pct||0}% a.a. · inflação: ${meta.inflacao||0}%</div>
+          <div class="if2-sc-pat" style="color:${c.color}">${fmtM(sc.patrimonio_final||0)}</div>
+          <div class="if2-sc-renda">${fmtBRLdec(sc.renda_mensal||0)}/mês</div>
+          <div class="if2-sc-detail">
+            Aportado: ${fmtM(sc.total_aportado||0)}<br>
+            Rendimentos líq.: ${fmtM(sc.rendimentos_liquidos||0)}<br>
+            IR total: ${fmtM(sc.total_ir||0)}<br>
+            ${sc.anos_para_objetivo?`🎯 Objetivo em <strong style="color:${c.color}">${sc.anos_para_objetivo} anos</strong>`:'⏳ Objetivo não atingido'}
+          </div>
+          <div class="if2-progress"><div class="if2-progress-bar" style="width:${pct}%;background:${c.color}"></div></div>
+          <div style="font-size:9px;color:var(--td);margin-top:4px">${pct.toFixed(0)}% da renda desejada</div>
+        </div>`;
+      }).join("")}
+    </div>`;
+
+    // ── Gráficos interativos ──────────────────────────────────────────────
+    const chartHtml = `
+      <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:20px;margin-bottom:20px">
+        <div class="if2-chart-tabs">
+          <button class="if2-chart-tab on" data-mode="patrimonio"  onclick="ifRenderChart('patrimonio')">📈 Patrimônio</button>
+          <button class="if2-chart-tab" data-mode="pat_real"   onclick="ifRenderChart('pat_real')">💹 Pat. Real</button>
+          <button class="if2-chart-tab" data-mode="renda"      onclick="ifRenderChart('renda')">💰 Renda/Mês</button>
+          <button class="if2-chart-tab" data-mode="renda_real" onclick="ifRenderChart('renda_real')">🛡 Renda Real</button>
+          <button class="if2-chart-tab" data-mode="dividendos" onclick="ifRenderChart('dividendos')">🌱 Dividendos</button>
+        </div>
+        <div id="if-chart-container"></div>
+      </div>`;
+
+    // ── Timeline ──────────────────────────────────────────────────────────
+    const markers = [5,10,15,20,25,30].filter(a=>a<=anosSimul);
+    const timelineHtml = `
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--td);font-weight:700;margin-bottom:12px">📅 Timeline</div>
+        <div class="if2-timeline">
+          ${markers.map(a=>{
+            const ev = (mod.evolucao||[]).find(e=>e.ano_idx===a);
+            const pct = ev && rendaDesejada>0 ? Math.min(100,(ev.renda_mensal/rendaDesejada*100)):0;
+            return `<div class="if2-tl-card">
+              <div class="if2-tl-year">${a} ANOS</div>
+              <div style="font-size:9px;color:var(--td);margin-bottom:4px">Aos ${idade+a} anos</div>
+              <div class="if2-tl-pat">${ev?fmtM(ev.patrimonio):"—"}</div>
+              <div class="if2-tl-renda">${ev?fmtBRLdec(ev.renda_mensal)+"/mês":"—"}</div>
+              ${ev?`<div style="height:3px;background:var(--bd);border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:3px;width:${pct}%;background:var(--ui1);border-radius:2px"></div></div>`:""}
+            </div>`;
+          }).join("")}
+        </div>
+      </div>`;
+
+    // ── Parâmetros usados ─────────────────────────────────────────────────
+    const paramsHtml = `
+      <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-top:16px;font-size:10px;color:var(--td)">
+        <div style="font-weight:700;color:var(--tb);margin-bottom:8px;font-size:11px">⚙️ Parâmetros da simulação</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">
+          <span>📊 Rentabilidade nominal: <strong style="color:var(--tb)">${meta.rentabilidade_nominal||0}% a.a.</strong></span>
+          <span>📊 Rentabilidade real: <strong style="color:var(--ui1)">${(meta.rentabilidade_real||0).toFixed(1)}% a.a.</strong></span>
+          <span>📉 Inflação: <strong style="color:var(--tb)">${meta.inflacao||0}% a.a.</strong></span>
+          <span>🏛 IR: <strong style="color:var(--tb)">${meta.ir_aliquota||0}%</strong></span>
+          <span>🔄 Reinvestimento: <strong style="color:var(--ui1)">${reinvestir?"Sim":"Não"}</strong></span>
+          <span>🎯 Renda desejada: <strong style="color:var(--tb)">${fmtBRLdec(rendaDesejada)}/mês</strong></span>
+        </div>
+      </div>`;
+
+    res_el.innerHTML = kpiHtml + scHtml + chartHtml + timelineHtml + paramsHtml;
+    // Renderizar gráfico inicial
+    setTimeout(()=>ifRenderChart("patrimonio"), 80);
+
   }catch(e){
     res_el.innerHTML=`<div class="empty-box"><span class="ei">⚠️</span><span class="et">Erro: ${e.message}</span></div>`;
   }
 }
+
 
 // ═══════════════════════════════════════════════════════════════
 // CONSULTOR IA
@@ -6209,29 +6734,60 @@ function iaAddMsg(role, text){
   if(!wrap) return;
   const div = document.createElement("div");
   div.className = `ia-msg ${role}`;
-  div.innerHTML = `<div class="ia-bubble ${role}">${iaFormat(text)}</div>`;
+  if(role === "assistant"){
+    div.innerHTML = `<div class="ia-avatar-sm">M</div><div class="ia-bubble assistant">${iaFormat(text)}</div>`;
+  } else {
+    div.innerHTML = `<div class="ia-bubble user">${iaFormat(text)}</div>`;
+  }
   wrap.appendChild(div);
-  wrap.scrollTop = wrap.scrollHeight;
+  requestAnimationFrame(()=>{ wrap.scrollTop = wrap.scrollHeight; });
 }
 
 function iaFormat(t){
-  return t
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/\n/g,'<br>')
-    .replace(/---/g,'<hr style="border-color:var(--bd);margin:8px 0">');
+  // Sanitizar básico
+  let s = t
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Blocos de código
+  s = s.replace(/```[\w]*\n?([\s\S]*?)```/g,(_,c)=>`<pre style="background:var(--bg4);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;overflow-x:auto;margin:8px 0"><code style="font-family:var(--mono);font-size:10px;color:var(--ui2);white-space:pre">${c.trim()}</code></pre>`);
+  // Inline code
+  s = s.replace(/`([^`]+)`/g,'<code style="background:var(--bg4);border:1px solid var(--bd);border-radius:4px;padding:1px 5px;font-size:10px;color:var(--ui2)">$1</code>');
+  // Headers
+  s = s.replace(/^### (.+)$/gm,'<strong style="font-size:12px;color:var(--tb);display:block;margin:10px 0 4px">$1</strong>');
+  s = s.replace(/^## (.+)$/gm,'<strong style="font-size:13px;color:var(--ui1);display:block;margin:12px 0 6px">$1</strong>');
+  s = s.replace(/^# (.+)$/gm,'<strong style="font-size:15px;color:var(--tb);display:block;margin:14px 0 8px">$1</strong>');
+  // Bold e italic
+  s = s.replace(/\*\*(.+?)\*\*/g,'<strong style="color:var(--tb)">$1</strong>');
+  s = s.replace(/\*(.+?)\*/g,'<em style="color:var(--ui1)">$1</em>');
+  // Tabelas Markdown
+  s = s.replace(/(\|.+\|\n)+/g, block => {
+    const rows = block.trim().split('\n');
+    const header = rows[0].split('|').filter(c=>c.trim()).map(c=>`<th>${c.trim()}</th>`).join('');
+    const body = rows.slice(2).map(r=>`<tr>${r.split('|').filter(c=>c.trim()).map(c=>`<td>${c.trim()}</td>`).join('')}</tr>`).join('');
+    return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
+  });
+  // Listas
+  s = s.replace(/^[-*] (.+)$/gm,'<li>$1</li>');
+  s = s.replace(/(<li>.*<\/li>)/s, m=>`<ul>${m}</ul>`);
+  s = s.replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
+  // HR
+  s = s.replace(/^---$/gm,'<hr style="border:none;border-top:1px solid var(--bd);margin:10px 0">');
+  // Newlines
+  s = s.replace(/\n\n/g,'</p><p style="margin-top:8px">');
+  s = s.replace(/\n/g,'<br>');
+  return `<p>${s}</p>`;
 }
 
 function iaChip(el){
   const inp = $("ia-inp");
-  if(inp){ inp.value = el.textContent.trim(); inp.focus(); }
+  const text = el.textContent.trim().replace(/^[^\w]+\s*/,''); // remove emoji prefix
+  if(inp){ inp.value = text; inp.focus(); }
   iaSend();
 }
 
 function iaClearChat(){
   _iaMsgs = [];
   const wrap = $("ia-msgs");
-  if(wrap) wrap.innerHTML = `<div class="ia-msg"><div class="ia-bubble assistant">👋 Chat reiniciado. Como posso ajudar com seus investimentos?</div></div>`;
+  if(wrap) wrap.innerHTML = `<div class="ia-msg"><div class="ia-avatar-sm">M</div><div class="ia-bubble assistant"><p>Chat reiniciado. Como posso ajudar com seus investimentos?</p></div></div>`;
 }
 
 async function iaSend(){
