@@ -1054,7 +1054,7 @@ tbody tr:hover{background:rgba(255,196,0,.02)}
 .ri-search-inp::placeholder{color:var(--td)}
 .ri-clear-btn{position:absolute;right:14px;background:none;border:none;
   color:var(--td);cursor:pointer;font-size:14px;padding:4px;transition:color .2s}
-.ri-clear-btn:hover{color:var(--neg)}
+.ri-clear-btn:hover{color:var(--r)}
 
 /* Suggestions dropdown */
 .ri-suggestions{position:absolute;top:calc(100% + 6px);left:0;right:0;
@@ -2064,13 +2064,13 @@ body.light .gr-wm-cover{background:#ffffff}
     <div class="idx-card"><div class="idx-n">USD / BRL</div><div class="idx-v" id="dol-v">—</div><div class="idx-c" id="dol-c">—</div></div>
     <div class="idx-card"><div class="idx-n">Bitcoin</div><div class="idx-v" id="btc-v">—</div><div class="idx-c" id="btc-c">—</div></div>
   </div>
-  <div class="stitle"><div class="sl">Ações</div><div class="sr" id="cnt-a">— ativos</div><button onclick="clearWatchlist('a')" title="Limpar todas as ações" style="font-size:9px;color:var(--td);background:none;border:none;cursor:pointer;padding:0 6px;transition:color .2s" onmouseover="this.style.color='var(--neg)'" onmouseout="this.style.color='var(--td)'">✕ limpar</button></div>
+  <div class="stitle"><div class="sl">Ações</div><div class="sr" id="cnt-a">— ativos</div><button onclick="clearWatchlist('a')" title="Limpar todas as ações" style="font-size:9px;color:var(--td);background:none;border:none;cursor:pointer;padding:0 6px;transition:color .2s" onmouseover="this.style.color='var(--r)'" onmouseout="this.style.color='var(--td)'">✕ limpar</button></div>
   <div class="add-row">
     <input class="inp" id="inp-a" placeholder="Ex: PETR4, VALE3…" maxlength="8" onkeydown="if(event.key==='Enter')addAtivo('a')">
     <button class="btnadd" id="btn-a" onclick="addAtivo('a')">+ ADICIONAR</button>
   </div>
   <div class="agrid" id="grid-a"><div class="loading"><div class="sp"></div>BUSCANDO...</div></div>
-  <div class="stitle"><div class="sl">Fundos Imobiliários</div><div class="sr" id="cnt-f">— ativos</div><button onclick="clearWatchlist('f')" title="Limpar todos os FIIs" style="font-size:9px;color:var(--td);background:none;border:none;cursor:pointer;padding:0 6px;transition:color .2s" onmouseover="this.style.color='var(--neg)'" onmouseout="this.style.color='var(--td)'">✕ limpar</button></div>
+  <div class="stitle"><div class="sl">Fundos Imobiliários</div><div class="sr" id="cnt-f">— ativos</div><button onclick="clearWatchlist('f')" title="Limpar todos os FIIs" style="font-size:9px;color:var(--td);background:none;border:none;cursor:pointer;padding:0 6px;transition:color .2s" onmouseover="this.style.color='var(--r)'" onmouseout="this.style.color='var(--td)'">✕ limpar</button></div>
   <div class="add-row">
     <input class="inp" id="inp-f" placeholder="Ex: MXRF11, HGLG11…" maxlength="8" onkeydown="if(event.key==='Enter')addAtivo('f')">
     <button class="btnadd" id="btn-f" onclick="addAtivo('f')">+ ADICIONAR</button>
@@ -6435,6 +6435,34 @@ async function radarLoad(force){
 function fmtBRL(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtBRLdec(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtM(v){ return v>=1e9?`R$ ${(v/1e9).toFixed(1)}B`:v>=1e6?`R$ ${(v/1e6).toFixed(1)}M`:`R$ ${(v/1e3).toFixed(0)}K`; }
+
+function fPct(v){
+  const n = parseFloat(v) || 0;
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}%`;
+}
+
+function fVol(v){
+  if(!v || isNaN(v)) return "—";
+  if(v >= 1e9) return (v/1e9).toFixed(2) + "B";
+  if(v >= 1e6) return (v/1e6).toFixed(1) + "M";
+  if(v >= 1e3) return (v/1e3).toFixed(0) + "K";
+  return String(v);
+}
+
+function pill(tipo){
+  const map = {
+    "FII":    ["var(--b)",  "rgba(56,189,248,.12)"],
+    "Ação":   ["var(--g)",  "rgba(0,230,118,.12)"],
+    "ETF":    ["var(--a)",  "rgba(245,158,11,.12)"],
+    "BDR":    ["var(--p)",  "rgba(167,139,250,.12)"],
+    "Stock":  ["var(--g)",  "rgba(0,230,118,.12)"],
+    "REIT":   ["var(--ui1)","rgba(0,229,176,.12)"],
+    "Crypto": ["#f7931a",   "rgba(247,147,26,.12)"],
+  };
+  const [color, bg] = map[tipo] || ["var(--td)", "rgba(46,69,96,.3)"];
+  return `<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:${bg};color:${color};letter-spacing:.5px">${tipo||"—"}</span>`;
+}
 
 let _ifAdvOpen = true;
 
