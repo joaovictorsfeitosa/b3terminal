@@ -4936,7 +4936,68 @@ const HM_ICONS = {
 };
 
 let _hmCache = {};     // {SYMBOL: {price,change,name}}
-function hmCellClass(chg){\n  if(chg >=  4) return \"c-pp\";\n  if(chg >=  1.5) return \"c-p\";\n  if(chg >   0.1) return \"c-pl\";\n  if(chg >= -0.1) return \"c-n\";\n  if(chg >= -1.5) return \"c-nl\";\n  if(chg >= -4)   return \"c-m\";\n  return \"c-mm\";\n}\n\nfunction hmChgColor(chg){\n  if(chg >=  1.5) return \"var(--g)\";\n  if(chg >   0.1) return \"rgba(0,230,118,.7)\";\n  if(chg >= -0.1) return \"var(--td)\";\n  if(chg >= -1.5) return \"rgba(255,61,87,.7)\";\n  return \"var(--r)\";\n}\n\nfunction hmFmt(n){\n  if(n==null||isNaN(n)) return \"–\";\n  return n.toLocaleString(\"pt-BR\",{minimumFractionDigits:2,maximumFractionDigits:2});\n}\n\nfunction hmBuildSectorCard(name, syms, data){\n  const cells = syms.map(sym=>{\n    const d = data[sym];\n    if(!d) return `<div class=\"hm-cell skeleton\" aria-label=\"Carregando ${sym}\"></div>`;\n    const chg   = (d.change != null && !isNaN(d.change)) ? d.change : 0;\n    const price = (d.price  != null && !isNaN(d.price))  ? d.price  : 0;\n    const cls   = hmCellClass(chg);\n    const color = hmChgColor(chg);\n    const sign  = chg > 0 ? \"+\" : \"\";\n    const vol   = d.volume ? (d.volume >= 1e6 ? (d.volume/1e6).toFixed(1)+\"M\" : d.volume >= 1e3 ? (d.volume/1e3).toFixed(0)+\"K\" : d.volume) : \"\";\n    const nameTip = (d.name||sym).replace(/\"/g,\"'\");\n    return `<div class=\"hm-cell ${cls}\"\n      role=\"button\" tabindex=\"0\"\n      onclick=\"goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${sym}'),120)\"\n      onkeydown=\"if(event.key==='Enter'||event.key===' ')this.click()\"\n      title=\"${nameTip}&#10;Preço: R$ ${hmFmt(price)}&#10;Variação: ${sign}${chg.toFixed(2)}%${vol?'&#10;Vol: '+vol:''}\">\n      <div class=\"hm-cell-sym\">${sym}</div>\n      <div class=\"hm-cell-chg\" style=\"color:${color}\">${sign}${chg.toFixed(2)}%</div>\n      <div class=\"hm-cell-price\">R$ ${hmFmt(price)}</div>\n    </div>`;\n  }).join(\"\");\n\n  const loaded = syms.filter(s=>data[s] && data[s].change!=null);\n  const avg = loaded.length\n    ? loaded.reduce((s,sym)=>s+(data[sym].change||0),0)/loaded.length\n    : null;\n  const avgTxt = avg!==null\n    ? `${avg>=0?\"+\":\"\"}${avg.toFixed(2)}%`\n    : \"…\";\n  const avgCls = avg===null?\"neu\":avg>0.1?\"pos\":avg<-0.1?\"neg\":\"neu\";\n\n  return `<div class=\"hm-sector-card\" id=\"hm-sec-${name.replace(/[\\s/]/g,\"\")}\">\n    <div class=\"hm-sector-head\">\n      <div class=\"hm-sector-name\">${HM_ICONS[name]||\"\"} ${name}</div>\n      <div class=\"hm-sector-avg ${avgCls}\">${avgTxt}</div>\n    </div>\n    <div class=\"hm-cells\">${cells}</div>\n  </div>`;\n}
+function hmCellClass(chg){
+  if(chg >=  4) return "c-pp";
+  if(chg >=  1.5) return "c-p";
+  if(chg >   0.1) return "c-pl";
+  if(chg >= -0.1) return "c-n";
+  if(chg >= -1.5) return "c-nl";
+  if(chg >= -4)   return "c-m";
+  return "c-mm";
+}
+
+function hmChgColor(chg){
+  if(chg >=  1.5) return "var(--g)";
+  if(chg >   0.1) return "rgba(0,230,118,.7)";
+  if(chg >= -0.1) return "var(--td)";
+  if(chg >= -1.5) return "rgba(255,61,87,.7)";
+  return "var(--r)";
+}
+
+function hmFmt(n){
+  if(n==null||isNaN(n)) return "–";
+  return n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function hmBuildSectorCard(name, syms, data){
+  const cells = syms.map(sym=>{
+    const d = data[sym];
+    if(!d) return `<div class="hm-cell skeleton" aria-label="Carregando ${sym}"></div>`;
+    const chg   = (d.change != null && !isNaN(d.change)) ? d.change : 0;
+    const price = (d.price  != null && !isNaN(d.price))  ? d.price  : 0;
+    const cls   = hmCellClass(chg);
+    const color = hmChgColor(chg);
+    const sign  = chg > 0 ? "+" : "";
+    const vol   = d.volume ? (d.volume >= 1e6 ? (d.volume/1e6).toFixed(1)+"M" : d.volume >= 1e3 ? (d.volume/1e3).toFixed(0)+"K" : d.volume) : "";
+    const nameTip = (d.name||sym).replace(/"/g,"'");
+    return `<div class="hm-cell ${cls}"
+      role="button" tabindex="0"
+      onclick="goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${sym}'),120)"
+      onkeydown="if(event.key==='Enter'||event.key===' ')this.click()"
+      title="${nameTip}&#10;Preço: R$ ${hmFmt(price)}&#10;Variação: ${sign}${chg.toFixed(2)}%${vol?'&#10;Vol: '+vol:''}">
+      <div class="hm-cell-sym">${sym}</div>
+      <div class="hm-cell-chg" style="color:${color}">${sign}${chg.toFixed(2)}%</div>
+      <div class="hm-cell-price">R$ ${hmFmt(price)}</div>
+    </div>`;
+  }).join("");
+
+  const loaded = syms.filter(s=>data[s] && data[s].change!=null);
+  const avg = loaded.length
+    ? loaded.reduce((s,sym)=>s+(data[sym].change||0),0)/loaded.length
+    : null;
+  const avgTxt = avg!==null
+    ? `${avg>=0?"+":""}${avg.toFixed(2)}%`
+    : "…";
+  const avgCls = avg===null?"neu":avg>0.1?"pos":avg<-0.1?"neg":"neu";
+
+  return `<div class="hm-sector-card" id="hm-sec-${name.replace(/[\s/]/g,"")}">
+    <div class="hm-sector-head">
+      <div class="hm-sector-name">${HM_ICONS[name]||""} ${name}</div>
+      <div class="hm-sector-avg ${avgCls}">${avgTxt}</div>
+    </div>
+    <div class="hm-cells">${cells}</div>
+  </div>`;
+}
 
 async function hmFetchSector(name, syms){
   const symsStr = syms.join(",");
@@ -6229,34 +6290,6 @@ async function radarLoad(force){
 function fmtBRL(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtBRLdec(v){ return "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtM(v){ return v>=1e9?`R$ ${(v/1e9).toFixed(1)}B`:v>=1e6?`R$ ${(v/1e6).toFixed(1)}M`:`R$ ${(v/1e3).toFixed(0)}K`; }
-
-function fPct(v){
-  const n = parseFloat(v) || 0;
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
-}
-
-function fVol(v){
-  if(!v || isNaN(v)) return "—";
-  if(v >= 1e9) return (v/1e9).toFixed(2) + "B";
-  if(v >= 1e6) return (v/1e6).toFixed(1) + "M";
-  if(v >= 1e3) return (v/1e3).toFixed(0) + "K";
-  return String(v);
-}
-
-function pill(tipo){
-  const map = {
-    "FII":    ["var(--b)",  "rgba(56,189,248,.12)"],
-    "Ação":   ["var(--g)",  "rgba(0,230,118,.12)"],
-    "ETF":    ["var(--a)",  "rgba(245,158,11,.12)"],
-    "BDR":    ["var(--p)",  "rgba(167,139,250,.12)"],
-    "Stock":  ["var(--g)",  "rgba(0,230,118,.12)"],
-    "REIT":   ["var(--ui1)","rgba(0,229,176,.12)"],
-    "Crypto": ["#f7931a",   "rgba(247,147,26,.12)"],
-  };
-  const [color, bg] = map[tipo] || ["var(--td)", "rgba(46,69,96,.3)"];
-  return `<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:${bg};color:${color};letter-spacing:.5px">${tipo||"—"}</span>`;
-}
 
 let _ifAdvOpen = true;
 
