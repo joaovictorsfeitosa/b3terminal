@@ -1095,14 +1095,31 @@ def brapi_chart_fallback(symbol, period="1mo"):
     """
     BRAPI fallback — free tier limited to ~3mo but better than nothing.
     Only used when Twelve Data fails or key is missing.
+    Uses the dedicated /quote/{sym}?range=&interval= endpoint.
     """
     sym = symbol.upper().replace(".SA", "")
-    brapi_range    = {"1mo":"1mo","3mo":"3mo","6mo":"6mo","1y":"1y","5y":"5y","max":"max"}.get(period,"3mo")
-    brapi_interval = "1mo" if period == "max" else ("1wk" if period == "5y" else "1d")
+    # BRAPI aceita: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
+    range_map = {
+        "1d":"1d","5d":"5d","1mo":"1mo","3mo":"3mo",
+        "6mo":"6mo","1y":"1y","2y":"2y","5y":"5y","max":"5y"
+    }
+    interval_map = {
+        "1d":"1m","5d":"5m","1mo":"1d","3mo":"1d",
+        "6mo":"1wk","1y":"1wk","2y":"1wk","5y":"1mo","max":"1mo"
+    }
+    brapi_range    = range_map.get(period, "1mo")
+    brapi_interval = interval_map.get(period, "1d")
+
+    ck = f"brapi_chart_{sym}_{period}"
+    cached = cache_get(ck)
+    if cached:
+        return cached
+
     data = brapi_get(f"/quote/{sym}", {"range": brapi_range, "interval": brapi_interval})
     out, seen = [], set()
     if data and "results" in data and data["results"]:
-        for h in (data["results"][0].get("historicalDataPrice") or []):
+        hist = data["results"][0].get("historicalDataPrice") or []
+        for h in hist:
             ts = h.get("date")
             if not ts:
                 continue
@@ -1110,25 +1127,37 @@ def brapi_chart_fallback(symbol, period="1mo"):
                 cl = float(h.get("close") or 0)
                 if cl <= 0:
                     continue
-                op = float(h.get("open")  or 0) or cl
-                hi = float(h.get("high")  or 0) or cl
-                lo = float(h.get("low")   or 0) or cl
-                dt = datetime.utcfromtimestamp(int(ts))
-                time_val = dt.strftime("%Y-%m-%d")
-                if time_val in seen:
+                op  = float(h.get("open")   or 0) or cl
+                hi  = float(h.get("high")   or 0) or cl
+                lo  = float(h.get("low")    or 0) or cl
+                vol = int(h.get("volume")   or 0)
+                # ts pode ser inteiro (unix) ou string
+                if isinstance(ts, (int, float)):
+                    dt = datetime.utcfromtimestamp(int(ts))
+                    if period in ("1d", "5d"):
+                        import calendar as _cal
+                        time_val = int(_cal.timegm(dt.timetuple()))
+                    else:
+                        time_val = dt.strftime("%Y-%m-%d")
+                else:
+                    time_val = str(ts)[:10]
+                key = str(time_val)
+                if key in seen:
                     continue
-                seen.add(time_val)
+                seen.add(key)
                 out.append({
                     "time":   time_val,
                     "open":   round(op, 2),
                     "high":   round(hi, 2),
                     "low":    round(lo, 2),
                     "close":  round(cl, 2),
-                    "volume": int(h.get("volume") or 0),
+                    "volume": vol,
                 })
             except Exception:
                 continue
-    out.sort(key=lambda x: x["time"])
+    out.sort(key=lambda x: str(x["time"]))
+    if out:
+        cache_set(ck, out)
     return out
 
 
@@ -2380,104 +2409,230 @@ def simulador_independencia():
 @login_required
 def score_pro_ativo(symbol):
     sym = symbol.upper().replace(".SA", "")
-    # Tenta com modules; se falhar (plano free), cai para chamada simples
-    data = brapi_get(f"/quote/{sym}", {"fundamental": "true", "modules": "summaryProfile,defaultKeyStatistics,financialData"})
-    if not data or "results" not in data or not data["results"]:
-        data = brapi_get(f"/quote/{sym}")  # fallback sem modules
+    ck  = f"score_pro_{sym}"
+    cached = cache_get(ck, ttl=600)
+    if cached:
+        return jsonify(cached)
 
+    # ── 1. Dados de mercado ───────────────────────────────────────────────────
+    data = brapi_get(f"/quote/{sym}", {"fundamental": "true",
+           "modules": "summaryProfile,defaultKeyStatistics,financialData"})
+    if not data or "results" not in data or not data["results"]:
+        data = brapi_get(f"/quote/{sym}")
     if not data or "results" not in data or not data["results"]:
         return jsonify({"error": f"Ativo {sym} não encontrado."}), 404
 
-    r = data["results"][0]
-    fii = _is_fii(sym)
+    r    = data["results"][0]
+    fii  = _is_fii(sym)
 
-    # Extraindo métricas
-    dy           = float(r.get("dividendYield") or 0)
-    price        = float(r.get("regularMarketPrice") or 0)
-    pl           = float(r.get("priceEarnings") or 0)
-    pb           = float(r.get("priceToBook") or 0)
-    roe          = float(r.get("returnOnEquity") or 0) * 100 if r.get("returnOnEquity") else 0
-    market_cap   = float(r.get("marketCap") or 0)
-    div_rate     = float(r.get("dividendRate") or 0)
-    last_div     = float(r.get("lastDividendValue") or 0)
-    week52_low   = float(r.get("fiftyTwoWeekLow") or 0)
-    week52_high  = float(r.get("fiftyTwoWeekHigh") or 0)
+    price       = float(r.get("regularMarketPrice") or 0)
+    pl          = float(r.get("priceEarnings") or 0)
+    pb          = float(r.get("priceToBook") or 0)
+    roe_raw     = r.get("returnOnEquity")
+    roe         = float(roe_raw) * 100 if roe_raw else 0
+    market_cap  = float(r.get("marketCap") or 0)
+    week52_low  = float(r.get("fiftyTwoWeekLow") or 0)
+    week52_high = float(r.get("fiftyTwoWeekHigh") or 0)
+    chg_pct     = float(r.get("regularMarketChangePercent") or 0)
+    volume      = int(r.get("regularMarketVolume") or 0)
+    short_name  = r.get("shortName") or r.get("longName") or sym
+    ebitda_margin = float(r.get("ebitdaMargins") or 0) * 100 if r.get("ebitdaMargins") else 0
+    revenue_growth = float(r.get("revenueGrowth") or 0) * 100 if r.get("revenueGrowth") else 0
+    debt_equity = float(r.get("debtToEquity") or 0)
+    current_ratio = float(r.get("currentRatio") or 0)
 
-    # ── Score Dividendos (0-25) ───────────────────────────────────────────────
+    # ── 2. Dividendos reais (brapi_dividends + _DIV_DB fallback) ─────────────
+    div_h      = brapi_dividends(sym)
+    static_db  = _DIV_DB.get(sym, {})
+
+    # DY: prioridade brapi_dividends > campo quote > _DIV_DB
+    dy = float(r.get("dividendYield") or 0)
+    last_div   = float(r.get("lastDividendValue") or 0)
+    avg_div    = 0.0
+    div_freq   = "Não identificada"
+    div_history_count = 0
+
+    if div_h:
+        hist = div_h.get("history", [])
+        div_history_count = len(hist)
+        if hist:
+            avg_div = div_h.get("avg_value", 0)
+            last_div = div_h.get("last_value", last_div)
+            div_freq = div_h.get("freq_label", div_freq)
+            # Recalcular DY se price disponível e avg_div > 0
+            freq_n = len(div_h.get("freq_months", []))
+            if price > 0 and avg_div > 0 and freq_n > 0:
+                dy_calc = (avg_div * freq_n / price) * 100
+                if dy_calc > 0:
+                    dy = dy_calc
+    elif static_db:
+        dy       = static_db.get("dy", 0) * 100
+        last_div = static_db.get("last_div", 0)
+        freq_n   = static_db.get("freq", 4)
+        freq_map = {12:"Mensal", 4:"Trimestral", 2:"Semestral", 1:"Anual"}
+        div_freq = freq_map.get(freq_n, "Periódica")
+
+    # ── 3. Scores (0-25 cada) ─────────────────────────────────────────────────
+    # Dividendos
     sc_div = 0
-    if dy >= 10: sc_div = 25
-    elif dy >= 7: sc_div = 20
-    elif dy >= 5: sc_div = 15
-    elif dy >= 3: sc_div = 10
-    elif dy >= 1: sc_div = 6
-    elif last_div > 0: sc_div = 4
-    sc_div_label = f"DY de {dy:.1f}%" if dy > 0 else "Sem DY disponível"
+    if dy >= 12: sc_div = 25
+    elif dy >= 9: sc_div = 22
+    elif dy >= 7: sc_div = 18
+    elif dy >= 5: sc_div = 14
+    elif dy >= 3: sc_div = 9
+    elif dy >= 1: sc_div = 5
+    elif last_div > 0: sc_div = 3
+    sc_div_label = f"DY de {dy:.1f}% · {div_freq}" if dy > 0 else "Sem histórico de proventos"
 
-    # ── Score Valuation (0-25) ────────────────────────────────────────────────
-    sc_val = 12  # base
-    if pl > 0:
-        if pl < 8: sc_val = 25
-        elif pl < 12: sc_val = 22
-        elif pl < 18: sc_val = 18
-        elif pl < 25: sc_val = 14
-        elif pl < 40: sc_val = 8
-        else: sc_val = 4
-    elif fii and pb > 0:
-        if pb < 0.85: sc_val = 25
-        elif pb < 1.0: sc_val = 20
-        elif pb < 1.1: sc_val = 15
-        elif pb < 1.3: sc_val = 10
-        else: sc_val = 5
-    sc_val_label = f"P/L: {pl:.1f}" if pl > 0 else ("P/VP: {:.2f}".format(pb) if pb > 0 else "Valuation indisponível")
+    # Valuation
+    sc_val = 12  # neutro
+    if fii:
+        if pb > 0:
+            if pb < 0.80: sc_val = 25
+            elif pb < 0.95: sc_val = 21
+            elif pb < 1.05: sc_val = 17
+            elif pb < 1.20: sc_val = 12
+            elif pb < 1.40: sc_val = 7
+            else: sc_val = 3
+    else:
+        if pl > 0:
+            if pl < 6: sc_val = 25
+            elif pl < 10: sc_val = 22
+            elif pl < 15: sc_val = 18
+            elif pl < 22: sc_val = 14
+            elif pl < 35: sc_val = 8
+            else: sc_val = 3
+        elif pb > 0:
+            if pb < 1.0: sc_val = 20
+            elif pb < 2.0: sc_val = 15
+            elif pb < 4.0: sc_val = 10
+            else: sc_val = 5
+    val_ref = f"P/L: {pl:.1f}" if pl > 0 else (f"P/VP: {pb:.2f}" if pb > 0 else "Valuation indisponível")
+    sc_val_label = val_ref
 
-    # ── Score Crescimento (0-25) ──────────────────────────────────────────────
-    sc_cres = 12  # base neutro
-    if roe >= 20: sc_cres = 25
-    elif roe >= 15: sc_cres = 22
-    elif roe >= 10: sc_cres = 17
-    elif roe >= 5: sc_cres = 12
+    # Crescimento/Qualidade
+    sc_cres = 10
+    if roe >= 25: sc_cres = 25
+    elif roe >= 18: sc_cres = 22
+    elif roe >= 12: sc_cres = 17
+    elif roe >= 7: sc_cres = 12
     elif roe > 0: sc_cres = 7
-    sc_cres_label = f"ROE: {roe:.1f}%" if roe > 0 else "ROE indisponível"
+    elif ebitda_margin >= 30: sc_cres = 18
+    elif ebitda_margin >= 15: sc_cres = 13
+    sc_cres_label = f"ROE: {roe:.1f}%" if roe > 0 else (f"Margem EBITDA: {ebitda_margin:.1f}%" if ebitda_margin > 0 else "ROE indisponível")
 
-    # ── Score Segurança Financeira (0-25) ─────────────────────────────────────
-    sc_seg = 12  # base
+    # Segurança / Posição 52 semanas
+    sc_seg = 12
     dist_52 = 0
-    if week52_high > week52_low and price > 0:
-        dist_52 = (price - week52_low) / (week52_high - week52_low) * 100 if week52_high != week52_low else 50
-        if dist_52 < 20: sc_seg = 22    # perto da mínima = barato
-        elif dist_52 < 40: sc_seg = 18
-        elif dist_52 < 60: sc_seg = 14
-        elif dist_52 < 80: sc_seg = 10
-        else: sc_seg = 6                # perto da máxima
-    sc_seg_label = f"{dist_52:.0f}% da faixa 52 semanas" if dist_52 > 0 else "Posição 52 semanas"
+    if week52_high > week52_low > 0 and price > 0:
+        dist_52 = (price - week52_low) / (week52_high - week52_low) * 100
+        if dist_52 < 15:  sc_seg = 24
+        elif dist_52 < 30: sc_seg = 20
+        elif dist_52 < 50: sc_seg = 15
+        elif dist_52 < 70: sc_seg = 10
+        elif dist_52 < 85: sc_seg = 7
+        else: sc_seg = 4
+    sc_seg_label = f"{dist_52:.0f}% da faixa 52 semanas" if dist_52 > 0 else "Faixa 52 semanas indisponível"
 
     total = min(100, sc_div + sc_val + sc_cres + sc_seg)
 
-    if total >= 90: grade, cat = "A+", "Excelente"
-    elif total >= 80: grade, cat = "A",  "Muito Bom"
-    elif total >= 70: grade, cat = "B+", "Bom"
-    elif total >= 60: grade, cat = "B",  "Regular"
-    else: grade, cat = "C", "Fraco"
+    if total >= 85: grade, cat = "A+", "Excelente"
+    elif total >= 75: grade, cat = "A",  "Muito Bom"
+    elif total >= 65: grade, cat = "B+", "Bom"
+    elif total >= 55: grade, cat = "B",  "Regular"
+    elif total >= 40: grade, cat = "C",  "Fraco"
+    else: grade, cat = "D", "Evitar"
+
+    # ── 4. Parecer de investimento ────────────────────────────────────────────
+    pontos_pos, pontos_neg, pontos_neu = [], [], []
+
+    if dy >= 7:
+        pontos_pos.append(f"Dividend Yield de {dy:.1f}% é atrativo para renda passiva")
+    elif dy >= 4:
+        pontos_neu.append(f"Dividend Yield de {dy:.1f}% é moderado")
+    elif dy > 0:
+        pontos_neg.append(f"Dividend Yield de {dy:.1f}% é baixo para uma estratégia de renda")
+    else:
+        pontos_neg.append("Sem histórico de dividendos identificado")
+
+    if fii:
+        if pb < 0.95:
+            pontos_pos.append(f"P/VP de {pb:.2f} indica desconto em relação ao patrimônio líquido")
+        elif pb < 1.10:
+            pontos_neu.append(f"P/VP de {pb:.2f} próximo ao valor patrimonial — preço justo")
+        elif pb > 0:
+            pontos_neg.append(f"P/VP de {pb:.2f} indica prêmio sobre o patrimônio líquido")
+    else:
+        if 0 < pl < 12:
+            pontos_pos.append(f"P/L de {pl:.1f} indica valuation atrativo")
+        elif pl < 20:
+            pontos_neu.append(f"P/L de {pl:.1f} está dentro da média histórica da B3")
+        elif pl >= 20:
+            pontos_neg.append(f"P/L de {pl:.1f} sugere ativo já precificado com prêmio")
+
+    if roe >= 15:
+        pontos_pos.append(f"ROE de {roe:.1f}% demonstra boa eficiência no uso do capital")
+    elif roe >= 8:
+        pontos_neu.append(f"ROE de {roe:.1f}% é razoável, mas há espaço para melhora")
+    elif roe > 0:
+        pontos_neg.append(f"ROE de {roe:.1f}% é abaixo do ideal — retorno sobre capital reduzido")
+
+    if dist_52 < 30:
+        pontos_pos.append(f"Preço próximo à mínima de 52 semanas ({dist_52:.0f}%) — potencial upside")
+    elif dist_52 > 80:
+        pontos_neg.append(f"Preço próximo à máxima de 52 semanas ({dist_52:.0f}%) — risco de realização")
+    else:
+        pontos_neu.append(f"Preço em posição neutra na faixa de 52 semanas ({dist_52:.0f}%)")
+
+    if div_freq == "Mensal" and dy > 0:
+        pontos_pos.append("Pagamentos mensais facilitam o fluxo de renda passiva")
+    if div_history_count >= 12:
+        pontos_pos.append(f"Histórico consistente de {div_history_count}+ pagamentos de proventos")
+
+    if total >= 75:
+        resumo = f"{sym} apresenta fundamentos sólidos e se destaca no seu setor. O conjunto de indicadores sugere um ativo com bom equilíbrio entre geração de renda, valuation e qualidade financeira."
+        recomendacao = "✅ Ativo com bons fundamentos — merece análise aprofundada para composição de carteira"
+    elif total >= 55:
+        resumo = f"{sym} possui fundamentos razoáveis com pontos positivos e negativos. Pode ser adequado a perfis moderados, com atenção aos riscos identificados."
+        recomendacao = "⚠️ Ativo mediano — avalie o contexto setorial antes de investir"
+    else:
+        resumo = f"{sym} apresenta indicadores abaixo da média. Recomenda-se cautela e acompanhamento mais próximo antes de qualquer decisão de alocação."
+        recomendacao = "🔴 Fundamentos fracos — prefira comparar com alternativas do setor antes de investir"
 
     sector = _SECTOR_MAP.get(sym, "FII" if fii else "Outros")
-    name   = r.get("shortName") or r.get("longName") or sym
 
-    return jsonify({
-        "symbol": sym, "name": name, "sector": sector,
-        "price": price, "fii": fii,
+    result = {
+        "symbol": sym, "name": short_name, "sector": sector,
+        "price": price, "fii": fii, "change_pct": round(chg_pct, 2),
         "score_total": total, "grade": grade, "categoria": cat,
         "scores": {
-            "dividendos":  {"value": sc_div,  "max": 25, "label": "Dividendos",          "detail": sc_div_label},
-            "valuation":   {"value": sc_val,  "max": 25, "label": "Valuation",           "detail": sc_val_label},
-            "crescimento": {"value": sc_cres, "max": 25, "label": "Crescimento/ROE",     "detail": sc_cres_label},
-            "seguranca":   {"value": sc_seg,  "max": 25, "label": "Segurança Financeira","detail": sc_seg_label},
+            "dividendos":  {"value": sc_div,  "max": 25, "label": "Dividendos",           "detail": sc_div_label},
+            "valuation":   {"value": sc_val,  "max": 25, "label": "Valuation",            "detail": sc_val_label},
+            "crescimento": {"value": sc_cres, "max": 25, "label": "Crescimento/Qualidade","detail": sc_cres_label},
+            "seguranca":   {"value": sc_seg,  "max": 25, "label": "Segurança Financeira", "detail": sc_seg_label},
         },
         "metricas": {
-            "dy": dy, "pl": pl, "pb": pb, "roe": roe,
-            "market_cap": market_cap, "last_div": last_div,
+            "dy": round(dy, 2), "pl": round(pl, 2), "pb": round(pb, 2),
+            "roe": round(roe, 2), "market_cap": market_cap,
+            "last_div": round(last_div, 6), "avg_div": round(avg_div, 6),
+            "div_freq": div_freq, "div_count": div_history_count,
             "week52_low": week52_low, "week52_high": week52_high,
+            "ebitda_margin": round(ebitda_margin, 1),
+            "revenue_growth": round(revenue_growth, 1),
+            "debt_equity": round(debt_equity, 2),
+            "current_ratio": round(current_ratio, 2),
+            "volume": volume,
+        },
+        "parecer": {
+            "resumo": resumo,
+            "recomendacao": recomendacao,
+            "positivos": pontos_pos,
+            "negativos": pontos_neg,
+            "neutros":   pontos_neu,
         }
-    })
+    }
+    cache_set(ck, result)
+    return jsonify(result)
 
 
 # ── MERIDIAN SCORE PRO — ranking de ativos ───────────────────────────────────
