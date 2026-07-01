@@ -1586,7 +1586,24 @@ body.light .gr-wm-cover{background:#ffffff}
 .tab-new::after{content:'NEW';position:absolute;top:6px;right:4px;font-size:7px;
   background:var(--ui-grd);color:#000;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:1px}
 
-/* ── SCORE PRO ─────────────────────────────────────────────────── */
+/* ── SCORE PRO — detail card ─────────────────────────────── */
+.sp-detail-card{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:24px;margin-bottom:20px}
+.sp-detail-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:4px}
+.sp-detail-sym{font-family:var(--sans);font-size:24px;font-weight:800;color:var(--tb)}
+.sp-detail-name{font-size:12px;color:var(--td);margin-top:2px}
+.sp-section{background:var(--bg3);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-top:14px}
+.sp-section-t{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--td);margin-bottom:12px}
+.sp-met-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.sp-met{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:10px 12px}
+.sp-met-l{font-size:8px;color:var(--td);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+.sp-met-v{font-family:var(--sans);font-size:14px;font-weight:800;color:var(--tb)}
+.sp-resumo{font-size:12px;color:var(--t);line-height:1.7;margin-bottom:12px}
+.sp-rec{padding:10px 14px;border-radius:8px;font-size:12px;font-weight:700;margin-bottom:12px;line-height:1.5}
+.sp-pontos{display:flex;flex-direction:column;gap:7px}
+.sp-ponto{font-size:11px;line-height:1.5;padding:8px 12px;border-radius:7px}
+.sp-pos{background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.15);color:var(--t)}
+.sp-neg{background:rgba(255,61,87,.06);border:1px solid rgba(255,61,87,.15);color:var(--t)}
+.sp-neu{background:var(--bg4,var(--bg3));border:1px solid var(--bd);color:var(--td)}
 .sp-hero{background:linear-gradient(135deg,rgba(0,229,176,.08),rgba(0,176,255,.06));
   border:1px solid rgba(0,229,176,.2);border-radius:16px;padding:28px 24px;margin-bottom:24px}
 .sp-hero-t{font-family:var(--sans);font-size:22px;font-weight:800;
@@ -1894,7 +1911,6 @@ body.light .gr-wm-cover{background:#ffffff}
   <div class="tab"     data-tab="dividendos"    onclick="goTab(this)"><span class="tab-ico">💰</span><span class="tab-lbl">Dividendos</span></div>
   <div class="tab"     data-tab="simulador"     onclick="goTab(this)"><span class="tab-ico">🧮</span><span class="tab-lbl">Simulador</span></div>
   <div class="tab"     data-tab="graficos"      onclick="goTab(this)"><span class="tab-ico">📊</span><span class="tab-lbl">Gráficos</span></div>
-  <div class="tab"     data-tab="heatmap"       onclick="goTab(this)"><span class="tab-ico">🔥</span><span class="tab-lbl">Heatmap</span></div>
   <div class="tab tab-new" data-tab="score-pro"    onclick="goTab(this)"><span class="tab-ico">🏆</span><span class="tab-lbl">Score PRO</span></div>
   <div class="tab tab-new" data-tab="radar"         onclick="goTab(this)"><span class="tab-ico">🔭</span><span class="tab-lbl">Scanner B3</span></div>
   <div class="tab tab-new" data-tab="independencia" onclick="goTab(this)"><span class="tab-ico">🎯</span><span class="tab-lbl">Independência</span></div>
@@ -2161,40 +2177,6 @@ body.light .gr-wm-cover{background:#ffffff}
 </div></div>
 
 <!-- HEATMAP DA B3 -->
-<div class="page" id="page-heatmap"><div class="wrap">
-
-  <!-- Header -->
-  <div class="hm-header">
-    <div>
-      <div class="hm-title">🔥 Heatmap da B3</div>
-      <div class="hm-sub">Variação do dia · 10 setores · 46 ativos principais</div>
-    </div>
-    <div class="hm-controls">
-      <div class="hm-legend">
-        <div class="hm-leg-bar"></div>
-        <span>−5%</span>
-        <span style="margin-left:auto">+5%</span>
-      </div>
-      <div class="hm-status">
-        <span class="hm-live-dot" id="hm-live-dot"></span>
-        <span id="hm-status-txt">Carregando…</span>
-      </div>
-      <button class="hm-refresh-btn" onclick="hmLoadAll(true)" title="Atualizar">↺</button>
-    </div>
-  </div>
-
-  <!-- Grid de setores -->
-  <div id="hm-grid"></div>
-
-  <!-- Rodapé -->
-  <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-    <div style="font-size:9px;color:var(--td)" id="hm-footer-stats"></div>
-    <div style="font-size:9px;color:var(--td)">Dados: BRAPI · Cache 3 min · Atualiza ao abrir a aba</div>
-  </div>
-
-</div></div>
-
-<!-- NOTÍCIAS -->
 <div class="page" id="page-noticias"><div class="wrap">
   <div class="news-hero">
     <div><div class="news-hero-t">📰 Notícias do Mercado</div><div class="news-hero-s">Atualizadas automaticamente via portais financeiros brasileiros</div></div>
@@ -6116,51 +6098,93 @@ async function spAbrirAtivo(sym){
     const d = await res.json();
     if(d.error){ res_el.innerHTML=`<div class="empty-box"><span class="ei">⚠️</span><span class="et">${d.error}</span></div>`; return; }
 
-    const sc = d.score_total;
+    const sc    = d.score_total;
     const color = spScoreColor(sc);
+    const m     = d.metricas;
+    const p     = d.parecer || {};
     const scores = d.scores;
 
-    let gaugesHtml = Object.values(scores).map(s=>`
-      <div class="sp-gauge">
-        <div class="sp-gauge-num">${s.value}</div>
+    const gaugesHtml = Object.values(scores).map(s=>{
+      const pct = Math.round(s.value/s.max*100);
+      const gc  = spScoreColor(pct);
+      return `<div class="sp-gauge">
+        <div class="sp-gauge-num" style="color:${gc}">${s.value}<span style="font-size:10px;font-weight:400;color:var(--td)">/${s.max}</span></div>
         <div class="sp-gauge-lbl">${s.label}</div>
-        <div style="font-size:10px;color:var(--td);margin-top:4px">${s.detail}</div>
-        <div class="sp-gauge-bar-wrap"><div class="sp-gauge-bar" style="width:${s.value/s.max*100}%"></div></div>
-      </div>`).join("");
+        <div style="font-size:10px;color:var(--td);margin-top:3px">${s.detail}</div>
+        <div class="sp-gauge-bar-wrap"><div class="sp-gauge-bar" style="width:${pct}%;background:${gc}"></div></div>
+      </div>`;
+    }).join("");
 
-    const m = d.metricas;
+    const metRows = [
+      m.dy>0         ? `<div class="sp-met"><div class="sp-met-l">Dividend Yield</div><div class="sp-met-v" style="color:var(--ui1)">${m.dy.toFixed(2)}%</div></div>` : null,
+      m.pl>0         ? `<div class="sp-met"><div class="sp-met-l">P/L</div><div class="sp-met-v">${m.pl.toFixed(2)}</div></div>` : null,
+      m.pb>0         ? `<div class="sp-met"><div class="sp-met-l">P/VP</div><div class="sp-met-v">${m.pb.toFixed(2)}</div></div>` : null,
+      m.roe>0        ? `<div class="sp-met"><div class="sp-met-l">ROE</div><div class="sp-met-v">${m.roe.toFixed(1)}%</div></div>` : null,
+      m.last_div>0   ? `<div class="sp-met"><div class="sp-met-l">Último Provento</div><div class="sp-met-v" style="color:var(--a)">R$ ${m.last_div.toFixed(4)}</div></div>` : null,
+      m.avg_div>0    ? `<div class="sp-met"><div class="sp-met-l">Provento Médio</div><div class="sp-met-v" style="color:var(--a)">R$ ${m.avg_div.toFixed(4)}</div></div>` : null,
+      (m.div_freq && m.div_freq!=="Não identificada") ? `<div class="sp-met"><div class="sp-met-l">Freq. Proventos</div><div class="sp-met-v">${m.div_freq}</div></div>` : null,
+      m.div_count>0  ? `<div class="sp-met"><div class="sp-met-l">Hist. Proventos</div><div class="sp-met-v">${m.div_count} pagamentos</div></div>` : null,
+      m.week52_low>0 ? `<div class="sp-met"><div class="sp-met-l">Mín. 52 sem.</div><div class="sp-met-v">R$ ${m.week52_low.toFixed(2)}</div></div>` : null,
+      m.week52_high>0? `<div class="sp-met"><div class="sp-met-l">Máx. 52 sem.</div><div class="sp-met-v">R$ ${m.week52_high.toFixed(2)}</div></div>` : null,
+      m.ebitda_margin>0?`<div class="sp-met"><div class="sp-met-l">Margem EBITDA</div><div class="sp-met-v">${m.ebitda_margin.toFixed(1)}%</div></div>` : null,
+      m.debt_equity>0  ?`<div class="sp-met"><div class="sp-met-l">Dívida/PL</div><div class="sp-met-v">${m.debt_equity.toFixed(2)}</div></div>` : null,
+    ].filter(Boolean).join("");
+
+    const posHtml = (p.positivos||[]).map(t=>`<div class="sp-ponto sp-pos">✅ ${t}</div>`).join("");
+    const neuHtml = (p.neutros||[]).map(t=>`<div class="sp-ponto sp-neu">ℹ️ ${t}</div>`).join("");
+    const negHtml = (p.negativos||[]).map(t=>`<div class="sp-ponto sp-neg">⚠️ ${t}</div>`).join("");
+
+    const chgCls  = (d.change_pct||0)>=0?"pos":"neg";
+    const chgSign = (d.change_pct||0)>=0?"+":"";
+
     res_el.innerHTML = `
-      <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:22px;margin-bottom:20px;animation:fadeUp .25s">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+      <div class="sp-detail-card" style="animation:fadeUp .25s ease">
+        <div class="sp-detail-head">
           <div>
-            <div style="font-family:var(--sans);font-size:22px;font-weight:800;color:var(--tb)">${d.symbol}</div>
-            <div style="font-size:12px;color:var(--td)">${d.name} · ${d.sector}</div>
+            <div class="sp-detail-sym">${d.symbol}</div>
+            <div class="sp-detail-name">${d.name} · ${d.sector}</div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:10px">
+              <span style="font-family:var(--sans);font-size:20px;font-weight:800;color:var(--tb)">R$ ${(d.price||0).toFixed(2)}</span>
+              <span class="pchg ${chgCls}">${chgSign}${(d.change_pct||0).toFixed(2)}%</span>
+            </div>
           </div>
           <div style="text-align:center">
-            <div style="font-family:var(--sans);font-size:42px;font-weight:800;color:${color};line-height:1">${sc}</div>
-            <div style="font-size:11px;color:${color};font-weight:700">${d.categoria}</div>
+            <div style="font-family:var(--sans);font-size:56px;font-weight:800;color:${color};line-height:1;text-shadow:0 0 30px ${color}55">${sc}</div>
+            <div style="font-size:11px;color:${color};font-weight:700;letter-spacing:1px;margin-top:4px">${d.categoria}</div>
+            <div class="sp-grade" style="background:${color}18;color:${color};border-color:${color}44;margin-top:8px;font-size:15px">${d.grade}</div>
           </div>
         </div>
-        <div style="height:6px;background:var(--bd);border-radius:3px;margin-bottom:16px">
-          <div style="height:6px;width:${sc}%;background:${color};border-radius:3px;transition:width .8s;box-shadow:0 0 12px ${color}66"></div>
+        <div style="height:8px;background:var(--bd);border-radius:4px;margin:16px 0">
+          <div style="height:8px;width:${sc}%;background:${color};border-radius:4px;transition:width .9s;box-shadow:0 0 16px ${color}55"></div>
         </div>
         <div class="sp-gauge-wrap">${gaugesHtml}</div>
-        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-top:8px">
-          <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--td);margin-bottom:8px;font-weight:700">📊 Métricas Fundamentalistas</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px">
-            ${m.dy>0?`<div><div style="font-size:9px;color:var(--td)">DIVIDEND YIELD</div><div style="font-weight:700;color:var(--ui1)">${m.dy.toFixed(2)}%</div></div>`:''}
-            ${m.pl>0?`<div><div style="font-size:9px;color:var(--td)">P/L</div><div style="font-weight:700">${m.pl.toFixed(2)}</div></div>`:''}
-            ${m.pb>0?`<div><div style="font-size:9px;color:var(--td)">P/VP</div><div style="font-weight:700">${m.pb.toFixed(2)}</div></div>`:''}
-            ${m.roe>0?`<div><div style="font-size:9px;color:var(--td)">ROE</div><div style="font-weight:700">${m.roe.toFixed(1)}%</div></div>`:''}
-            ${m.week52_low>0?`<div><div style="font-size:9px;color:var(--td)">MÍN. 52 SEM.</div><div style="font-weight:700">R$ ${m.week52_low.toFixed(2)}</div></div>`:''}
-            ${m.week52_high>0?`<div><div style="font-size:9px;color:var(--td)">MÁX. 52 SEM.</div><div style="font-weight:700">R$ ${m.week52_high.toFixed(2)}</div></div>`:''}
-          </div>
+        <div class="sp-section">
+          <div class="sp-section-t">📊 Métricas Fundamentalistas</div>
+          <div class="sp-met-grid">${metRows||'<div style="color:var(--td);font-size:11px">Dados limitados para este ativo</div>'}</div>
+        </div>
+        <div class="sp-section">
+          <div class="sp-section-t">🧠 Parecer de Investimento</div>
+          <div class="sp-resumo">${p.resumo||""}</div>
+          <div class="sp-rec" style="border-left:3px solid ${color};background:${color}0d;color:${color}">${p.recomendacao||""}</div>
+          <div class="sp-pontos">${posHtml}${neuHtml}${negHtml}</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+          <button onclick="goTab(document.querySelector('[data-tab=graficos]'));setTimeout(()=>gcLoadAsset('${d.symbol}'),150)"
+            style="flex:1;min-width:120px;padding:11px;background:var(--ui-grd);border:none;border-radius:8px;color:#000;font-family:var(--sans);font-weight:800;font-size:12px;cursor:pointer;letter-spacing:1px">
+            📈 VER GRÁFICO
+          </button>
+          <button onclick="goTab(document.querySelector('[data-tab=dividendos]'))"
+            style="flex:1;min-width:120px;padding:11px;background:var(--bg3);border:1px solid var(--bd);border-radius:8px;color:var(--t);font-size:12px;cursor:pointer;letter-spacing:.5px;transition:.2s"
+            onmouseover="this.style.borderColor='var(--a)'" onmouseout="this.style.borderColor='var(--bd)'">
+            💰 VER DIVIDENDOS
+          </button>
         </div>
       </div>`;
   }catch(e){
     res_el.innerHTML=`<div class="empty-box"><span class="ei">⚠️</span><span class="et">Erro: ${e.message}</span></div>`;
   }
 }
+
 
 // ═══════════════════════════════════════════════════════════════
 // SCANNER B3 — PREMIUM
