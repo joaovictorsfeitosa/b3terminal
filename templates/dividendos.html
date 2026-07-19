@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MERIDIAN — Dividendos</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#04070d;--bg2:#080e17;--bg3:#0d1520;--bg4:#111d2b;
+  --bd:#172130;--bd2:#1e2f42;
+  --g:#00e676;--gd:rgba(0,230,118,.08);--gs:rgba(0,230,118,.15);
+  --r:#ff4757;--rd:rgba(255,71,87,.08);
+  --a:#ffd32a;--ad:rgba(255,211,42,.08);
+  --b:#00b4ff;--bds:rgba(0,180,255,.12);
+  --p:#c084fc;--pd:rgba(192,132,252,.08);
+  --t:#8da8c2;--t2:#b0c8df;--tw:#e2f0ff;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+  --grad:linear-gradient(135deg,#00e5b0,#00b0ff);
+}
+html,body{background:var(--bg);color:var(--t);font-family:var(--sans);min-height:100vh}
+#root{min-height:100vh}
+.topbar{position:sticky;top:0;z-index:100;background:rgba(4,7,13,.93);border-bottom:1px solid var(--bd);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px)}
+.logo-box{width:36px;height:36px;background:var(--grad);border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:13px;color:#000}
+.logo-name{font-weight:700;font-size:15px;color:var(--tw);letter-spacing:2px}
+.btn-back{background:var(--bg3);border:1px solid var(--bd2);color:var(--t2);padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none}
+.btn-back:hover{border-color:var(--g);color:var(--g)}
+.main{max-width:1200px;margin:0 auto;padding:28px 24px 60px}
+.search-row{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;align-items:center}
+.search-input{flex:1;min-width:220px;background:var(--bg3);border:1px solid var(--bd2);border-radius:10px;padding:12px 16px;color:var(--tw);font-size:14px;outline:none}
+.search-input:focus{border-color:var(--b);box-shadow:0 0 0 3px rgba(0,180,255,.08)}
+.btn{background:var(--grad);border:none;color:#000;font-weight:700;padding:12px 20px;border-radius:10px;cursor:pointer;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:var(--bg3);border:1px solid var(--bd2);color:var(--t2);padding:12px 18px;border-radius:10px;cursor:pointer;font-size:13px}
+.btn-ghost.active{border-color:var(--g);color:var(--g);background:var(--gd)}
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.chip{background:var(--bg3);border:1px solid var(--bd2);border-radius:20px;padding:6px 14px;font-size:12px;display:flex;align-items:center;gap:8px;color:var(--t2)}
+.chip button{background:none;border:none;color:var(--r);cursor:pointer;font-size:13px;font-weight:700}
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;margin-bottom:20px;overflow:hidden}
+.card-header{padding:16px 22px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.card-title{font-size:14px;font-weight:600;color:var(--tw)}
+.card-body{padding:20px 22px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--bg2);border:1px solid var(--bd);border-radius:16px;padding:18px 20px;position:relative}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--acc,var(--g))}
+.stat-card.green{--acc:var(--g)}.stat-card.blue{--acc:var(--b)}.stat-card.amber{--acc:var(--a)}.stat-card.purple{--acc:var(--p)}.stat-card.red{--acc:var(--r)}
+.stat-label{font-size:10px;color:var(--t);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;margin-bottom:6px}
+.stat-value{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--tw);line-height:1}
+.stat-sub{font-size:11px;color:var(--t);margin-top:6px}
+.freq-badge{display:inline-flex;align-items:center;gap:8px;background:var(--gd);border:1px solid rgba(0,230,118,.3);color:var(--g);border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px}
+.freq-conf{font-family:var(--mono);font-size:11px;color:var(--t2);font-weight:400}
+.alert-change{margin-top:10px;background:var(--ad);border:1px solid rgba(255,211,42,.3);color:var(--a);padding:8px 12px;border-radius:8px;font-size:12px}
+.tabs{display:flex;gap:6px;margin-bottom:0}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--t);padding:10px 14px;border-bottom:1px solid var(--bd)}
+td{padding:10px 14px;font-size:13px;color:var(--t2);border-bottom:1px solid var(--bd);font-family:var(--mono)}
+tr:last-child td{border-bottom:none}
+.pct-up{color:var(--g)}
+.pct-down{color:var(--r)}
+.empty{padding:40px;text-align:center;color:var(--t)}
+.loading{padding:40px;text-align:center;color:var(--t)}
+.compare-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+canvas{max-width:100%}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+
+function fmtBRL(v) {
+  if (v === null || v === undefined) return "—";
+  return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+}
+
+function useDividendProfile(ticker) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(() => {
+    if (!ticker) return;
+    setLoading(true); setError(null);
+    fetch(`/api/v2/dividends/${ticker}`, { credentials: "include" })
+      .then(r => r.json())
+      .then(d => setData(d))
+      .catch(e => setError(String(e)))
+      .finally(() => setLoading(false));
+  }, [ticker]);
+
+  useEffect(() => { load(); }, [load]);
+  return { data, loading, error, reload: load };
+}
+
+function FrequencyBadge({ freq }) {
+  if (!freq || freq.label === "—") return <span className="freq-badge">Sem dados suficientes</span>;
+  const confPct = Math.round((freq.confidence || 0) * 100);
+  return (
+    <div>
+      <span className="freq-badge">
+        {freq.label}
+        <span className="freq-conf">{confPct}% confiança</span>
+      </span>
+      {freq.changed_recently &&
+        <div className="alert-change">⚠️ O padrão de pagamento deste ativo mudou recentemente — histórico anterior pode não refletir o comportamento atual.</div>}
+    </div>
+  );
+}
+
+function GrowthChart({ series, labelKey, valueKey, id }) {
+  const canvasRef = useRef(null);
+  const chartRef = useRef(null);
+
+  useEffect(() => {
+    if (!canvasRef.current || !series || !series.length) return;
+    if (chartRef.current) chartRef.current.destroy();
+    const ctx = canvasRef.current.getContext("2d");
+    chartRef.current = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: series.map(s => s[labelKey]),
+        datasets: [{
+          label: "R$ por período",
+          data: series.map(s => s[valueKey]),
+          backgroundColor: "rgba(0,230,118,0.55)",
+          borderColor: "rgba(0,230,118,1)",
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#8da8c2", font: { size: 10 } }, grid: { color: "#172130" } },
+          y: { ticks: { color: "#8da8c2", font: { size: 10 } }, grid: { color: "#172130" } },
+        }
+      }
+    });
+    return () => { if (chartRef.current) chartRef.current.destroy(); };
+  }, [series, labelKey, valueKey]);
+
+  if (!series || !series.length) return <div className="empty">Sem dados suficientes para o gráfico.</div>;
+  return <canvas ref={canvasRef} height="90" id={id}></canvas>;
+}
+
+function AssetPanel({ ticker, onRemove, comparing }) {
+  const { data, loading, error, reload } = useDividendProfile(ticker);
+  const [view, setView] = useState("monthly");
+
+  if (loading && !data) return <div className="card"><div className="loading">Carregando {ticker}…</div></div>;
+  if (error) return <div className="card"><div className="empty">Erro ao carregar {ticker}.</div></div>;
+  if (!data || !data.found) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">{ticker}</div>
+          {comparing && <button className="btn-ghost" onClick={() => onRemove(ticker)}>Remover</button>}
+        </div>
+        <div className="empty">Sem histórico de proventos disponível para este ativo ainda. A sincronização pode levar alguns instantes na primeira consulta.</div>
+      </div>
+    );
+  }
+
+  const series = view === "monthly" ? data.monthly : view === "quarterly" ? data.quarterly : data.total_por_ano;
+  const labelKey = view === "yearly" ? "ano" : "periodo";
+  const valueKey = view === "yearly" ? "total" : "total";
+
+  return (
+    <div>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">{data.ticker}</div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {comparing && <button className="btn-ghost" onClick={() => onRemove(ticker)}>Remover</button>}
+            {!comparing && <button className="btn-ghost" onClick={reload}>↻ Atualizar</button>}
+          </div>
+        </div>
+        <div className="card-body">
+          <FrequencyBadge freq={data.frequencia} />
+
+          <div className="stats-grid" style={{marginTop:18}}>
+            <div className="stat-card green">
+              <div className="stat-label">Total {new Date().getFullYear()}</div>
+              <div className="stat-value">{fmtBRL(data.total_ano_atual)}</div>
+            </div>
+            <div className="stat-card blue">
+              <div className="stat-label">Últimos 12 meses</div>
+              <div className="stat-value">{fmtBRL(data.total_12m)}</div>
+            </div>
+            <div className="stat-card amber">
+              <div className="stat-label">Média mensal</div>
+              <div className="stat-value">{fmtBRL(data.media_mensal)}</div>
+            </div>
+            <div className="stat-card purple">
+              <div className="stat-label">CAGR proventos</div>
+              <div className="stat-value">{data.cagr_pct !== null && data.cagr_pct !== undefined ? `${data.cagr_pct}%` : "—"}</div>
+            </div>
+            <div className="stat-card green">
+              <div className="stat-label">Maior pagamento</div>
+              <div className="stat-value" style={{fontSize:18}}>{fmtBRL(data.maior_pagamento)}</div>
+            </div>
+            <div className="stat-card red">
+              <div className="stat-label">Menor pagamento</div>
+              <div className="stat-value" style={{fontSize:18}}>{fmtBRL(data.menor_pagamento)}</div>
+            </div>
+          </div>
+
+          {!comparing && (
+            <React.Fragment>
+              <div className="chip-row" style={{marginBottom:14}}>
+                {["monthly","quarterly","yearly"].map(v => (
+                  <button key={v} className={"btn-ghost" + (view===v?" active":"")} onClick={() => setView(v)}>
+                    {v === "monthly" ? "Por mês" : v === "quarterly" ? "Por trimestre" : "Por ano"}
+                  </button>
+                ))}
+              </div>
+              <GrowthChart series={series} labelKey={labelKey} valueKey={valueKey} id={`chart-${ticker}`} />
+            </React.Fragment>
+          )}
+        </div>
+      </div>
+
+      {!comparing && (
+        <div className="card">
+          <div className="card-header"><div className="card-title">Total por ano (5 anos) e crescimento</div></div>
+          <div className="card-body" style={{padding:0}}>
+            <table>
+              <thead><tr><th>Ano</th><th>Total pago</th><th>Nº pagamentos</th><th>Crescimento vs ano anterior</th></tr></thead>
+              <tbody>
+                {data.total_por_ano.map((row, i) => {
+                  const growth = data.crescimento_aa.find(g => g.para === row.ano);
+                  return (
+                    <tr key={row.ano}>
+                      <td>{row.ano}</td>
+                      <td>{fmtBRL(row.total)}</td>
+                      <td>{row.qtd_pagamentos}</td>
+                      <td className={growth && growth.crescimento_pct >= 0 ? "pct-up" : "pct-down"}>
+                        {growth && growth.crescimento_pct !== null ? `${growth.crescimento_pct > 0 ? "+" : ""}${growth.crescimento_pct}%` : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!comparing && data.proximos_pagamentos && data.proximos_pagamentos.length > 0 && (
+        <div className="card">
+          <div className="card-header"><div className="card-title">Próximos pagamentos declarados</div></div>
+          <div className="card-body" style={{padding:0}}>
+            <table>
+              <thead><tr><th>Data de pagamento</th><th>Valor por cota/ação</th></tr></thead>
+              <tbody>
+                {data.proximos_pagamentos.map((p, i) => (
+                  <tr key={i}><td>{new Date(p.data).toLocaleDateString("pt-BR")}</td><td>{fmtBRL(p.valor)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [query, setQuery] = useState("");
+  const [activeTicker, setActiveTicker] = useState(null);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareTickers, setCompareTickers] = useState([]);
+
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const t = query.trim().toUpperCase();
+    if (!t) return;
+    if (compareMode) {
+      if (compareTickers.length >= 4) return;
+      if (!compareTickers.includes(t)) setCompareTickers([...compareTickers, t]);
+    } else {
+      setActiveTicker(t);
+    }
+    setQuery("");
+  };
+
+  const removeCompare = (t) => setCompareTickers(compareTickers.filter(x => x !== t));
+
+  return (
+    <div>
+      <div className="topbar">
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div className="logo-box">M</div>
+          <div className="logo-name">DIVIDENDOS</div>
+        </div>
+        <a className="btn-back" href="/">← Voltar ao terminal</a>
+      </div>
+
+      <div className="main">
+        <form className="search-row" onSubmit={submitSearch}>
+          <input
+            className="search-input"
+            placeholder={compareMode ? "Adicionar ticker à comparação (até 4)…" : "Buscar ticker (ex: MXRF11, ITUB4)…"}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          <button className="btn" type="submit">Buscar</button>
+          <button
+            type="button"
+            className={"btn-ghost" + (compareMode ? " active" : "")}
+            onClick={() => setCompareMode(!compareMode)}
+          >
+            {compareMode ? "✕ Sair da comparação" : "⇄ Comparar ativos"}
+          </button>
+        </form>
+
+        {compareMode && compareTickers.length > 0 && (
+          <div className="chip-row">
+            {compareTickers.map(t => (
+              <div className="chip" key={t}>{t}<button onClick={() => removeCompare(t)}>✕</button></div>
+            ))}
+          </div>
+        )}
+
+        {!compareMode && activeTicker && <AssetPanel ticker={activeTicker} comparing={false} />}
+        {!compareMode && !activeTicker && (
+          <div className="card"><div className="empty">Busque um ticker acima para ver o histórico completo de dividendos: frequência de pagamento, totais por ano/mês/trimestre, crescimento e próximos pagamentos.</div></div>
+        )}
+
+        {compareMode && (
+          <div className="compare-grid">
+            {compareTickers.map(t => (
+              <AssetPanel key={t} ticker={t} onRemove={removeCompare} comparing={true} />
+            ))}
+            {compareTickers.length === 0 && (
+              <div className="card"><div className="empty">Adicione até 4 tickers acima para comparar dividendos, frequência e crescimento lado a lado.</div></div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
