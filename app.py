@@ -8,6 +8,7 @@ from models import db, User, Ativo, UserData
 from models import ADMIN_EMAIL
 import feedparser
 from dateutil.relativedelta import relativedelta
+from dividends_api import dividends_bp, init_dividends_api
 
 app = Flask(__name__)
 import secrets as _sec
@@ -472,6 +473,9 @@ def _build_div_result(sym, payments, freq_label, freq_months, cotas=1, declared_
         "projected":        projected,
         "total_pagamentos": len(hist_payments),
         "has_declared":     bool(declared_future),
+        # payload completo (não truncado) — usado pelo dividends_service para
+        # persistir o histórico no banco (proventos)
+        "_raw_payments":    (payments or []) + (declared_future or []),
     }
 
 
@@ -793,6 +797,58 @@ def brapi_dividends(symbol, cotas=1):
                              declared_future=declared_future)
 
 
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Sistema de Dividendos v2 — registro da blueprint + sync agendado
+# ══════════════════════════════════════════════════════════════════════════
+app.register_blueprint(dividends_bp)
+init_dividends_api(fetch_dividends_fn=brapi_dividends, is_fii_fn=_is_fii)
+
+
+def _run_daily_dividend_sync():
+    """Sincroniza os proventos de todos os tickers presentes nas carteiras
+    dos usuários. Roda 1x/dia. Em instâncias free do Render que hibernam,
+    isso só executa quando o serviço está acordado — para garantia de
+    execução mesmo com o app dormindo, prefira um Render Cron Job separado
+    chamando POST /api/v2/dividends/<ticker>/sync (admin)."""
+    import dividends_service as ds
+    with app.app_context():
+        try:
+            tickers = sorted(set(a.symbol.upper() for a in Ativo.query.with_entities(Ativo.symbol).all()))
+        except Exception as e:
+            print(f"  [dividend-sync] erro ao listar tickers: {e}")
+            return
+        print(f"  [dividend-sync] sincronizando {len(tickers)} tickers…")
+        for t in tickers:
+            try:
+                tipo_ativo = "fii" if _is_fii(t) else "acao"
+                ds.sync_ticker(t, tipo_ativo, brapi_dividends)
+            except Exception as e:
+                print(f"  [dividend-sync] {t}: {e}")
+        print("  [dividend-sync] concluído.")
+
+
+def _start_dividend_scheduler():
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+    except ImportError:
+        print("  [dividend-sync] APScheduler não instalado — sync automático desativado.")
+        return
+    scheduler = BackgroundScheduler(daemon=True, timezone="America/Sao_Paulo")
+    scheduler.add_job(_run_daily_dividend_sync, "cron", hour=3, minute=0, id="daily_dividend_sync")
+    scheduler.start()
+    print("  [dividend-sync] agendador iniciado (diário às 03:00).")
+
+
+if os.environ.get("ENABLE_DIVIDEND_SCHEDULER", "true").lower() == "true":
+    _start_dividend_scheduler()
+
+
+@app.route("/dividendos")
+@login_required
+def dividendos_page():
+    return render_template("dividendos.html")
 
 
 @app.route("/login",methods=["GET"])

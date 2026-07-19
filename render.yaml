@@ -1,1 +1,23 @@
-web: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+services:
+  - type: web
+    name: b3-terminal
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: b3-terminal-redis
+          property: connectionString
+    healthCheckPath: /api/health
+
+  # Cache Redis para o sistema de dividendos (proventos, agregados).
+  # Opcional: se REDIS_URL não estiver definida, o app usa cache em memória
+  # automaticamente (dividends_service.py detecta a ausência e faz fallback).
+  - type: keyvalue
+    name: b3-terminal-redis
+    plan: free
+    ipAllowList: []
