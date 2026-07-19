@@ -2293,6 +2293,13 @@ def ai_chat():
     if not messages:
         return jsonify({"error": "Nenhuma mensagem enviada."}), 400
 
+    # Python 3.11 não permite backslash dentro da parte de expressão de uma
+    # f-string — por isso essa parte é montada antes, fora da f-string grande.
+    portfolio_ctx_line = (
+        f"**Carteira atual do usuário:**\n{portfolio_ctx}" if portfolio_ctx
+        else "Carteira não carregada — o usuário pode adicioná-la na aba Carteira."
+    )
+
     system_prompt = f"""Você é o MERIDIAN AI — um analista financeiro sênior especializado no mercado de capitais brasileiro e internacional. Você combina a profundidade analítica de um gestor de fundos com a clareza didática de um educador financeiro de alto nível.
 
 ## IDENTIDADE E POSTURA
@@ -2351,7 +2358,7 @@ def ai_chat():
 - Respostas concisas para perguntas simples, detalhadas para análises complexas
 
 ## CONTEXTO DO USUÁRIO
-{f"**Carteira atual do usuário:**\\n{portfolio_ctx}" if portfolio_ctx else "Carteira não carregada — o usuário pode adicioná-la na aba Carteira."}
+{portfolio_ctx_line}
 
 ## REGRAS INVIOLÁVEIS
 1. Nunca recomendar compra/venda específica com tom de certeza — apresente o raciocínio e o usuário decide
